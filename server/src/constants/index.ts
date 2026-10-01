@@ -1,0 +1,52 @@
+/** Domain enums. Keep in sync with `src/types/index.ts` in the app. */
+
+export const PLAN_IDS = ['essential', 'plus', 'family', 'senior_care', 'community'] as const;
+export type PlanId = (typeof PLAN_IDS)[number];
+
+export const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as const;
+
+export const RECORD_TYPES = ['pod_screening', 'lab_report', 'prescription', 'vaccination'] as const;
+
+/** How a record entered the locker. */
+export const RECORD_SOURCES = ['pod', 'upload', 'whatsapp', 'abha', 'consult'] as const;
+
+export const READING_FLAGS = ['normal', 'watch', 'borderline', 'high', 'low'] as const;
+
+/** Where a QR code is carried. */
+export const QR_CARRIERS = ['card', 'lock_screen', 'helmet_sticker', 'tag'] as const;
+
+/** Fields a member can expose on the public emergency view (layer 1). */
+export const EMERGENCY_FIELDS = [
+  'photo',
+  'bloodGroup',
+  'allergies',
+  'conditions',
+  'medicines',
+  'emergencyContacts',
+  'organDonor',
+  'insurance',
+] as const;
+
+export const POD_TIERS = ['arc_one', 'arc_plus', 'arc_pro', 'arc_max'] as const;
+
+export const POD_SITE_TYPES = [
+  'residential_society',
+  'corporate_campus',
+  'clinic',
+  'pharmacy',
+  'community_centre',
+  'government_health_centre',
+] as const;
+
+export const SPECIALTIES = [
+  'general_medicine',
+  'diabetes_endocrinology',
+  'cardiology',
+  'paediatrics',
+  'gynaecology',
+  'dermatology',
+  'psychiatry',
+  'nutrition',
+] as const;
+
+export const REMINDER_KINDS = ['medicine', 'test', 'vaccine'] as const;

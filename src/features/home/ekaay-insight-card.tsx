@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { Sparkles } from 'lucide-react-native';
+import { CalendarPlus, MessageCircle, Sparkles } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -31,6 +31,13 @@ export function EkaayInsightCard({
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.card}>
+      <View
+        style={styles.watermark}
+        pointerEvents="none"
+        aria-hidden>
+        <Sparkles size={120} color={Colors.primary} strokeWidth={1.2} />
+      </View>
+
       <View style={styles.header}>
         <LinearGradient
           colors={[Colors.primaryMid, Colors.primary]}
@@ -53,8 +60,13 @@ export function EkaayInsightCard({
       />
 
       <View style={styles.actions}>
-        <Button label={primaryLabel} onPress={onPrimary} />
-        <Button label={secondaryLabel} variant="secondary" onPress={onSecondary} />
+        <Button label={primaryLabel} icon={CalendarPlus} onPress={onPrimary} />
+        <Button
+          label={secondaryLabel}
+          icon={MessageCircle}
+          variant="secondary"
+          onPress={onSecondary}
+        />
       </View>
     </LinearGradient>
   );
@@ -67,6 +79,13 @@ const styles = StyleSheet.create({
     borderRadius: Radius.xl - 4,
     borderWidth: 1,
     borderColor: Colors.dangerSoft,
+    overflow: 'hidden',
+  },
+  watermark: {
+    position: 'absolute',
+    top: -18,
+    right: -18,
+    opacity: 0.07,
   },
   header: {
     flexDirection: 'row',

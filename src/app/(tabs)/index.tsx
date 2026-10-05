@@ -55,7 +55,10 @@ export default function HomeScreen() {
           onSecondary={() => router.navigate('/ekaay')}
         />
 
-        <QuickActions onPress={(id) => router.navigate(ACTION_ROUTES[id])} />
+        <View style={styles.section}>
+          <SectionHeader title="Quick actions" />
+          <QuickActions onPress={(id) => router.navigate(ACTION_ROUTES[id])} />
+        </View>
 
         <EmergencyBanner
           isOn={emergencyQr.isOn}

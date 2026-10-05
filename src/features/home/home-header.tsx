@@ -2,7 +2,7 @@ import { Bell } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Shadows, Spacing } from '@/constants/theme';
 import { MemberAvatar } from '@/features/profile/member-avatar';
 
 function greeting(hour: number) {
@@ -43,7 +43,7 @@ export function HomeHeader({
         <ThemedText type="small" themeColor="textSecondary">
           {greeting(new Date().getHours())}
         </ThemedText>
-        <ThemedText type="subtitle" numberOfLines={1}>
+        <ThemedText type="subtitle" numberOfLines={1} style={styles.name}>
           {firstName}
         </ThemedText>
       </View>
@@ -68,6 +68,11 @@ const styles = StyleSheet.create({
   },
   text: {
     flex: 1,
+  },
+  name: {
+    fontFamily: Fonts.display,
+    fontSize: 24,
+    lineHeight: 30,
   },
   bell: {
     width: 44,

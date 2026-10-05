@@ -1,3 +1,4 @@
+import { type LucideIcon } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -12,12 +13,22 @@ export const FLAG_STYLES: Record<ReadingFlag, { label: string; color: string; so
   low: { label: 'Low', color: Colors.danger, soft: Colors.dangerSoft },
 };
 
-export function StatusChip({ flag }: { flag: ReadingFlag }) {
+type StatusChipProps = {
+  flag: ReadingFlag;
+  /** Shown in place of the dot, e.g. the metric the flag belongs to. */
+  icon?: LucideIcon;
+};
+
+export function StatusChip({ flag, icon: Icon }: StatusChipProps) {
   const { label, color, soft } = FLAG_STYLES[flag];
 
   return (
     <View style={[styles.chip, { backgroundColor: soft }]}>
-      <View style={[styles.dot, { backgroundColor: color }]} />
+      {Icon ? (
+        <Icon size={12} color={color} strokeWidth={2.4} />
+      ) : (
+        <View style={[styles.dot, { backgroundColor: color }]} />
+      )}
       <ThemedText style={[styles.label, { color }]}>{label}</ThemedText>
     </View>
   );

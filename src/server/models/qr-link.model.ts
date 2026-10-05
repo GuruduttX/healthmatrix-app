@@ -1,14 +1,15 @@
-import { Schema, model, type InferSchemaType } from 'mongoose';
+import { type InferSchemaType } from 'mongoose';
 
-import { QR_CARRIERS } from '../constants/index.js';
+import { QR_CARRIERS } from '../constants';
+import { defineModel, mongoose } from '../mongoose';
 
 /**
  * The QR holds no medical data, only this revocable code
  * (`<EMERGENCY_BASE_URL>/<code>`). Revoking it kills every printed copy.
  */
-const qrLinkSchema = new Schema(
+const qrLinkSchema = new mongoose.Schema(
   {
-    member: { type: Schema.Types.ObjectId, ref: 'Member', required: true, index: true },
+    member: { type: mongoose.Schema.Types.ObjectId, ref: 'Member', required: true, index: true },
     code: { type: String, required: true, unique: true },
     carrier: { type: String, enum: QR_CARRIERS, default: 'card' },
     status: { type: String, enum: ['active', 'revoked'], default: 'active' },
@@ -18,4 +19,4 @@ const qrLinkSchema = new Schema(
 );
 
 export type QrLink = InferSchemaType<typeof qrLinkSchema>;
-export const QrLinkModel = model('QrLink', qrLinkSchema);
+export const QrLinkModel = defineModel('QrLink', qrLinkSchema);

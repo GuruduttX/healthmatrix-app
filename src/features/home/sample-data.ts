@@ -21,10 +21,9 @@ export type Insight = {
 
 /**
  * SAMPLE DATA from the brochure mock-up, so the Home screen can be designed
- * before the readings and insights APIs exist. Replace with API data.
+ * before the readings and insights APIs exist. The member's name comes from sign-in. Replace with API data.
  */
 export const sampleHome = {
-  member: { firstName: 'Rohan', initials: 'RS' },
   hasUnreadNotifications: true,
   readings: [
     {

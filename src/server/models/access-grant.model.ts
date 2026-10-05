@@ -1,13 +1,15 @@
-import { Schema, model, type InferSchemaType } from 'mongoose';
+import { type InferSchemaType } from 'mongoose';
+
+import { defineModel, mongoose } from '../mongoose';
 
 /**
  * Full-record access (layer 2): a doctor asks, the member or their nominee
  * approves with an OTP, and the grant expires on its own.
  */
-const accessGrantSchema = new Schema(
+const accessGrantSchema = new mongoose.Schema(
   {
-    member: { type: Schema.Types.ObjectId, ref: 'Member', required: true },
-    doctor: { type: Schema.Types.ObjectId, ref: 'Doctor', required: true },
+    member: { type: mongoose.Schema.Types.ObjectId, ref: 'Member', required: true },
+    doctor: { type: mongoose.Schema.Types.ObjectId, ref: 'Doctor', required: true },
 
     status: {
       type: String,
@@ -30,4 +32,4 @@ accessGrantSchema.index({ member: 1, createdAt: -1 });
 accessGrantSchema.index({ doctor: 1, status: 1 });
 
 export type AccessGrant = InferSchemaType<typeof accessGrantSchema>;
-export const AccessGrantModel = model('AccessGrant', accessGrantSchema);
+export const AccessGrantModel = defineModel('AccessGrant', accessGrantSchema);

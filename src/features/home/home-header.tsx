@@ -1,9 +1,9 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { Bell } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Fonts, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Shadows, Spacing } from '@/constants/theme';
+import { MemberAvatar } from '@/features/profile/member-avatar';
 
 function greeting(hour: number) {
   if (hour < 12) return 'Good morning';
@@ -12,22 +12,32 @@ function greeting(hour: number) {
 }
 
 type HomeHeaderProps = {
-  firstName: string;
-  initials: string;
+  name: string;
+  photoUrl?: string;
   hasUnread: boolean;
+  onPressProfile?: () => void;
   onPressNotifications?: () => void;
 };
 
-export function HomeHeader({ firstName, initials, hasUnread, onPressNotifications }: HomeHeaderProps) {
+export function HomeHeader({
+  name,
+  photoUrl,
+  hasUnread,
+  onPressProfile,
+  onPressNotifications,
+}: HomeHeaderProps) {
+  const firstName = name.trim().split(/\s+/)[0] ?? '';
+
   return (
     <View style={styles.row}>
-      <LinearGradient
-        colors={[Colors.primaryMid, Colors.primary]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.avatar}>
-        <ThemedText style={styles.initials}>{initials}</ThemedText>
-      </LinearGradient>
+      <Pressable
+        onPress={onPressProfile}
+        accessibilityRole="button"
+        accessibilityLabel="Open your profile"
+        hitSlop={4}
+        style={({ pressed }) => pressed && styles.pressed}>
+        <MemberAvatar name={name} photoUrl={photoUrl} size={48} />
+      </Pressable>
 
       <View style={styles.text}>
         <ThemedText type="small" themeColor="textSecondary">
@@ -55,18 +65,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three - 4,
-  },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  initials: {
-    fontFamily: Fonts.bold,
-    fontSize: 16,
-    color: Colors.onInk,
   },
   text: {
     flex: 1,

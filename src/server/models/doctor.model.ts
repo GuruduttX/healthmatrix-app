@@ -1,8 +1,9 @@
-import { Schema, model, type InferSchemaType } from 'mongoose';
+import { type InferSchemaType } from 'mongoose';
 
-import { SPECIALTIES } from '../constants/index.js';
+import { SPECIALTIES } from '../constants';
+import { defineModel, mongoose } from '../mongoose';
 
-const doctorSchema = new Schema(
+const doctorSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     phone: { type: String, required: true, unique: true },
@@ -16,4 +17,4 @@ const doctorSchema = new Schema(
 );
 
 export type Doctor = InferSchemaType<typeof doctorSchema>;
-export const DoctorModel = model('Doctor', doctorSchema);
+export const DoctorModel = defineModel('Doctor', doctorSchema);

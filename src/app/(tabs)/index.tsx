@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { Screen } from '@/components/screen';
 import { SectionHeader } from '@/components/ui/section-header';
 import { Spacing } from '@/constants/theme';
+import { useAuth } from '@/features/auth/auth-context';
 import { EkaayInsightCard } from '@/features/home/ekaay-insight-card';
 import { EmergencyBanner } from '@/features/home/emergency-banner';
 import { HomeHeader } from '@/features/home/home-header';
@@ -20,15 +21,17 @@ const ACTION_ROUTES: Record<QuickActionId, Href> = {
 };
 
 export default function HomeScreen() {
-  const { member, hasUnreadNotifications, readings, insight, emergencyQr } = sampleHome;
+  const { member } = useAuth();
+  const { hasUnreadNotifications, readings, insight, emergencyQr } = sampleHome;
 
   return (
     <Screen>
       <View style={styles.sections}>
         <HomeHeader
-          firstName={member.firstName}
-          initials={member.initials}
+          name={member?.name ?? ''}
+          photoUrl={member?.photoUrl}
           hasUnread={hasUnreadNotifications}
+          onPressProfile={() => router.push('/profile')}
         />
 
         <View style={styles.section}>

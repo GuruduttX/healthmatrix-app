@@ -1,10 +1,12 @@
-import { Schema, model, type InferSchemaType } from 'mongoose';
+import { type InferSchemaType } from 'mongoose';
+
+import { defineModel, mongoose } from '../mongoose';
 
 /** Every QR scan is logged with time and place, and the family is alerted. */
-const scanLogSchema = new Schema(
+const scanLogSchema = new mongoose.Schema(
   {
-    member: { type: Schema.Types.ObjectId, ref: 'Member', required: true, index: true },
-    qrLink: { type: Schema.Types.ObjectId, ref: 'QrLink', required: true },
+    member: { type: mongoose.Schema.Types.ObjectId, ref: 'Member', required: true, index: true },
+    qrLink: { type: mongoose.Schema.Types.ObjectId, ref: 'QrLink', required: true },
     scannedAt: { type: Date, default: Date.now },
 
     /** GeoJSON point, [longitude, latitude]. Absent if the scanner denied location. */
@@ -23,4 +25,4 @@ const scanLogSchema = new Schema(
 scanLogSchema.index({ member: 1, scannedAt: -1 });
 
 export type ScanLog = InferSchemaType<typeof scanLogSchema>;
-export const ScanLogModel = model('ScanLog', scanLogSchema);
+export const ScanLogModel = defineModel('ScanLog', scanLogSchema);

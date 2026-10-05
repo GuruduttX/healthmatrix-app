@@ -59,6 +59,7 @@ function RootNavigator() {
           <Stack.Protected guard={!!token}>
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="responder-preview" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="profile" />
           </Stack.Protected>
           <Stack.Protected guard={!token}>
             <Stack.Screen name="(auth)" />

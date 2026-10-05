@@ -1,4 +1,25 @@
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
+
+/**
+ * The API ships with the app as Expo Router API routes (`src/app/api`). On web it is the same
+ * origin. On a phone in development it is the dev server the app was loaded from; in release
+ * builds a relative URL resolves against the `origin` set on the expo-router plugin.
+ * Set EXPO_PUBLIC_API_URL only to point at a different deployment.
+ */
+function resolveBaseUrl() {
+  if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
+  const devServer = Constants.expoConfig?.hostUri; // e.g. "192.168.1.20:8081"
+  if (Platform.OS !== 'web' && __DEV__ && devServer) return `http://${devServer}/api/v1`;
+  return '/api/v1';
+}
+
+const BASE_URL = resolveBaseUrl();
+
+/** Full URL for an API path, e.g. a member's `photoUrl` for an <Image>. */
+export function apiUrl(path: string) {
+  return `${BASE_URL}${path}`;
+}
 
 let authToken: string | null = null;
 
@@ -22,7 +43,7 @@ type ApiOptions = Omit<RequestInit, 'body'> & { body?: unknown };
 export async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
   const { body, headers, ...rest } = options;
 
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const res = await fetch(apiUrl(path), {
     ...rest,
     headers: {
       Accept: 'application/json',

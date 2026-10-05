@@ -1,16 +1,18 @@
-import { Schema, model, type InferSchemaType } from 'mongoose';
+import { type InferSchemaType } from 'mongoose';
+
+import { defineModel, mongoose } from '../mongoose';
 
 /** A Family plan group. Caregivers manage records for children and parents. */
-const familySchema = new Schema(
+const familySchema = new mongoose.Schema(
   {
-    owner: { type: Schema.Types.ObjectId, ref: 'Member', required: true },
+    owner: { type: mongoose.Schema.Types.ObjectId, ref: 'Member', required: true },
     members: [
       {
         _id: false,
-        member: { type: Schema.Types.ObjectId, ref: 'Member', required: true },
+        member: { type: mongoose.Schema.Types.ObjectId, ref: 'Member', required: true },
         relation: String,
         /** The caregiver who manages this person's records and alerts. */
-        managedBy: { type: Schema.Types.ObjectId, ref: 'Member' },
+        managedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Member' },
       },
     ],
   },
@@ -20,4 +22,4 @@ const familySchema = new Schema(
 familySchema.index({ 'members.member': 1 });
 
 export type Family = InferSchemaType<typeof familySchema>;
-export const FamilyModel = model('Family', familySchema);
+export const FamilyModel = defineModel('Family', familySchema);

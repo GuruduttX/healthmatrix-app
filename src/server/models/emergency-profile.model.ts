@@ -1,8 +1,9 @@
-import { Schema, model, type InferSchemaType } from 'mongoose';
+import { type InferSchemaType } from 'mongoose';
 
-import { EMERGENCY_FIELDS } from '../constants/index.js';
+import { EMERGENCY_FIELDS } from '../constants';
+import { defineModel, mongoose } from '../mongoose';
 
-const contactSchema = new Schema(
+const contactSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     relation: String,
@@ -14,9 +15,9 @@ const contactSchema = new Schema(
 );
 
 /** What a stranger sees after scanning the QR (layer 1). One per member. */
-const emergencyProfileSchema = new Schema(
+const emergencyProfileSchema = new mongoose.Schema(
   {
-    member: { type: Schema.Types.ObjectId, ref: 'Member', required: true, unique: true },
+    member: { type: mongoose.Schema.Types.ObjectId, ref: 'Member', required: true, unique: true },
 
     allergies: [String],
     conditions: [String],
@@ -35,4 +36,4 @@ const emergencyProfileSchema = new Schema(
 );
 
 export type EmergencyProfile = InferSchemaType<typeof emergencyProfileSchema>;
-export const EmergencyProfileModel = model('EmergencyProfile', emergencyProfileSchema);
+export const EmergencyProfileModel = defineModel('EmergencyProfile', emergencyProfileSchema);

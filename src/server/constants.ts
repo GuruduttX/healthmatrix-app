@@ -1,7 +1,9 @@
-/** Domain enums. Keep in sync with `src/types/index.ts` in the app. */
+/** Domain enums. Keep in sync with `src/types/index.ts`. */
 
 export const PLAN_IDS = ['essential', 'plus', 'family', 'senior_care', 'community'] as const;
 export type PlanId = (typeof PLAN_IDS)[number];
+
+export const GENDERS = ['male', 'female', 'other'] as const;
 
 export const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as const;
 

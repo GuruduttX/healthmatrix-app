@@ -1,8 +1,9 @@
-import { Schema, model, type InferSchemaType } from 'mongoose';
+import { type InferSchemaType } from 'mongoose';
 
-import { READING_FLAGS, RECORD_SOURCES, RECORD_TYPES } from '../constants/index.js';
+import { READING_FLAGS, RECORD_SOURCES, RECORD_TYPES } from '../constants';
+import { defineModel, mongoose } from '../mongoose';
 
-const valueSchema = new Schema(
+const valueSchema = new mongoose.Schema(
   {
     name: { type: String, required: true }, // "LDL cholesterol"
     code: String, // stable key for trends, e.g. "ldl"
@@ -15,9 +16,9 @@ const valueSchema = new Schema(
 );
 
 /** One entry on the records timeline: pod result, lab PDF, prescription or vaccine. */
-const healthRecordSchema = new Schema(
+const healthRecordSchema = new mongoose.Schema(
   {
-    member: { type: Schema.Types.ObjectId, ref: 'Member', required: true },
+    member: { type: mongoose.Schema.Types.ObjectId, ref: 'Member', required: true },
     type: { type: String, enum: RECORD_TYPES, required: true },
     source: { type: String, enum: RECORD_SOURCES, required: true },
     title: { type: String, required: true },
@@ -25,8 +26,8 @@ const healthRecordSchema = new Schema(
 
     /** Where it came from: pod name, lab, or doctor. */
     provider: String,
-    pod: { type: Schema.Types.ObjectId, ref: 'Pod' },
-    consult: { type: Schema.Types.ObjectId, ref: 'Consult' },
+    pod: { type: mongoose.Schema.Types.ObjectId, ref: 'Pod' },
+    consult: { type: mongoose.Schema.Types.ObjectId, ref: 'Consult' },
 
     files: [{ url: String, mimeType: String, pages: Number }],
     values: [valueSchema],
@@ -41,4 +42,4 @@ healthRecordSchema.index({ member: 1, recordedAt: -1 });
 healthRecordSchema.index({ member: 1, 'values.code': 1, recordedAt: 1 });
 
 export type HealthRecord = InferSchemaType<typeof healthRecordSchema>;
-export const HealthRecordModel = model('HealthRecord', healthRecordSchema);
+export const HealthRecordModel = defineModel('HealthRecord', healthRecordSchema);

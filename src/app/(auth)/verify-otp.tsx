@@ -4,12 +4,17 @@ import { Pressable, StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
-import { authApi } from '@/features/auth/auth-api';
+import { authApi, type AuthIntent } from '@/features/auth/auth-api';
 import { useAuth } from '@/features/auth/auth-context';
 import { AuthForm } from '@/features/auth/auth-form';
 
 export default function VerifyOtpScreen() {
-  const params = useLocalSearchParams<{ name: string; phone: string; devCode?: string }>();
+  const params = useLocalSearchParams<{
+    intent: AuthIntent;
+    phone: string;
+    name?: string;
+    devCode?: string;
+  }>();
   const { signIn } = useAuth();
   const [otp, setOtp] = useState('');
   const [devCode, setDevCode] = useState(params.devCode);
@@ -34,7 +39,11 @@ export default function VerifyOtpScreen() {
     setError(null);
     setNotice(null);
     try {
-      const result = await authApi.sendOtp(params.name, params.phone);
+      const result = await authApi.sendOtp(
+        params.intent === 'signup'
+          ? { intent: 'signup', phone: params.phone, name: params.name ?? '' }
+          : { intent: 'login', phone: params.phone },
+      );
       setDevCode(result.devCode);
       setOtp('');
       setNotice('A new code is on its way.');

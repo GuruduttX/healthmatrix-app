@@ -17,7 +17,7 @@ const body = z.object({
   code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code'),
 });
 
-/** Step 2 of sign-in: check the code, then sign in, creating the account on first sign-in. */
+/** Step 2 of sign-in: check the code, then sign in, creating the account for a signup code. */
 export const POST = handle(async (request: Request) => {
   const { phone, code } = body.parse(await request.json());
   await connectDB();
@@ -41,11 +41,17 @@ export const POST = handle(async (request: Request) => {
 
   let member = await MemberModel.findOne({ phone });
   const isNewMember = !member;
-  member ??= await MemberModel.create({
-    phone,
-    name: challenge.name,
-    memberId: await generateMemberId(),
-  });
+  if (!member) {
+    // A login code carries no name, so it can only sign in to an account that exists.
+    if (!challenge.name) {
+      throw new HttpError(404, 'No account uses this number. Create an account instead.');
+    }
+    member = await MemberModel.create({
+      phone,
+      name: challenge.name,
+      memberId: await generateMemberId(),
+    });
+  }
 
   const token = await createSession(member._id);
   return Response.json({ token, member: toMemberJson(member), isNewMember });

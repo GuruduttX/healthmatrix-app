@@ -18,6 +18,8 @@ import { Colors, Fonts, MaxContentWidth, Radius, Spacing } from '@/constants/the
 type AuthFormProps = {
   title: string;
   subtitle: string;
+  /** Shown between the subtitle and the fields, e.g. the log in / create account switch. */
+  beforeFields?: ReactNode;
   /** One text field per entry, top to bottom. Number pad unless a field says otherwise. */
   fields: TextInputProps[];
   buttonLabel: string;
@@ -35,6 +37,7 @@ type AuthFormProps = {
 export function AuthForm({
   title,
   subtitle,
+  beforeFields,
   fields,
   buttonLabel,
   canSubmit,
@@ -58,12 +61,14 @@ export function AuthForm({
         <ThemedText type="title">{title}</ThemedText>
         <ThemedText themeColor="textSecondary">{subtitle}</ThemedText>
 
-        <View style={styles.fields}>
+        {beforeFields ? <View style={styles.beforeFields}>{beforeFields}</View> : null}
+
+        <View style={[styles.fields, beforeFields ? styles.fieldsAfterSlot : null]}>
           {fields.map((field, index) => {
             const isLast = index === fields.length - 1;
             return (
               <TextInput
-                key={index}
+                key={field.nativeID ?? index}
                 placeholderTextColor={Colors.textMuted}
                 keyboardType="number-pad"
                 returnKeyType={isLast ? 'done' : 'next'}
@@ -126,9 +131,15 @@ const styles = StyleSheet.create({
     height: 57,
     marginBottom: Spacing.three,
   },
+  beforeFields: {
+    marginTop: Spacing.three,
+  },
   fields: {
     gap: Spacing.two + 2,
     marginTop: Spacing.three,
+  },
+  fieldsAfterSlot: {
+    marginTop: Spacing.one,
   },
   input: {
     padding: Spacing.three,

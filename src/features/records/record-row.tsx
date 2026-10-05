@@ -5,7 +5,7 @@ import {
   Syringe,
   type LucideIcon,
 } from 'lucide-react-native';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { IconTile, type Tone } from '@/components/ui/icon-tile';
@@ -15,7 +15,7 @@ import { Colors, Fonts, Spacing } from '@/constants/theme';
 
 import { type RecordItem } from './sample-data';
 
-const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+export const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 function iconFor(record: RecordItem): { icon: LucideIcon; tone: Tone } {
   if (record.type === 'vaccination') return { icon: Syringe, tone: 'primary' };
@@ -28,10 +28,11 @@ type RecordRowProps = {
   record: RecordItem;
   /** Draws the timeline rail down to the next row. */
   isLast: boolean;
+  onPress?: () => void;
 };
 
 /** One entry on the records timeline: the day on a rail, then the record card. */
-export function RecordRow({ record, isLast }: RecordRowProps) {
+export function RecordRow({ record, isLast, onPress }: RecordRowProps) {
   const [, month, day] = record.date.split('-').map(Number);
   const { icon, tone } = iconFor(record);
 
@@ -43,22 +44,27 @@ export function RecordRow({ record, isLast }: RecordRowProps) {
         {isLast ? null : <View style={styles.line} />}
       </View>
 
-      <Surface style={styles.card}>
-        <IconTile icon={icon} tone={tone} />
-        <View style={styles.text}>
-          <ThemedText type="smallBold" style={styles.title}>
-            {record.title}
-          </ThemedText>
-          <ThemedText type="caption" themeColor="textSecondary">
-            {record.subtitle}
-          </ThemedText>
-          {record.tag ? (
-            <View style={styles.tag}>
-              <Tag label={record.tag.label} tone={record.tag.tone} />
-            </View>
-          ) : null}
-        </View>
-      </Surface>
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="button"
+        style={({ pressed }) => [styles.flex, pressed && styles.pressed]}>
+        <Surface style={styles.card}>
+          <IconTile icon={icon} tone={tone} />
+          <View style={styles.text}>
+            <ThemedText type="smallBold" style={styles.title}>
+              {record.title}
+            </ThemedText>
+            <ThemedText type="caption" themeColor="textSecondary">
+              {record.subtitle}
+            </ThemedText>
+            {record.tag ? (
+              <View style={styles.tag}>
+                <Tag label={record.tag.label} tone={record.tag.tone} />
+              </View>
+            ) : null}
+          </View>
+        </Surface>
+      </Pressable>
     </View>
   );
 }
@@ -91,8 +97,13 @@ const styles = StyleSheet.create({
     borderRadius: 1,
     backgroundColor: Colors.border,
   },
-  card: {
+  flex: {
     flex: 1,
+  },
+  pressed: {
+    opacity: 0.75,
+  },
+  card: {
     flexDirection: 'row',
     gap: Spacing.two + 4,
     marginBottom: Spacing.two + 2,

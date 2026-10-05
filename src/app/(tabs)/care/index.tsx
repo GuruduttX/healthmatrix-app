@@ -1,17 +1,18 @@
+import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/screen';
 import { SectionHeader } from '@/components/ui/section-header';
 import { Spacing } from '@/constants/theme';
 import { DoctorHero } from '@/features/care/doctor-hero';
+import { FindPodCard } from '@/features/care/find-pod-card';
 import { MedicinesCard } from '@/features/care/medicines-card';
-import { PodBooking } from '@/features/care/pod-booking';
 import { ReminderList } from '@/features/care/reminder-list';
 import { sampleCare } from '@/features/care/sample-data';
 import { SpecialtyList } from '@/features/care/specialty-list';
 
 export default function CareScreen() {
-  const { doctor, pods, booking, medicines, reminders } = sampleCare;
+  const { doctor, pods, medicines, reminders } = sampleCare;
 
   return (
     <Screen title="Care" subtitle="Doctors, pods, medicines and reminders.">
@@ -25,7 +26,7 @@ export default function CareScreen() {
 
         <View style={styles.section}>
           <SectionHeader title="Pods near you" />
-          <PodBooking pods={pods} booking={booking} />
+          <FindPodCard pods={pods} onPress={() => router.push('/care/pods')} />
         </View>
 
         <View style={styles.section}>

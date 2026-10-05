@@ -148,6 +148,9 @@ export default function RecordsScreen() {
                 key={record.id}
                 record={record}
                 isLast={index === group.records.length - 1}
+                onPress={() =>
+                  router.push({ pathname: '/records/[id]', params: { id: record.id } })
+                }
               />
             ))}
           </View>

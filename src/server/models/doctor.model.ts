@@ -9,8 +9,14 @@ const doctorSchema = new mongoose.Schema(
     phone: { type: String, required: true, unique: true },
     qualifications: String, // "MBBS, MD (Medicine)"
     registrationNumber: { type: String, required: true },
+    /** The medical council that issued the registration. */
+    council: String,
     specialties: { type: [String], enum: SPECIALTIES, default: ['general_medicine'] },
+    languages: [String],
+    city: String,
+    state: String,
     photoUrl: String,
+    telemedicineConsentAt: Date,
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true },

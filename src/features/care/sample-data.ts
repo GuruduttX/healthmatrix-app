@@ -11,19 +11,6 @@ export type Pod = {
 export type ReminderKind = 'test' | 'vaccine' | 'consult';
 export type Reminder = { id: string; kind: ReminderKind; title: string; who: string; due: string };
 
-export const SPECIALTIES = [
-  'General medicine',
-  'Diabetes and endocrinology',
-  'Cardiology',
-  'Paediatrics',
-  'Gynaecology',
-  'Dermatology',
-  'Psychiatry',
-  'Nutrition',
-] as const;
-
-export type Specialty = (typeof SPECIALTIES)[number];
-
 /**
  * SAMPLE DATA from the brochure mock-up, so the Care screen can be designed
  * before the doctors, pods, bookings and test/vaccine reminders APIs exist. The

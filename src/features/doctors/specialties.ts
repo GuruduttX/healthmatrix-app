@@ -1,0 +1,81 @@
+import {
+  Apple,
+  Baby,
+  Brain,
+  Droplet,
+  HeartPulse,
+  ScanFace,
+  Stethoscope,
+  Venus,
+  type LucideIcon,
+} from 'lucide-react-native';
+
+import { type Specialty } from './types';
+
+export type SpecialtyInfo = {
+  id: Specialty;
+  label: string;
+  icon: LucideIcon;
+  /** One line on what they help with, shown above the doctor list. */
+  blurb: string;
+};
+
+/** The specialties on the network, in the order the Care tab shows them. */
+export const SPECIALTIES: SpecialtyInfo[] = [
+  {
+    id: 'general_medicine',
+    label: 'General medicine',
+    icon: Stethoscope,
+    blurb: 'Fever, infections, aches and everyday health. A good first stop.',
+  },
+  {
+    id: 'diabetes_endocrinology',
+    label: 'Diabetes and endocrinology',
+    icon: Droplet,
+    blurb: 'Blood sugar, thyroid and other hormone conditions.',
+  },
+  {
+    id: 'cardiology',
+    label: 'Cardiology',
+    icon: HeartPulse,
+    blurb: 'Heart health, blood pressure and cholesterol.',
+  },
+  {
+    id: 'paediatrics',
+    label: 'Paediatrics',
+    icon: Baby,
+    blurb: 'Care for babies, children and teenagers.',
+  },
+  {
+    id: 'gynaecology',
+    label: 'Gynaecology',
+    icon: Venus,
+    blurb: 'Periods, pregnancy, fertility and women’s health.',
+  },
+  {
+    id: 'dermatology',
+    label: 'Dermatology',
+    icon: ScanFace,
+    blurb: 'Skin, hair and nail problems.',
+  },
+  {
+    id: 'psychiatry',
+    label: 'Psychiatry',
+    icon: Brain,
+    blurb: 'Stress, anxiety, sleep, mood and mental health.',
+  },
+  {
+    id: 'nutrition',
+    label: 'Nutrition',
+    icon: Apple,
+    blurb: 'Diet plans for weight, diabetes, heart health and more.',
+  },
+];
+
+export function specialtyInfo(id: string): SpecialtyInfo | undefined {
+  return SPECIALTIES.find((specialty) => specialty.id === id);
+}
+
+export function specialtyLabel(id: Specialty) {
+  return specialtyInfo(id)?.label ?? id;
+}

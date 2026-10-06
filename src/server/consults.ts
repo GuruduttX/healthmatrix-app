@@ -1,0 +1,32 @@
+import { type Types } from 'mongoose';
+
+import { type Specialty } from './constants';
+import { toDoctorJson } from './doctors';
+import { type Consult, type Doctor } from './models';
+
+/** What `populate('doctor', DOCTOR_FIELDS)` fills in; null if the doctor was deleted. */
+export type PopulatedDoctor = { doctor: (Doctor & { _id: Types.ObjectId }) | null };
+
+/** The doctor fields a consult needs. Never the phone. */
+export const DOCTOR_FIELDS =
+  'name qualifications specialties languages city state registrationNumber council photoUrl';
+
+type PopulatedConsult = Omit<Consult, 'doctor'> & PopulatedDoctor & { _id: Types.ObjectId };
+
+/** A consult as the app sees it. Matches `Appointment` in `features/doctors`. */
+export function toConsultJson(consult: PopulatedConsult) {
+  const doctor = consult.doctor ? toDoctorJson(consult.doctor) : null;
+  return {
+    id: String(consult._id),
+    doctor: doctor && {
+      id: doctor.id,
+      name: doctor.name,
+      qualifications: doctor.qualifications,
+      photoUrl: doctor.photoUrl,
+    },
+    specialty: consult.specialty as Specialty,
+    scheduledAt: consult.scheduledAt.toISOString(),
+    status: consult.status,
+    reason: consult.reason ?? undefined,
+  };
+}

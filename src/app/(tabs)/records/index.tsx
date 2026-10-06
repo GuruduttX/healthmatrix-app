@@ -1,15 +1,23 @@
-import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
-import { ChevronRight, Plus, Search, Sparkles, X } from 'lucide-react-native';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import { FileText, Search, X } from 'lucide-react-native';
+import { useCallback, useState } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
 
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
+import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
 import { RecordRow } from '@/features/records/record-row';
-import { sampleRecords, type RecordItem } from '@/features/records/sample-data';
+import { type RecordSummary } from '@/features/records/types';
+import { api } from '@/services/api';
 import { type RecordType } from '@/types';
 
 const MONTHS = [
@@ -27,17 +35,37 @@ const MONTHS = [
   'December',
 ];
 
-const FILTERS: { id: string; label: string; types: RecordType[] | null }[] = [
-  { id: 'all', label: 'All', types: null },
-  { id: 'reports', label: 'Reports', types: ['pod_screening', 'lab_report'] },
-  { id: 'prescriptions', label: 'Prescriptions', types: ['prescription'] },
-  { id: 'vaccines', label: 'Vaccines', types: ['vaccination'] },
+const FILTERS: { id: string; label: string; types: RecordType[] | null; empty: string }[] = [
+  {
+    id: 'all',
+    label: 'All',
+    types: null,
+    empty: 'Prescriptions from your doctors will appear here after each consult.',
+  },
+  {
+    id: 'reports',
+    label: 'Reports',
+    types: ['pod_screening', 'lab_report'],
+    empty: 'Lab and pod reports will appear here soon.',
+  },
+  {
+    id: 'prescriptions',
+    label: 'Prescriptions',
+    types: ['prescription'],
+    empty: 'Prescriptions from your doctors will appear here after each consult.',
+  },
+  {
+    id: 'vaccines',
+    label: 'Vaccines',
+    types: ['vaccination'],
+    empty: 'Vaccination records will appear here soon.',
+  },
 ];
 
 /** Newest first, grouped under "September 2026" style headings. */
-function groupByMonth(records: RecordItem[]) {
-  const groups: { heading: string; records: RecordItem[] }[] = [];
-  for (const record of [...records].sort((a, b) => b.date.localeCompare(a.date))) {
+function groupByMonth(records: RecordSummary[]) {
+  const groups: { heading: string; records: RecordSummary[] }[] = [];
+  for (const record of [...records].sort((a, b) => b.at.localeCompare(a.at))) {
     const [year, month] = record.date.split('-').map(Number);
     const heading = `${MONTHS[(month ?? 1) - 1]} ${year}`;
     const last = groups[groups.length - 1];
@@ -47,33 +75,44 @@ function groupByMonth(records: RecordItem[]) {
   return groups;
 }
 
+/** The member's records timeline: prescriptions for now; reports and vaccines are coming. */
 export default function RecordsScreen() {
   const [query, setQuery] = useState('');
   const [filterId, setFilterId] = useState('all');
+  const [records, setRecords] = useState<RecordSummary[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const types = FILTERS.find((filter) => filter.id === filterId)?.types ?? null;
+  const load = useCallback(() => {
+    let active = true;
+    api<{ records: RecordSummary[] }>('/records')
+      .then(({ records: list }) => {
+        if (!active) return;
+        setRecords(list);
+        setError(null);
+      })
+      .catch((e: unknown) => {
+        if (active) setError(e instanceof Error ? e.message : 'Could not load your records');
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Every visit picks up what doctors have added since.
+  useFocusEffect(load);
+
+  const filter = FILTERS.find((item) => item.id === filterId) ?? FILTERS[0]!;
   const needle = query.trim().toLowerCase();
-  const visible = sampleRecords.filter(
+  const visible = (records ?? []).filter(
     (record) =>
-      (!types || types.includes(record.type)) &&
-      (!needle || `${record.title} ${record.subtitle}`.toLowerCase().includes(needle)),
+      (!filter.types || filter.types.includes(record.type)) &&
+      (!needle ||
+        `${record.title} ${record.subtitle} ${record.keywords}`.toLowerCase().includes(needle)),
   );
   const groups = groupByMonth(visible);
-  const attention = sampleRecords.reduce((sum, record) => sum + (record.attentionCount ?? 0), 0);
 
   return (
-    <Screen
-      title="Records"
-      floating={
-        <Pressable
-          accessibilityRole="button"
-          style={({ pressed }) => [styles.fab, pressed && styles.pressed]}>
-          <Plus size={18} color={Colors.onInk} strokeWidth={2.6} />
-          <ThemedText type="smallBold" themeColor="onInk">
-            Add records
-          </ThemedText>
-        </Pressable>
-      }>
+    <Screen title="Records">
       <View style={styles.search}>
         <Search size={18} color={Colors.textMuted} strokeWidth={2} />
         <TextInput
@@ -107,36 +146,6 @@ export default function RecordsScreen() {
         ))}
       </ScrollView>
 
-      {attention > 0 ? (
-        <Pressable
-          onPress={() => router.navigate('/ekaay')}
-          accessibilityRole="button"
-          style={({ pressed }) => pressed && styles.pressed}>
-          <LinearGradient
-            colors={[Colors.primarySoft, Colors.backgroundElement]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.summary}>
-            <LinearGradient
-              colors={[Colors.primaryMid, Colors.primary]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.summaryBadge}>
-              <Sparkles size={14} color={Colors.onInk} strokeWidth={2.2} />
-            </LinearGradient>
-            <View style={styles.summaryText}>
-              <ThemedText type="smallBold">
-                Ekaay has read {sampleRecords.length} records
-              </ThemedText>
-              <ThemedText type="caption" themeColor="textSecondary">
-                {attention} values need attention. Ask what they mean.
-              </ThemedText>
-            </View>
-            <ChevronRight size={18} color={Colors.primary} strokeWidth={2.2} />
-          </LinearGradient>
-        </Pressable>
-      ) : null}
-
       {groups.map((group) => (
         <View key={group.heading} style={styles.group}>
           <ThemedText type="smallBold" themeColor="textSecondary">
@@ -157,11 +166,29 @@ export default function RecordsScreen() {
         </View>
       ))}
 
-      {groups.length === 0 ? (
+      {!records ? (
         <View style={styles.empty}>
-          <ThemedText type="bodyBold">No records found</ThemedText>
+          {error ? (
+            <>
+              <ThemedText type="small" themeColor="danger" style={styles.emptyText}>
+                {error}
+              </ThemedText>
+              <Button label="Try again" variant="secondary" onPress={load} />
+            </>
+          ) : (
+            <ActivityIndicator color={Colors.textSecondary} />
+          )}
+        </View>
+      ) : groups.length === 0 ? (
+        <View style={styles.empty}>
+          <View style={styles.emptyIcon}>
+            <FileText size={24} color={Colors.textMuted} strokeWidth={2} />
+          </View>
+          <ThemedText type="bodyBold">
+            {needle ? 'No records found' : 'Nothing here yet'}
+          </ThemedText>
           <ThemedText type="small" themeColor="textSecondary" style={styles.emptyText}>
-            Try a different search or filter.
+            {needle ? 'Try a different search or filter.' : filter.empty}
           </ThemedText>
         </View>
       ) : null}
@@ -200,48 +227,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.one,
   },
-  summary: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two + 4,
-    padding: 12,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Colors.dangerSoft,
-  },
-  summaryBadge: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  summaryText: {
-    flex: 1,
-  },
   group: {
     gap: Spacing.two,
     marginTop: Spacing.two,
   },
   empty: {
     alignItems: 'center',
-    gap: Spacing.one,
+    gap: Spacing.two,
     paddingVertical: Spacing.five,
+    paddingHorizontal: Spacing.four,
+  },
+  emptyIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.backgroundSelected,
   },
   emptyText: {
     textAlign: 'center',
-  },
-  fab: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    paddingHorizontal: 18,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.primary,
-    boxShadow: Shadows.glow,
-  },
-  pressed: {
-    opacity: 0.85,
   },
 });

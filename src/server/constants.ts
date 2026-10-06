@@ -51,6 +51,10 @@ export const SPECIALTIES = [
   'nutrition',
 ] as const;
 
+export type Specialty = (typeof SPECIALTIES)[number];
+
+export const CONSULT_STATUSES = ['scheduled', 'in_progress', 'completed', 'cancelled'] as const;
+
 export const REMINDER_KINDS = ['medicine', 'test', 'vaccine'] as const;
 
 /** How a reminder repeats. Dates are the member's local calendar days. */

@@ -1,10 +1,4 @@
-import {
-  FileText,
-  FlaskConical,
-  MessageSquareText,
-  Syringe,
-  type LucideIcon,
-} from 'lucide-react-native';
+import { FileText, FlaskConical, Pill, Syringe, type LucideIcon } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -13,19 +7,32 @@ import { Surface } from '@/components/ui/surface';
 import { Tag } from '@/components/ui/tag';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 
-import { type RecordItem } from './sample-data';
+import { type RecordSummary } from './types';
 
-export const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+export const MONTHS_SHORT = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
 
-function iconFor(record: RecordItem): { icon: LucideIcon; tone: Tone } {
+function iconFor(record: RecordSummary): { icon: LucideIcon; tone: Tone } {
+  if (record.type === 'prescription') return { icon: Pill, tone: 'success' };
   if (record.type === 'vaccination') return { icon: Syringe, tone: 'primary' };
   if (record.type === 'pod_screening') return { icon: FlaskConical, tone: 'primary' };
-  if (record.source === 'whatsapp') return { icon: MessageSquareText, tone: 'success' };
   return { icon: FileText, tone: 'neutral' };
 }
 
 type RecordRowProps = {
-  record: RecordItem;
+  record: RecordSummary;
   /** Draws the timeline rail down to the next row. */
   isLast: boolean;
   onPress?: () => void;

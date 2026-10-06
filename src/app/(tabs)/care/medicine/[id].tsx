@@ -88,9 +88,9 @@ type Form = {
   endsOn: DateKey | null;
 };
 
-function emptyForm(today: DateKey): Form {
+function emptyForm(today: DateKey, name = ''): Form {
   return {
-    name: '',
+    name,
     dose: '',
     mealTiming: null,
     note: '',
@@ -143,7 +143,9 @@ function problem(form: Form) {
 
 /** "and"-joined list: "8:00 AM, 2:00 PM and 8:00 PM". */
 function joinWords(words: string[]) {
-  return words.length < 2 ? (words[0] ?? '') : `${words.slice(0, -1).join(', ')} and ${words.at(-1)}`;
+  return words.length < 2
+    ? (words[0] ?? '')
+    : `${words.slice(0, -1).join(', ')} and ${words.at(-1)}`;
 }
 
 /** The plan in one sentence, shown above Save. */
@@ -155,7 +157,8 @@ function summarize(form: Form, today: DateKey) {
     return `One reminder at ${times} ${when}.`;
   }
   const repeat = describeRepeat(form).toLowerCase();
-  const start = form.startsOn === today ? 'starting today' : `from ${formatShortDate(form.startsOn)}`;
+  const start =
+    form.startsOn === today ? 'starting today' : `from ${formatShortDate(form.startsOn)}`;
   const end = form.endsOn
     ? `for ${daysBetween(form.startsOn, form.endsOn) + 1} days, until ${formatShortDate(form.endsOn)}`
     : 'with no end date';
@@ -163,7 +166,8 @@ function summarize(form: Form, today: DateKey) {
 }
 
 function confirm(title: string, message: string, action: string) {
-  if (Platform.OS === 'web') return Promise.resolve(globalThis.confirm?.(`${title}\n\n${message}`) ?? false);
+  if (Platform.OS === 'web')
+    return Promise.resolve(globalThis.confirm?.(`${title}\n\n${message}`) ?? false);
   return new Promise<boolean>((resolve) =>
     Alert.alert(title, message, [
       { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
@@ -174,7 +178,8 @@ function confirm(title: string, message: string, action: string) {
 
 /** Add a medicine (`/care/medicine/new`) or edit one (`/care/medicine/<id>`). */
 export default function MedicineFormScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  // `name` prefills a new medicine, e.g. from a line on a prescription.
+  const { id, name: prefill } = useLocalSearchParams<{ id: string; name?: string }>();
   const isNew = id === 'new';
   const { reminders, error: loadError, create, update, remove } = useReminders();
   const clearance = useTabBarClearance();
@@ -182,11 +187,15 @@ export default function MedicineFormScreen() {
   const [today] = useState(() => toDateKey(new Date()));
 
   const existing = isNew ? undefined : reminders?.find((reminder) => reminder.id === id);
-  const [form, setForm] = useState<Form | null>(() => (isNew ? emptyForm(today) : null));
+  const [form, setForm] = useState<Form | null>(() =>
+    isNew ? emptyForm(today, prefill?.slice(0, 60)) : null,
+  );
   // Fill the form once the reminder is loaded.
   if (!form && existing) setForm(toForm(existing, today));
 
-  const [timeEditor, setTimeEditor] = useState<{ index: number | null; value: TimeKey } | null>(null);
+  const [timeEditor, setTimeEditor] = useState<{ index: number | null; value: TimeKey } | null>(
+    null,
+  );
   const [calendar, setCalendar] = useState<'start' | 'end' | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -275,7 +284,9 @@ export default function MedicineFormScreen() {
 
   return (
     <Shell title={isNew ? 'Add medicine' : 'Edit medicine'} onBack={close}>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -329,7 +340,9 @@ export default function MedicineFormScreen() {
           <Section title="Times" hint="You get a reminder at each time.">
             <View style={styles.wrapRow}>
               {form.times.map((time, index) => (
-                <View key={time} style={[styles.timePill, timeEditor?.index === index && styles.timePillActive]}>
+                <View
+                  key={time}
+                  style={[styles.timePill, timeEditor?.index === index && styles.timePillActive]}>
                   <Pressable
                     onPress={() => setTimeEditor({ index, value: time })}
                     accessibilityRole="button"
@@ -356,12 +369,18 @@ export default function MedicineFormScreen() {
 
             {timeEditor ? (
               <View style={styles.editor}>
-                <TimePicker value={timeEditor.value} onChange={(value) => setTimeEditor({ ...timeEditor, value })} />
+                <TimePicker
+                  value={timeEditor.value}
+                  onChange={(value) => setTimeEditor({ ...timeEditor, value })}
+                />
                 <View style={styles.editorActions}>
                   <Pressable
                     onPress={() => setTimeEditor(null)}
                     accessibilityRole="button"
-                    style={({ pressed }) => [styles.secondaryAction, pressed && formStyles.pressed]}>
+                    style={({ pressed }) => [
+                      styles.secondaryAction,
+                      pressed && formStyles.pressed,
+                    ]}>
                     <ThemedText type="smallBold">Cancel</ThemedText>
                   </Pressable>
                   <Pressable
@@ -384,14 +403,16 @@ export default function MedicineFormScreen() {
                   <ThemedText type="smallBold">Add a time</ThemedText>
                 </Pressable>
                 <View style={styles.wrapRow}>
-                  {TIME_PRESETS.filter((preset) => !form.times.includes(preset.time)).map((preset) => (
-                    <SmallChip
-                      key={preset.time}
-                      label={`${preset.label} ${formatTime(preset.time)}`}
-                      icon
-                      onPress={() => edit({ times: [...form.times, preset.time].sort() })}
-                    />
-                  ))}
+                  {TIME_PRESETS.filter((preset) => !form.times.includes(preset.time)).map(
+                    (preset) => (
+                      <SmallChip
+                        key={preset.time}
+                        label={`${preset.label} ${formatTime(preset.time)}`}
+                        icon
+                        onPress={() => edit({ times: [...form.times, preset.time].sort() })}
+                      />
+                    ),
+                  )}
                 </View>
               </>
             ) : null}
@@ -427,7 +448,11 @@ export default function MedicineFormScreen() {
                         accessibilityRole="checkbox"
                         accessibilityState={{ checked: on }}
                         accessibilityLabel={WEEKDAY_NAMES[day]}
-                        style={({ pressed }) => [styles.weekday, on && styles.weekdayOn, pressed && formStyles.pressed]}>
+                        style={({ pressed }) => [
+                          styles.weekday,
+                          on && styles.weekdayOn,
+                          pressed && formStyles.pressed,
+                        ]}>
                         <ThemedText type="smallBold" themeColor={on ? 'onInk' : 'textSecondary'}>
                           {letter}
                         </ThemedText>
@@ -607,7 +632,15 @@ function suggestNextTime(times: TimeKey[]): TimeKey {
   return `${String(hour).padStart(2, '0')}:${last.slice(3)}`;
 }
 
-function Shell({ title, onBack, children }: { title: string; onBack: () => void; children: ReactNode }) {
+function Shell({
+  title,
+  onBack,
+  children,
+}: {
+  title: string;
+  onBack: () => void;
+  children: ReactNode;
+}) {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
@@ -660,7 +693,11 @@ function SmallChip({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected }}
-      style={({ pressed }) => [styles.smallChip, selected && styles.smallChipOn, pressed && formStyles.pressed]}>
+      style={({ pressed }) => [
+        styles.smallChip,
+        selected && styles.smallChipOn,
+        pressed && formStyles.pressed,
+      ]}>
       {icon ? <Plus size={12} color={Colors.textSecondary} strokeWidth={2.4} /> : null}
       <ThemedText type="caption" themeColor={selected ? 'onInk' : 'textSecondary'}>
         {label}
@@ -686,7 +723,11 @@ function StepButton({
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={label}
-      style={({ pressed }) => [styles.stepButton, disabled && styles.disabled, pressed && formStyles.pressed]}>
+      style={({ pressed }) => [
+        styles.stepButton,
+        disabled && styles.disabled,
+        pressed && formStyles.pressed,
+      ]}>
       <Icon size={18} color={Colors.text} strokeWidth={2.4} />
     </Pressable>
   );
@@ -709,7 +750,11 @@ function DateRow({
       accessibilityRole="button"
       accessibilityState={{ expanded: open }}
       accessibilityLabel={`${label}: ${value}`}
-      style={({ pressed }) => [styles.dateRow, open && styles.dateRowOpen, pressed && formStyles.pressed]}>
+      style={({ pressed }) => [
+        styles.dateRow,
+        open && styles.dateRowOpen,
+        pressed && formStyles.pressed,
+      ]}>
       <CalendarDays size={18} color={Colors.textSecondary} strokeWidth={2.2} />
       <ThemedText type="small" themeColor="textSecondary" style={styles.flex}>
         {label}

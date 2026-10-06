@@ -9,6 +9,7 @@ import { FindPodCard } from '@/features/care/find-pod-card';
 import { ReminderList } from '@/features/care/reminder-list';
 import { sampleCare } from '@/features/care/sample-data';
 import { SpecialtyList } from '@/features/care/specialty-list';
+import { UpcomingAppointments } from '@/features/doctors/appointments-card';
 import { TodayMedicinesCard } from '@/features/reminders/today-card';
 
 export default function CareScreen() {
@@ -18,6 +19,8 @@ export default function CareScreen() {
     <Screen title="Care" subtitle="Doctors, pods, medicines and reminders.">
       <View style={styles.sections}>
         <DoctorHero doctor={doctor} />
+
+        <UpcomingAppointments />
 
         <View style={styles.section}>
           <SectionHeader title="Find a specialist" />

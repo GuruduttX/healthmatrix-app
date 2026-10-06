@@ -8,6 +8,7 @@ export * from './health-record.model';
 export * from './member.model';
 export * from './otp-challenge.model';
 export * from './pod.model';
+export * from './prescription.model';
 export * from './qr-link.model';
 export * from './reminder.model';
 export * from './scan-log.model';

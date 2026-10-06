@@ -6,7 +6,8 @@ const schema = z.object({
     .string()
     .regex(/^mongodb(\+srv)?:\/\//, 'must start with mongodb:// or mongodb+srv://'),
   MONGODB_DB_NAME: z.string().min(1).default('healthmatrix'),
-  EMERGENCY_BASE_URL: z.string().default('http://localhost:8081/e'),
+  /** Where emergency QR links point, e.g. https://healthmatrix.in/e. Read in `server/emergency.ts`. */
+  EMERGENCY_BASE_URL: z.url(),
 });
 
 let cached: z.infer<typeof schema> | undefined;

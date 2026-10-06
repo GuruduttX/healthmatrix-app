@@ -10,19 +10,50 @@ import { Button } from '@/components/ui/button';
 import { Surface } from '@/components/ui/surface';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-context';
+import { useEmergencyProfile, type EmergencyFieldId } from '@/features/card/emergency-profile';
 import { EmergencyProfileCard } from '@/features/card/emergency-profile-card';
-import { MemberCard } from '@/features/card/member-card';
-import { sampleCard, type EmergencyFieldId } from '@/features/card/sample-data';
+import { MemberCard, type CardMember } from '@/features/card/member-card';
+import { sampleCard } from '@/features/card/sample-data';
+import { useEmergencyQr } from '@/features/card/use-emergency-qr';
+import { type Member } from '@/types';
+
+/** ISO date -> "09/26", as printed on the card. */
+function cardDate(iso: string) {
+  const date = new Date(iso);
+  return `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getFullYear()).slice(-2)}`;
+}
+
+function toCardMember(member: Member): CardMember {
+  return {
+    name: member.name,
+    firstName: member.name.split(/\s+/)[0] ?? member.name,
+    memberId: member.memberId,
+    plan: member.plan,
+    bloodGroup: member.bloodGroup,
+    memberSince: cardDate(member.memberSince),
+    validThru: member.validThru ? cardDate(member.validThru) : undefined,
+    abhaLinked: member.abhaLinked,
+  };
+}
 
 export default function CardScreen() {
-  const { signOut } = useAuth();
+  const { member, signOut } = useAuth();
+  const { qr, error: qrError } = useEmergencyQr();
   const [lockScreenQr, setLockScreenQr] = useState(sampleCard.lockScreenQr);
-  const [hidden, setHidden] = useState<EmergencyFieldId[]>(sampleCard.hiddenFields);
+  const { profile, error: profileError, save } = useEmergencyProfile();
+  const [toggleError, setToggleError] = useState<string | null>(null);
 
-  const toggleField = (id: EmergencyFieldId) =>
-    setHidden((current) =>
-      current.includes(id) ? current.filter((field) => field !== id) : [...current, id],
+  const toggleField = (id: EmergencyFieldId) => {
+    if (!profile) return;
+    const visible = profile.visibleFields;
+    setToggleError(null);
+    save(
+      { visibleFields: visible.includes(id) ? visible.filter((field) => field !== id) : [...visible, id] },
+      { optimistic: true },
+    ).catch((e: unknown) =>
+      setToggleError(e instanceof Error ? e.message : 'Could not save that change. Try again.'),
     );
+  };
 
   return (
     <Screen
@@ -34,7 +65,13 @@ export default function CardScreen() {
         </Pressable>
       }>
       <View style={styles.sections}>
-        <MemberCard member={sampleCard.member} emergencyUrl={sampleCard.emergencyUrl} />
+        {member ? (
+          <MemberCard
+            member={toCardMember(member)}
+            emergencyUrl={qr?.url ?? null}
+            emergencyError={qrError}
+          />
+        ) : null}
 
         <Surface style={styles.row}>
           <View style={styles.rowText}>
@@ -51,15 +88,18 @@ export default function CardScreen() {
           />
         </Surface>
 
-        <EmergencyProfileCard hidden={hidden} onToggle={toggleField} />
+        <EmergencyProfileCard
+          profile={profile}
+          error={toggleError ?? profileError}
+          onToggle={toggleField}
+          onEdit={() => router.push('/emergency-profile')}
+        />
 
         <Button
           label="Preview what a responder sees"
           variant="secondary"
           icon={Eye}
-          onPress={() =>
-            router.push({ pathname: '/responder-preview', params: { hidden: hidden.join(',') } })
-          }
+          onPress={() => router.push('/responder-preview')}
         />
 
         <Surface style={styles.row}>

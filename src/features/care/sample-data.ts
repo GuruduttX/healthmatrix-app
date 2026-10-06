@@ -8,7 +8,6 @@ export type Pod = {
   distanceKm: number;
   map: MapPoint;
 };
-export type Dose = { id: string; name: string; time: string; taken: boolean };
 export type ReminderKind = 'test' | 'vaccine' | 'consult';
 export type Reminder = { id: string; kind: ReminderKind; title: string; who: string; due: string };
 
@@ -27,9 +26,10 @@ export type Specialty = (typeof SPECIALTIES)[number];
 
 /**
  * SAMPLE DATA from the brochure mock-up, so the Care screen can be designed
- * before the doctors, pods, bookings and reminders APIs exist. The doctor,
- * pods, slots and reminders are the brochure's; the two unnamed doses and
- * their times, and the map positions, are placeholders. Replace with API data.
+ * before the doctors, pods, bookings and test/vaccine reminders APIs exist. The
+ * doctor, pods, slots and reminders are the brochure's; the map positions are
+ * placeholders. Replace with API data. Medicine reminders are real
+ * (`features/reminders`).
  */
 export const sampleCare = {
   doctor: {
@@ -49,14 +49,6 @@ export const sampleCare = {
     test: 'HbA1c',
     day: 'Saturday',
     slots: ['8:30 am', '9:00 am', '9:30 am', '10:00 am'],
-  },
-  medicines: {
-    person: 'Mohan',
-    doses: [
-      { id: 'morning', name: 'Morning medicine', time: '8:00 am', taken: true },
-      { id: 'afternoon', name: 'Afternoon medicine', time: '2:00 pm', taken: true },
-      { id: 'evening', name: 'BP tablet', time: '8:00 pm', taken: false },
-    ] satisfies Dose[],
   },
   reminders: [
     { id: 'hpv', kind: 'vaccine', title: 'HPV vaccine, first dose', who: 'Anya', due: 'Due in October' },

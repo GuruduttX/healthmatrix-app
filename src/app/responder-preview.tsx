@@ -1,29 +1,54 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import { Ambulance, Lock, Phone, Siren, X } from 'lucide-react-native';
 import { type ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
-import { Avatar } from '@/components/ui/avatar';
 import { Surface } from '@/components/ui/surface';
 import { Tag } from '@/components/ui/tag';
 import { Colors, Fonts, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
-import { sampleCard, type EmergencyFieldId } from '@/features/card/sample-data';
+import { useAuth } from '@/features/auth/auth-context';
+import { useEmergencyProfile, type EmergencyFieldId } from '@/features/card/emergency-profile';
+import { MemberAvatar } from '@/features/profile/member-avatar';
+
+const GENDER_LABELS = { male: 'Male', female: 'Female', other: 'Other' } as const;
 
 /**
- * What a stranger sees after scanning the emergency QR, limited to the fields
- * the member chose to show. Preview only: the call buttons do nothing here.
+ * What a stranger sees after scanning the emergency QR, limited to the fields the member chose
+ * to show. It mirrors the public page (`src/server/emergency-page.ts`). Preview only: nobody is
+ * alerted and the scan is not logged.
  */
 export default function ResponderPreviewScreen() {
-  const params = useLocalSearchParams<{ hidden?: string }>();
-  const hidden = (params.hidden ?? '').split(',');
-  const shows = (id: EmergencyFieldId) => !hidden.includes(id);
+  const { member } = useAuth();
+  const { profile, error } = useEmergencyProfile();
 
-  const { member, profile } = sampleCard;
-  const about = shows('organDonor')
-    ? `${member.about}. Organ donor: ${profile.organDonor ? 'yes' : 'no'}`
-    : member.about;
+  if (!member || !profile) {
+    return (
+      <SafeAreaView style={[styles.safeArea, styles.loading]}>
+        {error ? (
+          <ThemedText type="small" themeColor="danger">
+            {error}
+          </ThemedText>
+        ) : (
+          <ActivityIndicator color={Colors.textSecondary} />
+        )}
+      </SafeAreaView>
+    );
+  }
+
+  const shows = (id: EmergencyFieldId) => profile.visibleFields.includes(id);
+  const firstName = member.name.split(/\s+/)[0] ?? member.name;
+  const about = member.gender ? GENDER_LABELS[member.gender] : null;
+  const { allergies, conditions, medicines, emergencyContacts: contacts, insurance } = profile;
+  const showsAnything =
+    (shows('bloodGroup') && !!profile.bloodGroup) ||
+    (shows('allergies') && allergies.length > 0) ||
+    (shows('conditions') && conditions.length > 0) ||
+    (shows('medicines') && medicines.length > 0) ||
+    (shows('emergencyContacts') && contacts.length > 0) ||
+    (shows('organDonor') && profile.organDonor !== undefined) ||
+    (shows('insurance') && !!insurance);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -48,59 +73,59 @@ export default function ResponderPreviewScreen() {
             </ThemedText>
           </View>
           <ThemedText type="caption" style={styles.bannerText}>
-            This is a preview, so nobody is alerted. On a real scan your family gets the time and
-            location.
+            This is a preview of the page your QR opens. Real scans are logged with the time.
           </ThemedText>
         </View>
 
         <View style={styles.identity}>
-          <Avatar initials={member.initials} size={44} />
+          <MemberAvatar
+            name={member.name}
+            photoUrl={shows('photo') ? member.photoUrl : undefined}
+            size={44}
+          />
           <View style={styles.flex}>
             <ThemedText type="bodyBold">{member.name}</ThemedText>
-            <ThemedText type="caption" themeColor="textSecondary">
-              {about}
-            </ThemedText>
-          </View>
-        </View>
-
-        <View style={styles.tiles}>
-          {shows('bloodGroup') ? (
-            <View style={styles.bloodGroup}>
-              <ThemedText type="caption" themeColor="danger">
-                Blood group
+            {about ? (
+              <ThemedText type="caption" themeColor="textSecondary">
+                {about}
               </ThemedText>
-              <ThemedText style={styles.bloodGroupValue}>{member.bloodGroup}</ThemedText>
-            </View>
-          ) : null}
-          <View style={styles.tileColumn}>
-            {shows('allergies') ? (
-              <Field label="Allergy" value={profile.allergies.join(', ') || 'None recorded'} />
-            ) : null}
-            {shows('conditions') ? (
-              <Field label="Condition" value={profile.conditions.join(', ') || 'None recorded'} />
             ) : null}
           </View>
         </View>
 
-        {shows('medicines') ? (
-          <Field
-            label="Current medicines"
-            value={profile.medicines.join('; ') || 'No regular medicines'}
-          />
+        {shows('bloodGroup') && profile.bloodGroup ? (
+          <View style={styles.bloodGroup}>
+            <ThemedText type="caption" themeColor="danger">
+              Blood group
+            </ThemedText>
+            <ThemedText style={styles.bloodGroupValue}>{profile.bloodGroup}</ThemedText>
+          </View>
         ) : null}
 
-        {shows('contacts') ? (
+        {shows('allergies') && allergies.length ? (
+          <Field label="Allergies" value={allergies.join(', ')} />
+        ) : null}
+        {shows('conditions') && conditions.length ? (
+          <Field label="Conditions" value={conditions.join(', ')} />
+        ) : null}
+        {shows('medicines') && medicines.length ? (
+          <Field label="Current medicines" value={medicines.join('; ')} />
+        ) : null}
+
+        {shows('emergencyContacts') && contacts.length ? (
           <Surface style={styles.contacts}>
             <ThemedText type="caption" themeColor="textSecondary">
               Emergency contacts
             </ThemedText>
-            {profile.contacts.map((contact) => (
-              <View key={contact.name} style={styles.contact}>
+            {contacts.map((contact, index) => (
+              <View key={index} style={styles.contact}>
                 <View style={styles.flex}>
                   <ThemedText type="smallBold">{contact.name}</ThemedText>
-                  <ThemedText type="caption" themeColor="textSecondary">
-                    {contact.relation}
-                  </ThemedText>
+                  {contact.relation ? (
+                    <ThemedText type="caption" themeColor="textSecondary">
+                      {contact.relation}
+                    </ThemedText>
+                  ) : null}
                 </View>
                 <View style={styles.call}>
                   <Phone size={13} color={Colors.onInk} strokeWidth={2.4} />
@@ -113,8 +138,27 @@ export default function ResponderPreviewScreen() {
           </Surface>
         ) : null}
 
-        {shows('insurance') ? <Field label="Insurance" value={profile.insurance} /> : null}
-        {shows('homeAddress') ? <Field label="Home address" value={profile.homeAddress} /> : null}
+        {shows('organDonor') && profile.organDonor !== undefined ? (
+          <Field label="Organ donor" value={profile.organDonor ? 'Yes' : 'No'} />
+        ) : null}
+        {shows('insurance') && insurance ? (
+          <Field
+            label="Insurance"
+            value={
+              insurance.policyNumber
+                ? `${insurance.provider} · Policy ${insurance.policyNumber}`
+                : insurance.provider
+            }
+          />
+        ) : null}
+
+        {showsAnything ? null : (
+          <Surface style={styles.field}>
+            <ThemedText type="small" themeColor="textSecondary">
+              {firstName} has not added medical details yet. Call the helplines below.
+            </ThemedText>
+          </Surface>
+        )}
 
         <View style={styles.ambulance}>
           <Ambulance size={18} color={Colors.onInk} strokeWidth={2.2} />
@@ -199,12 +243,10 @@ const styles = StyleSheet.create({
     gap: Spacing.two + 4,
     paddingVertical: Spacing.one,
   },
-  tiles: {
-    flexDirection: 'row',
-    gap: Spacing.two + 2,
+  loading: {
+    justifyContent: 'center',
   },
   bloodGroup: {
-    flex: 1,
     justifyContent: 'center',
     gap: Spacing.one,
     padding: 14,
@@ -218,10 +260,6 @@ const styles = StyleSheet.create({
     fontSize: 34,
     lineHeight: 38,
     color: Colors.primary,
-  },
-  tileColumn: {
-    flex: 1.6,
-    gap: Spacing.two + 2,
   },
   field: {
     gap: 2,

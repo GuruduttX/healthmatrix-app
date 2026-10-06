@@ -9,6 +9,7 @@ import {
   toMemberJson,
 } from '@/server/auth';
 import { connectDB } from '@/server/db';
+import { ensureQrLink } from '@/server/emergency';
 import { handle, HttpError } from '@/server/http';
 import { MemberModel, OtpChallengeModel } from '@/server/models';
 
@@ -51,6 +52,8 @@ export const POST = handle(async (request: Request) => {
       name: challenge.name,
       memberId: await generateMemberId(),
     });
+    // Every new account gets its emergency QR straight away.
+    await ensureQrLink(member._id);
   }
 
   const token = await createSession(member._id);

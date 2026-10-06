@@ -13,6 +13,7 @@ import { StatusBar } from 'expo-status-bar';
 import { BrandSplash } from '@/components/brand-splash';
 import { Colors } from '@/constants/theme';
 import { AuthProvider, useAuth } from '@/features/auth/auth-context';
+import { ReminderNotifications } from '@/features/reminders/reminder-notifications';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -60,12 +61,14 @@ function RootNavigator() {
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="responder-preview" options={{ presentation: 'modal' }} />
             <Stack.Screen name="profile" />
+            <Stack.Screen name="emergency-profile" />
           </Stack.Protected>
           <Stack.Protected guard={!token}>
             <Stack.Screen name="(auth)" />
           </Stack.Protected>
         </Stack>
       )}
+      {isLoading ? null : <ReminderNotifications />}
       <BrandSplash ready={!isLoading} />
     </>
   );

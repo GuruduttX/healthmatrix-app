@@ -6,13 +6,13 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { Spacing } from '@/constants/theme';
 import { DoctorHero } from '@/features/care/doctor-hero';
 import { FindPodCard } from '@/features/care/find-pod-card';
-import { MedicinesCard } from '@/features/care/medicines-card';
 import { ReminderList } from '@/features/care/reminder-list';
 import { sampleCare } from '@/features/care/sample-data';
 import { SpecialtyList } from '@/features/care/specialty-list';
+import { TodayMedicinesCard } from '@/features/reminders/today-card';
 
 export default function CareScreen() {
-  const { doctor, pods, medicines, reminders } = sampleCare;
+  const { doctor, pods, reminders } = sampleCare;
 
   return (
     <Screen title="Care" subtitle="Doctors, pods, medicines and reminders.">
@@ -30,8 +30,12 @@ export default function CareScreen() {
         </View>
 
         <View style={styles.section}>
-          <SectionHeader title="Medicines today" />
-          <MedicinesCard person={medicines.person} doses={medicines.doses} />
+          <SectionHeader
+            title="Medicines today"
+            actionLabel="Manage"
+            onAction={() => router.push('/care/medicines')}
+          />
+          <TodayMedicinesCard />
         </View>
 
         <View style={styles.section}>

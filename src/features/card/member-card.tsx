@@ -2,24 +2,40 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BadgeCheck, RotateCw, Siren } from 'lucide-react-native';
 import { useState } from 'react';
-import { Animated, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Animated, Platform, Pressable, StyleSheet, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 
 import { ThemedText } from '@/components/themed-text';
 import { Plans } from '@/constants/plans';
 import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
+import { type BloodGroup, type PlanId } from '@/types';
 
-import { formatMemberId, sampleCard } from './sample-data';
+import { formatMemberId } from './sample-data';
+
+/** What the card prints. Dates are already "MM/YY". */
+export type CardMember = {
+  name: string;
+  firstName: string;
+  memberId: string;
+  plan: PlanId;
+  bloodGroup?: BloodGroup;
+  memberSince: string;
+  validThru?: string;
+  abhaLinked: boolean;
+};
 
 type MemberCardProps = {
-  member: (typeof sampleCard)['member'];
-  emergencyUrl: string;
+  member: CardMember;
+  /** The member's emergency link; null while it loads. */
+  emergencyUrl: string | null;
+  /** Shown on the back when there is no link to show. */
+  emergencyError?: string | null;
 };
 
 const FLIP_MS = 450;
 
 /** The digital twin of the physical card. Tap to flip to the emergency QR on the back. */
-export function MemberCard({ member, emergencyUrl }: MemberCardProps) {
+export function MemberCard({ member, emergencyUrl, emergencyError }: MemberCardProps) {
   const [flipped, setFlipped] = useState(false);
   const [width, setWidth] = useState(0);
   const [progress] = useState(() => new Animated.Value(0));
@@ -61,7 +77,12 @@ export function MemberCard({ member, emergencyUrl }: MemberCardProps) {
         </Animated.View>
         <Animated.View
           style={[styles.face, face('180deg', '360deg', false), !flipped && styles.inert]}>
-          <CardBack firstName={member.firstName} emergencyUrl={emergencyUrl} cardWidth={width} />
+          <CardBack
+            firstName={member.firstName}
+            emergencyUrl={emergencyUrl}
+            emergencyError={emergencyError}
+            cardWidth={width}
+          />
         </Animated.View>
       </Pressable>
 
@@ -127,21 +148,29 @@ function CardFront({ member, cardWidth }: { member: MemberCardProps['member']; c
           {member.name}
         </ThemedText>
         <ThemedText style={[styles.dates, styles.besideBadge]} numberOfLines={1}>
-          Member since {member.memberSince}   Valid thru {member.validThru}
+          Member since {member.memberSince}
+          {member.validThru ? `   Valid thru ${member.validThru}` : ''}
         </ThemedText>
       </View>
 
-      <View style={styles.bloodGroup}>
-        <ThemedText style={styles.bloodGroupLabel}>Blood group</ThemedText>
-        <ThemedText style={styles.bloodGroupValue}>{member.bloodGroup}</ThemedText>
-      </View>
+      {member.bloodGroup ? (
+        <View style={styles.bloodGroup}>
+          <ThemedText style={styles.bloodGroupLabel}>Blood group</ThemedText>
+          <ThemedText style={styles.bloodGroupValue}>{member.bloodGroup}</ThemedText>
+        </View>
+      ) : null}
     </LinearGradient>
   );
 }
 
-type CardBackProps = { firstName: string; emergencyUrl: string; cardWidth: number };
+type CardBackProps = {
+  firstName: string;
+  emergencyUrl: string | null;
+  emergencyError?: string | null;
+  cardWidth: number;
+};
 
-function CardBack({ firstName, emergencyUrl, cardWidth }: CardBackProps) {
+function CardBack({ firstName, emergencyUrl, emergencyError, cardWidth }: CardBackProps) {
   const qrSize = Math.max(64, Math.round(cardWidth * 0.25));
 
   return (
@@ -154,10 +183,14 @@ function CardBack({ firstName, emergencyUrl, cardWidth }: CardBackProps) {
       </View>
 
       <View style={styles.backBody}>
-        <View style={styles.qr}>
-          {cardWidth > 0 ? (
+        <View style={[styles.qr, { width: qrSize + 12, height: qrSize + 12 }]}>
+          {cardWidth > 0 && emergencyUrl ? (
             <QRCode value={emergencyUrl} size={qrSize} color={Colors.ink} backgroundColor="#FFFFFF" />
-          ) : null}
+          ) : emergencyError ? (
+            <ThemedText style={styles.qrError}>QR unavailable. Check your connection.</ThemedText>
+          ) : (
+            <ActivityIndicator color={Colors.ink} />
+          )}
         </View>
         <View style={styles.backText}>
           <ThemedText style={styles.backTitle}>{firstName}’s emergency profile</ThemedText>
@@ -335,9 +368,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   qr: {
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 6,
     borderRadius: Radius.sm,
     backgroundColor: '#FFFFFF',
+  },
+  qrError: {
+    fontFamily: Fonts.semibold,
+    fontSize: 10,
+    lineHeight: 13,
+    textAlign: 'center',
+    color: Colors.ink,
   },
   backText: {
     flex: 1,

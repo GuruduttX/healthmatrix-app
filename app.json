@@ -14,7 +14,8 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["android.permission.SCHEDULE_EXACT_ALARM"]
     },
     "web": {
       "output": "server",
@@ -31,7 +32,8 @@
           "imageWidth": 200
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      ["expo-notifications", { "color": "#DD4301" }]
     ],
     "experiments": {
       "typedRoutes": true,

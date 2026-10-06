@@ -18,5 +18,11 @@ const qrLinkSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+/** One active code per member and carrier; revoked ones are kept for the scan history. */
+qrLinkSchema.index(
+  { member: 1, carrier: 1 },
+  { unique: true, partialFilterExpression: { status: 'active' } },
+);
+
 export type QrLink = InferSchemaType<typeof qrLinkSchema>;
 export const QrLinkModel = defineModel('QrLink', qrLinkSchema);

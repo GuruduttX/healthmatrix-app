@@ -52,3 +52,11 @@ export const SPECIALTIES = [
 ] as const;
 
 export const REMINDER_KINDS = ['medicine', 'test', 'vaccine'] as const;
+
+/** How a reminder repeats. Dates are the member's local calendar days. */
+export const REMINDER_FREQUENCIES = ['once', 'daily', 'weekdays', 'interval', 'monthly'] as const;
+
+/** When to take a medicine relative to food. */
+export const MEAL_TIMINGS = ['before_food', 'after_food', 'with_food', 'empty_stomach'] as const;
+
+export const DOSE_STATUSES = ['taken', 'skipped'] as const;

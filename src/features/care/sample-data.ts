@@ -8,15 +8,12 @@ export type Pod = {
   distanceKm: number;
   map: MapPoint;
 };
-export type ReminderKind = 'test' | 'vaccine' | 'consult';
-export type Reminder = { id: string; kind: ReminderKind; title: string; who: string; due: string };
 
 /**
  * SAMPLE DATA from the brochure mock-up, so the Care screen can be designed
- * before the doctors, pods, bookings and test/vaccine reminders APIs exist. The
- * doctor, pods, slots and reminders are the brochure's; the map positions are
- * placeholders. Replace with API data. Medicine reminders are real
- * (`features/reminders`).
+ * before the pods and bookings APIs exist. The doctor, pods and slots are the
+ * brochure's; the map positions are placeholders. Replace with API data.
+ * Doctors, appointments, medicine reminders and vaccines are real.
  */
 export const sampleCare = {
   doctor: {
@@ -37,9 +34,4 @@ export const sampleCare = {
     day: 'Saturday',
     slots: ['8:30 am', '9:00 am', '9:30 am', '10:00 am'],
   },
-  reminders: [
-    { id: 'hpv', kind: 'vaccine', title: 'HPV vaccine, first dose', who: 'Anya', due: 'Due in October' },
-    { id: 'lipid', kind: 'test', title: 'Lipid profile again', who: 'You', due: 'In 12 weeks' },
-    { id: 'follow-up', kind: 'consult', title: 'Video follow-up', who: 'You', due: 'In 12 weeks' },
-  ] satisfies Reminder[],
 };

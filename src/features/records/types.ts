@@ -1,5 +1,6 @@
 import { type Tone } from '@/components/ui/icon-tile';
 import { type Specialty } from '@/features/doctors/types';
+import { type VaccinationRecord } from '@/features/vaccines/types';
 import { type RecordType } from '@/types';
 
 /** One row on the timeline. Matches `summary` in `src/server/records.ts`. */
@@ -18,6 +19,7 @@ export type RecordSummary = {
 
 /** A prescription opened up. Matches `getRecord` in `src/server/records.ts`. */
 export type PrescriptionRecord = RecordSummary & {
+  type: 'prescription';
   doctor?: {
     id: string;
     name: string;
@@ -28,4 +30,12 @@ export type PrescriptionRecord = RecordSummary & {
   };
   consult?: { specialty?: Specialty; reason?: string; scheduledAt: string };
   prescription: { items: string[]; status?: string; signedAt?: string };
+  /** Vaccines prescribed alongside, each a record of its own. */
+  vaccines: RecordSummary[];
 };
+
+/** A vaccine opened up. */
+export type VaccineRecord = RecordSummary & { type: 'vaccination'; vaccination: VaccinationRecord };
+
+/** What `/records/<id>` returns: a prescription or a vaccine. */
+export type OpenRecord = PrescriptionRecord | VaccineRecord;

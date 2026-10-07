@@ -13,3 +13,4 @@ export * from './qr-link.model';
 export * from './reminder.model';
 export * from './scan-log.model';
 export * from './session.model';
+export * from './vaccination.model';

@@ -6,17 +6,17 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { Spacing } from '@/constants/theme';
 import { DoctorHero } from '@/features/care/doctor-hero';
 import { FindPodCard } from '@/features/care/find-pod-card';
-import { ReminderList } from '@/features/care/reminder-list';
 import { sampleCare } from '@/features/care/sample-data';
 import { SpecialtyList } from '@/features/care/specialty-list';
 import { UpcomingAppointments } from '@/features/doctors/appointments-card';
 import { TodayMedicinesCard } from '@/features/reminders/today-card';
+import { VaccinesCard } from '@/features/vaccines/vaccines-card';
 
 export default function CareScreen() {
-  const { doctor, pods, reminders } = sampleCare;
+  const { doctor, pods } = sampleCare;
 
   return (
-    <Screen title="Care" subtitle="Doctors, pods, medicines and reminders.">
+    <Screen title="Care" subtitle="Doctors, pods, medicines and vaccines.">
       <View style={styles.sections}>
         <DoctorHero doctor={doctor} />
 
@@ -41,10 +41,7 @@ export default function CareScreen() {
           <TodayMedicinesCard />
         </View>
 
-        <View style={styles.section}>
-          <SectionHeader title="Reminders" />
-          <ReminderList reminders={reminders} />
-        </View>
+        <VaccinesCard />
       </View>
     </Screen>
   );

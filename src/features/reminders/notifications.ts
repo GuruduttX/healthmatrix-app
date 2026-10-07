@@ -1,15 +1,20 @@
 import * as Notifications from 'expo-notifications';
 import { Linking, Platform } from 'react-native';
 
-import { describeDose, upcomingDoses, type Dose } from './schedule';
+import { type VaccinationRecord } from '@/features/vaccines/types';
+
+import { addDays, describeDose, doseTime, upcomingDoses, type Dose } from './schedule';
 import { type MedicineReminder } from './types';
 
 /** Notifications are phone-only; on web the reminders still show in the app. */
 export const notificationsSupported = Platform.OS !== 'web';
 
 const CHANNEL_ID = 'medicine-reminders';
-/** Every notification this feature schedules starts with this, so it can clear only its own. */
+/** Every notification the app schedules starts with one of these, so it clears only its own. */
 const ID_PREFIX = 'medicine:';
+const VACCINE_PREFIX = 'vaccine:';
+/** Of the slots below, vaccine doses may take at most this many; medicines get the rest. */
+const MAX_VACCINE = 20;
 /** iOS keeps at most 64 pending notifications per app; leave room for others. */
 const MAX_SCHEDULED = 60;
 /** How far ahead to schedule. Opening the app tops the queue up again. */
@@ -77,9 +82,7 @@ function contentFor(doses: Dose[]): Notifications.NotificationContentInput {
   const single = doses.length === 1 && first;
   return {
     title: single ? `Time for ${first.reminder.name}` : `Time for ${doses.length} medicines`,
-    body: single
-      ? describeDose(first.reminder) || 'Tap to mark it taken'
-      : names.join(', '),
+    body: single ? describeDose(first.reminder) || 'Tap to mark it taken' : names.join(', '),
     sound: 'default',
     data: { url: REMINDERS_ROUTE, date: first?.date, time: first?.time },
   };
@@ -89,21 +92,89 @@ async function cancelOwn() {
   const scheduled = await Notifications.getAllScheduledNotificationsAsync();
   await Promise.all(
     scheduled
-      .filter((request) => request.identifier.startsWith(ID_PREFIX))
+      .filter(
+        (request) =>
+          request.identifier.startsWith(ID_PREFIX) || request.identifier.startsWith(VACCINE_PREFIX),
+      )
       .map((request) => Notifications.cancelScheduledNotificationAsync(request.identifier)),
   );
 }
 
-async function sync(reminders: MedicineReminder[]) {
+const vaccineTitle = (name: string) => (/vaccin/i.test(name) ? name : `${name} vaccine`);
+
+/**
+ * Two nudges for every vaccine dose not yet given: 7 PM the evening before and 9 AM on the day.
+ * Due days are India-time dates, used here as the phone's local days.
+ */
+function vaccineMoments(vaccinations: VaccinationRecord[], now: Date) {
+  const moments: { id: string; at: Date; content: Notifications.NotificationContentInput }[] = [];
+  for (const vaccination of vaccinations) {
+    const title = vaccineTitle(vaccination.name);
+    const where = [vaccination.doseText, vaccination.site?.toLowerCase()]
+      .filter(Boolean)
+      .join(', ');
+    for (const dose of vaccination.doses) {
+      if (dose.status === 'given') continue;
+      const which =
+        vaccination.totalDoses > 1
+          ? `Dose ${dose.number} of ${vaccination.totalDoses}`
+          : 'Your dose';
+      const data = { url: `/care/vaccine/${vaccination.id}` };
+      moments.push(
+        {
+          id: `${VACCINE_PREFIX}${vaccination.id}:${dose.number}:eve`,
+          at: doseTime(addDays(dose.dueOn, -1), '19:00'),
+          content: {
+            title: `Vaccine tomorrow: ${title}`,
+            body: `${which} is due tomorrow${where ? ` (${where})` : ''}.`,
+            sound: 'default',
+            data,
+          },
+        },
+        {
+          id: `${VACCINE_PREFIX}${vaccination.id}:${dose.number}:day`,
+          at: doseTime(dose.dueOn, '09:00'),
+          content: {
+            title: `${title} due today`,
+            body: `${which}. Mark it given in HealthMatrix once you've had it.`,
+            sound: 'default',
+            data,
+          },
+        },
+      );
+    }
+  }
+  return moments
+    .filter((moment) => moment.at > now)
+    .sort((a, b) => a.at.getTime() - b.at.getTime())
+    .slice(0, MAX_VACCINE);
+}
+
+async function sync({ reminders, vaccinations }: Sources) {
   await cancelOwn();
   if ((await getPermission()) !== 'granted') return;
   await ensureChannel();
 
+  const now = new Date();
+  const vaccines = vaccineMoments(vaccinations, now);
+  for (const moment of vaccines) {
+    await Notifications.scheduleNotificationAsync({
+      identifier: moment.id,
+      content: moment.content,
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: moment.at,
+        channelId: CHANNEL_ID,
+      },
+    });
+  }
+
   // One notification per moment: medicines due at the same time share it.
+  const budget = MAX_SCHEDULED - vaccines.length;
   const groups = new Map<string, Dose[]>();
-  for (const dose of upcomingDoses(reminders, new Date(), MAX_SCHEDULED * 4, HORIZON_DAYS)) {
+  for (const dose of upcomingDoses(reminders, now, budget * 4, HORIZON_DAYS)) {
     const key = `${dose.date}T${dose.time}`;
-    if (!groups.has(key) && groups.size >= MAX_SCHEDULED) break;
+    if (!groups.has(key) && groups.size >= budget) break;
     groups.set(key, [...(groups.get(key) ?? []), dose]);
   }
 
@@ -120,17 +191,23 @@ async function sync(reminders: MedicineReminder[]) {
   }
 }
 
+type Sources = { reminders: MedicineReminder[]; vaccinations: VaccinationRecord[] };
+
+/** The last list seen of each kind; a sync always schedules from both. */
+let latest: Sources = { reminders: [], vaccinations: [] };
 /** Runs one sync at a time; a newer request replaces any still waiting. */
 let running: Promise<void> | null = null;
-let pending: MedicineReminder[] | null = null;
+let pending: Sources | null = null;
 
 /**
- * Replaces this feature's scheduled notifications with the next doses of `reminders`. Doses
- * already marked taken or skipped are left out. Pass `[]` to clear them, e.g. on sign-out.
+ * Replaces the app's scheduled notifications with the next medicine doses and vaccine doses.
+ * Pass whichever list changed; the other keeps its last value. Doses already marked (taken,
+ * skipped or given) are left out.
  */
-export function syncMedicineNotifications(reminders: MedicineReminder[]) {
+export function syncNotifications(changed: Partial<Sources>) {
   if (!notificationsSupported) return Promise.resolve();
-  pending = reminders;
+  latest = { ...latest, ...changed };
+  pending = latest;
   running ??= (async () => {
     try {
       while (pending) {
@@ -143,4 +220,9 @@ export function syncMedicineNotifications(reminders: MedicineReminder[]) {
     }
   })();
   return running;
+}
+
+/** Clears every reminder notification, e.g. on sign-out. */
+export function clearNotifications() {
+  return syncNotifications({ reminders: [], vaccinations: [] });
 }

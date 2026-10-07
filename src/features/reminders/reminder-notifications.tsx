@@ -5,10 +5,13 @@ import { AppState } from 'react-native';
 
 import { useAuth } from '@/features/auth/auth-context';
 
+import { refreshVaccinations, useVaccinations } from '@/features/vaccines/use-vaccinations';
+
 import {
+  clearNotifications,
   configureNotifications,
   notificationsSupported,
-  syncMedicineNotifications,
+  syncNotifications,
 } from './notifications';
 import { refreshReminders, useReminders } from './use-reminders';
 
@@ -22,8 +25,9 @@ function openFrom(response: Notifications.NotificationResponse | null) {
 }
 
 /**
- * Keeps the phone's scheduled reminders in step with the saved ones while signed in, clears
- * them on sign-out, and opens the medicines screen when a reminder is tapped. Renders nothing.
+ * Keeps the phone's scheduled notifications (medicine doses and vaccine doses) in step with
+ * the saved ones while signed in, clears them on sign-out, and opens the right screen when one
+ * is tapped. Renders nothing.
  * Mount it once auth has loaded, or start-up would clear the queue before the member is known.
  */
 export function ReminderNotifications() {
@@ -35,23 +39,30 @@ export function ReminderNotifications() {
 
 function SignedOut() {
   useEffect(() => {
-    void syncMedicineNotifications([]);
+    void clearNotifications();
   }, []);
   return null;
 }
 
 function SignedIn({ memberId }: { memberId: string }) {
   const { reminders } = useReminders();
+  const { vaccinations } = useVaccinations();
 
   useEffect(() => {
-    if (reminders) void syncMedicineNotifications(reminders);
+    if (reminders) void syncNotifications({ reminders });
   }, [reminders]);
+
+  useEffect(() => {
+    if (vaccinations) void syncNotifications({ vaccinations });
+  }, [vaccinations]);
 
   // Coming back to the app tops up the queue (it only reaches a few weeks ahead) and picks up
   // changes made on another device.
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') refreshReminders(memberId).catch(() => undefined);
+      if (state !== 'active') return;
+      refreshReminders(memberId).catch(() => undefined);
+      refreshVaccinations(memberId).catch(() => undefined);
     });
     return () => subscription.remove();
   }, [memberId]);

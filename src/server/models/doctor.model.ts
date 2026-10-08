@@ -1,8 +1,28 @@
 import { type InferSchemaType } from 'mongoose';
 
-import { SPECIALTIES } from '../constants';
 import { defineModel, mongoose } from '../mongoose';
 
+/** One working session on a weekday, India time: { weekday: 1, from: "09:00", to: "13:00" }. */
+const sessionSchema = new mongoose.Schema(
+  {
+    weekday: { type: Number, min: 0, max: 6, required: true },
+    from: { type: String, required: true },
+    to: { type: String, required: true },
+  },
+  { _id: false },
+);
+
+/** A stretch the doctor can't be booked: whole days or part of one. */
+const timeOffSchema = new mongoose.Schema({
+  start: { type: Date, required: true },
+  end: { type: Date, required: true },
+  note: String,
+});
+
+/**
+ * A doctor on the network. Owned by the doctor console, which edits the profile and the
+ * schedule; this app reads them to list doctors and book consults.
+ */
 const doctorSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
@@ -11,13 +31,32 @@ const doctorSchema = new mongoose.Schema(
     registrationNumber: { type: String, required: true },
     /** The medical council that issued the registration. */
     council: String,
-    specialties: { type: [String], enum: SPECIALTIES, default: ['general_medicine'] },
+    /** `SPECIALTIES` keys, or a specialty the doctor typed in the console ("Orthopaedics"). */
+    specialties: { type: [String], default: ['general_medicine'] },
     languages: [String],
     city: String,
     state: String,
     photoUrl: String,
     telemedicineConsentAt: Date,
+    /** A few lines patients read about the doctor. */
+    about: String,
+    /** Years in practice since registration. */
+    experienceYears: { type: Number, min: 0, max: 70 },
     isActive: { type: Boolean, default: true },
+
+    /**
+     * When members can book, set in the console. Read with `resolveSchedule` in `../schedule`,
+     * which fills in the defaults for doctors who never saved one.
+     */
+    schedule: {
+      acceptingBookings: Boolean,
+      slotMinutes: Number,
+      bookingWindowDays: Number,
+      minNoticeMinutes: Number,
+      weekly: { type: [sessionSchema], default: undefined },
+      timeOff: { type: [timeOffSchema], default: undefined },
+      updatedAt: Date,
+    },
   },
   { timestamps: true },
 );

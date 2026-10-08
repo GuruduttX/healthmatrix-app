@@ -55,6 +55,11 @@ export type Specialty = (typeof SPECIALTIES)[number];
 
 export const CONSULT_STATUSES = ['scheduled', 'in_progress', 'completed', 'cancelled'] as const;
 
+export const CONSULT_MODES = ['video', 'video_from_pod'] as const;
+
+/** Who called a consult off: the member here, or the doctor in the console. */
+export const CANCELLED_BY = ['member', 'doctor'] as const;
+
 export const REMINDER_KINDS = ['medicine', 'test', 'vaccine'] as const;
 
 /** How a reminder repeats. Dates are the member's local calendar days. */

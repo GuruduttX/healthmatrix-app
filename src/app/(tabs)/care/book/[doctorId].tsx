@@ -21,12 +21,13 @@ import { Surface } from '@/components/ui/surface';
 import { Colors, Fonts, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { formStyles } from '@/features/card/form-styles';
 import { DoctorAvatar } from '@/features/doctors/doctor-avatar';
-import { specialtyLabel } from '@/features/doctors/specialties';
+import { isSpecialty, specialtyLabel } from '@/features/doctors/specialties';
 import { formatSlot, istToday } from '@/features/doctors/time';
 import {
   type Appointment,
   type DoctorWithSlots,
   type Slot,
+  type SlotDay,
   type Specialty,
 } from '@/features/doctors/types';
 import { useAppointments } from '@/features/doctors/use-appointments';
@@ -51,6 +52,23 @@ function groupSlots(slots: Slot[]) {
     else groups.push({ title, slots: [slot] });
   }
   return groups;
+}
+
+/** The day button's last line: free count, or why there is nothing to book. */
+function dayStatus(day: SlotDay, free: number) {
+  if (free) return `${free} free`;
+  if (day.off === 'weekly') return 'Day off';
+  if (day.off === 'time_off') return 'Away';
+  if (day.off === 'paused') return 'Paused';
+  return 'Full';
+}
+
+/** Why the chosen day has no times to show. */
+function emptyDayText(day: SlotDay | undefined) {
+  if (day?.off === 'weekly') return 'The doctor doesn’t consult on this day. Pick another day.';
+  if (day?.off === 'time_off') return 'The doctor is away on this day. Pick another day.';
+  if (day?.off === 'paused') return 'The doctor isn’t taking bookings right now.';
+  return 'No slots left on this day. Pick another day.';
 }
 
 /** Book a video consult with one doctor: pick a day, a time, and say what it's about. */
@@ -95,8 +113,8 @@ export default function BookDoctorScreen() {
           });
           setSpecialty((current) => {
             if (current) return current;
-            const fromList = next.doctor.specialties.find((id) => id === wanted);
-            return fromList ?? next.doctor.specialties[0] ?? null;
+            const bookable = next.doctor.specialties.filter(isSpecialty);
+            return bookable.find((id) => id === wanted) ?? bookable[0] ?? null;
           });
         })
         .catch((e: unknown) => {
@@ -152,6 +170,7 @@ export default function BookDoctorScreen() {
   }
 
   const { doctor, days, slotMinutes } = data;
+  const bookable = doctor.specialties.filter(isSpecialty);
   const today = istToday();
   const day = days.find((d) => d.date === date);
   const chosen = day?.slots.find((slot) => slot.at === slotAt && slot.available);
@@ -211,10 +230,19 @@ export default function BookDoctorScreen() {
             </View>
           </Surface>
 
-          {doctor.specialties.length > 1 ? (
+          {doctor.about ? (
+            <Surface style={styles.section}>
+              <ThemedText type="bodyBold">About {doctor.name}</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                {doctor.about}
+              </ThemedText>
+            </Surface>
+          ) : null}
+
+          {bookable.length > 1 ? (
             <Section title="Consult for">
               <View style={styles.wrap}>
-                {doctor.specialties.map((id) => (
+                {bookable.map((id) => (
                   <Chip
                     key={id}
                     label={specialtyLabel(id)}
@@ -248,7 +276,7 @@ export default function BookDoctorScreen() {
                     disabled={!free}
                     accessibilityRole="button"
                     accessibilityState={{ selected, disabled: !free }}
-                    accessibilityLabel={`${formatDay(d.date, today)}, ${free ? `${free} free slots` : 'fully booked'}`}
+                    accessibilityLabel={`${formatDay(d.date, today)}, ${free ? `${free} free slots` : dayStatus(d, free).toLowerCase()}`}
                     style={({ pressed }) => [
                       styles.day,
                       selected && styles.daySelected,
@@ -264,7 +292,7 @@ export default function BookDoctorScreen() {
                     <ThemedText
                       type="caption"
                       themeColor={selected ? 'onInk' : free ? 'success' : 'textMuted'}>
-                      {free ? `${free} free` : 'Full'}
+                      {dayStatus(d, free)}
                     </ThemedText>
                   </Pressable>
                 );
@@ -313,7 +341,7 @@ export default function BookDoctorScreen() {
               ))
             ) : (
               <ThemedText type="small" themeColor="textSecondary">
-                No slots left on this day. Pick another day.
+                {emptyDayText(day)}
               </ThemedText>
             )}
           </Section>

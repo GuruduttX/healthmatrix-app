@@ -1,3 +1,4 @@
+import { type mongo, type Types } from 'mongoose';
 import { z } from 'zod';
 
 import { requireMember } from '@/server/auth';
@@ -16,8 +17,8 @@ const body = z.object({
 
 /**
  * Marks one dose given (or not). Only `givenAt` on that dose changes, with a targeted update, so
- * nothing the doctor app wrote is touched. The doctor app's reminder for the dose is paused
- * while it is marked given.
+ * nothing the doctor console wrote is touched. The dose's reminder is paused while it is marked
+ * given, and its log tells the console the dose was given.
  */
 export const PUT = handle(async (request: Request, { id, number }: Record<string, string>) => {
   const { given, givenOn } = body.parse(await request.json());
@@ -43,10 +44,25 @@ export const PUT = handle(async (request: Request, { id, number }: Record<string
       : { $unset: { 'doses.$.givenAt': 1 } },
   );
   if (dose.reminder) {
-    await ReminderModel.updateOne(
-      { _id: dose.reminder, member: member._id },
-      { $set: { isActive: !given } },
-    );
+    // The doctor console reads a dose as given from its reminder's log: an entry with
+    // `takenAt`. Those entries are shaped `{ dueAt, takenAt }`, unlike the app's medicine dose
+    // marks, so they are written to the collection directly instead of through this app's schema.
+    const reminders = ReminderModel.collection as unknown as mongo.Collection<{
+      member: Types.ObjectId;
+      isActive: boolean;
+      updatedAt: Date;
+      log: { dueAt?: Date; takenAt?: Date }[];
+    }>;
+    const filter = { _id: dose.reminder, member: member._id };
+    await reminders.updateOne(filter, {
+      $set: { isActive: !given, updatedAt: new Date() },
+      $pull: { log: { takenAt: { $exists: true } } },
+    });
+    if (given) {
+      await reminders.updateOne(filter, {
+        $push: { log: { dueAt: dose.dueOn, takenAt: istMidnight(day) } },
+      });
+    }
   }
 
   const [fresh] = await loadVaccinations(member._id, { _id: vaccination._id });

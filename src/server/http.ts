@@ -13,6 +13,15 @@ export class HttpError extends Error {
   }
 }
 
+/** The database dropped mid-request: no server to talk to, or a query buffered past its timeout. */
+function isConnectionError(error: unknown) {
+  const { name = '', message = '' } = (error as Error | null) ?? {};
+  return (
+    /^Mongo(ose)?(ServerSelection|Network|NetworkTimeout|Topology)/.test(name) ||
+    /buffering timed out/.test(message)
+  );
+}
+
 /** Responds with `{ error: { message } }`, the shape the app's API client reads. */
 export function errorResponse(error: unknown) {
   let status = 500;
@@ -33,6 +42,9 @@ export function errorResponse(error: unknown) {
   } else if ((error as { code?: number } | null)?.code === 11000) {
     status = 409;
     message = 'Already exists';
+  } else if (isConnectionError(error)) {
+    status = 503;
+    message = 'HealthMatrix can’t reach its database right now. Try again in a moment.';
   }
 
   if (status >= 500) console.error(error);

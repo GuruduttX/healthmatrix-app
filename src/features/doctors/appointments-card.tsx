@@ -1,4 +1,5 @@
-import { CalendarClock, Video } from 'lucide-react-native';
+import { router } from 'expo-router';
+import { CalendarClock, CalendarX, Video } from 'lucide-react-native';
 import { useState } from 'react';
 import { Alert, Platform, Pressable, StyleSheet, View } from 'react-native';
 
@@ -32,7 +33,19 @@ function confirmCancel(appointment: Appointment) {
   );
 }
 
-/** "Upcoming appointments" on the Care tab, heading included. Hidden when there are none. */
+/** Rebooking after the doctor cancelled: the same doctor, for the same specialty. */
+function bookAgain(appointment: Appointment) {
+  if (!appointment.doctor) return router.push('/care');
+  router.push({
+    pathname: '/care/book/[doctorId]',
+    params: { doctorId: appointment.doctor.id, specialty: appointment.specialty },
+  });
+}
+
+/**
+ * "Upcoming appointments" on the Care tab, heading included. Hidden when there are none.
+ * Consults the doctor cancelled in the console stay for a while, with their reason.
+ */
 export function UpcomingAppointments() {
   const { appointments, cancel } = useAppointments();
   const now = useNow();
@@ -60,7 +73,9 @@ export function UpcomingAppointments() {
       <Surface style={styles.card}>
         {appointments.map((appointment, index) => {
           const startsIn = new Date(appointment.scheduledAt).getTime() - now.getTime();
-          const soon = appointment.status === 'in_progress' || startsIn <= SOON_MS;
+          const running = appointment.status === 'in_progress';
+          const cancelledByDoctor = appointment.status === 'cancelled';
+          const soon = running || startsIn <= SOON_MS;
           return (
             <View key={appointment.id} style={[styles.row, index > 0 && styles.divider]}>
               <DoctorAvatar
@@ -76,13 +91,39 @@ export function UpcomingAppointments() {
                   {specialtyLabel(appointment.specialty)} · Video consult
                 </ThemedText>
                 <View style={styles.when}>
-                  <CalendarClock size={13} color={Colors.primary} strokeWidth={2.4} />
-                  <ThemedText type="caption" themeColor="primary" style={styles.whenText}>
+                  {cancelledByDoctor ? (
+                    <CalendarX size={13} color={Colors.danger} strokeWidth={2.4} />
+                  ) : (
+                    <CalendarClock size={13} color={Colors.primary} strokeWidth={2.4} />
+                  )}
+                  <ThemedText
+                    type="caption"
+                    themeColor={cancelledByDoctor ? 'danger' : 'primary'}
+                    style={[styles.whenText, cancelledByDoctor && styles.struck]}>
                     {formatSlot(appointment.scheduledAt)}
                   </ThemedText>
                 </View>
+                {cancelledByDoctor ? (
+                  <ThemedText type="caption" themeColor="textSecondary">
+                    Cancelled by doctor.{' '}
+                    {appointment.cancelReason ?? 'Please book another slot.'}
+                  </ThemedText>
+                ) : null}
               </View>
-              {soon ? (
+              {cancelledByDoctor ? (
+                <Pressable
+                  onPress={() => bookAgain(appointment)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Book again with ${appointment.doctor?.name ?? 'a doctor'}`}
+                  hitSlop={8}
+                  style={({ pressed }) => [styles.rebook, pressed && styles.pressed]}>
+                  <ThemedText type="caption" themeColor="primary" style={styles.cancelText}>
+                    Book again
+                  </ThemedText>
+                </Pressable>
+              ) : running ? (
+                <Tag label="Doctor is ready" tone="success" icon={Video} />
+              ) : soon ? (
                 <Tag label="Starting soon" tone="success" icon={Video} />
               ) : (
                 <Pressable
@@ -148,6 +189,16 @@ const styles = StyleSheet.create({
   },
   cancelText: {
     fontFamily: Fonts.bold,
+  },
+  rebook: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+  },
+  struck: {
+    textDecorationLine: 'line-through',
   },
   pressed: {
     opacity: 0.7,

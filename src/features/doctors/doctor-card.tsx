@@ -1,5 +1,6 @@
 import {
   BadgeCheck,
+  BriefcaseMedical,
   CalendarPlus,
   Languages,
   MapPin,
@@ -72,11 +73,17 @@ export function DoctorCard({ doctor, specialty, onBook }: DoctorCardProps) {
             {doctor.location}
           </Fact>
         ) : null}
+        {doctor.experienceYears ? (
+          <Fact
+            icon={<BriefcaseMedical size={15} color={Colors.textSecondary} strokeWidth={2.2} />}>
+            {doctor.experienceYears} {doctor.experienceYears === 1 ? 'year' : 'years'} in practice
+          </Fact>
+        ) : null}
         <Fact icon={<ShieldCheck size={15} color={Colors.textSecondary} strokeWidth={2.2} />}>
           Reg. {registration}
         </Fact>
         <Fact icon={<Video size={15} color={Colors.textSecondary} strokeWidth={2.2} />}>
-          Video consult, 30 minutes
+          Video consult, {doctor.slotMinutes} minutes
         </Fact>
       </View>
 
@@ -86,7 +93,9 @@ export function DoctorCard({ doctor, specialty, onBook }: DoctorCardProps) {
             Next available
           </ThemedText>
           <ThemedText type="smallBold" themeColor={doctor.nextSlot ? 'success' : 'textMuted'}>
-            {doctor.nextSlot ? formatSlot(doctor.nextSlot) : 'Fully booked this week'}
+            {doctor.nextSlot
+              ? formatSlot(doctor.nextSlot)
+              : `No free slots in the next ${doctor.bookingWindowDays} ${doctor.bookingWindowDays === 1 ? 'day' : 'days'}`}
           </ThemedText>
         </View>
         <Button

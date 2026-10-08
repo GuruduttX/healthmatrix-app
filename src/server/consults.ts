@@ -1,8 +1,8 @@
 import { type Types } from 'mongoose';
 
-import { type Specialty } from './constants';
 import { toDoctorJson } from './doctors';
 import { type Consult, type Doctor } from './models';
+import { DEFAULT_CONSULT_MINUTES } from './schedule';
 
 /** What `populate('doctor', DOCTOR_FIELDS)` fills in; null if the doctor was deleted. */
 export type PopulatedDoctor = { doctor: (Doctor & { _id: Types.ObjectId }) | null };
@@ -24,9 +24,13 @@ export function toConsultJson(consult: PopulatedConsult) {
       qualifications: doctor.qualifications,
       photoUrl: doctor.photoUrl,
     },
-    specialty: consult.specialty as Specialty,
+    specialty: consult.specialty,
     scheduledAt: consult.scheduledAt.toISOString(),
+    durationMinutes: consult.durationMinutes ?? DEFAULT_CONSULT_MINUTES,
     status: consult.status,
     reason: consult.reason ?? undefined,
+    startedAt: consult.startedAt?.toISOString(),
+    cancelledBy: consult.cancelledBy ?? undefined,
+    cancelReason: consult.cancelledBy === 'doctor' ? (consult.cancelReason ?? undefined) : undefined,
   };
 }

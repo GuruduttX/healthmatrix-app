@@ -63,7 +63,11 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
     });
   } catch (error) {
     // Network failures carry native stack text on iOS; show something a member can act on.
-    console.warn(`${rest.method ?? 'GET'} ${path} failed`, error);
+    if (controller.signal.aborted) {
+      console.warn(`${rest.method ?? 'GET'} ${path} timed out after ${TIMEOUT_MS / 1000}s`);
+      throw new ApiError(0, 'HealthMatrix is taking too long to answer. Try again in a moment.');
+    }
+    console.warn(`${rest.method ?? 'GET'} ${path} failed`, String(error));
     throw new ApiError(0, 'Could not reach HealthMatrix. Check your internet connection and try again.');
   } finally {
     clearTimeout(timer);

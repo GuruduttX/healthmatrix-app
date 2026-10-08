@@ -21,6 +21,7 @@ export const PATCH = handle(async (request: Request, { id }: Record<string, stri
 
   consult.status = 'cancelled';
   consult.cancelledAt = new Date();
+  consult.cancelledBy = 'member';
   await consult.save();
   return new Response(null, { status: 204 });
 });

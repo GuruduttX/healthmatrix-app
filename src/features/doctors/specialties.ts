@@ -76,6 +76,10 @@ export function specialtyInfo(id: string): SpecialtyInfo | undefined {
   return SPECIALTIES.find((specialty) => specialty.id === id);
 }
 
-export function specialtyLabel(id: Specialty) {
+/** True for the specialties members can book; doctors may list others they typed. */
+export const isSpecialty = (id: string): id is Specialty => Boolean(specialtyInfo(id));
+
+/** The label for a specialty key; one a doctor typed is shown as written. */
+export function specialtyLabel(id: string) {
   return specialtyInfo(id)?.label ?? id;
 }

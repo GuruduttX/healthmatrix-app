@@ -40,19 +40,34 @@ export class ApiError extends Error {
 
 type ApiOptions = Omit<RequestInit, 'body'> & { body?: unknown };
 
+/** Without this a request to an unreachable server spins for a minute before the OS gives up. */
+const TIMEOUT_MS = 30_000;
+
 export async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
   const { body, headers, ...rest } = options;
 
-  const res = await fetch(apiUrl(path), {
-    ...rest,
-    headers: {
-      Accept: 'application/json',
-      ...(body !== undefined && { 'Content-Type': 'application/json' }),
-      ...(authToken && { Authorization: `Bearer ${authToken}` }),
-      ...headers,
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(apiUrl(path), {
+      ...rest,
+      headers: {
+        Accept: 'application/json',
+        ...(body !== undefined && { 'Content-Type': 'application/json' }),
+        ...(authToken && { Authorization: `Bearer ${authToken}` }),
+        ...headers,
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    // Network failures carry native stack text on iOS; show something a member can act on.
+    console.warn(`${rest.method ?? 'GET'} ${path} failed`, error);
+    throw new ApiError(0, 'Could not reach HealthMatrix. Check your internet connection and try again.');
+  } finally {
+    clearTimeout(timer);
+  }
 
   const data = res.status === 204 ? null : await res.json().catch(() => null);
   if (!res.ok) throw new ApiError(res.status, data?.error?.message ?? res.statusText);

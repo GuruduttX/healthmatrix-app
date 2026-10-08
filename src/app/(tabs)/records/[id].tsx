@@ -9,7 +9,7 @@ import {
   Stethoscope,
   Syringe,
 } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/screen';
@@ -39,22 +39,31 @@ export default function RecordDetailScreen() {
   const [record, setRecord] = useState<OpenRecord | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  /** `isActive` drops the answer once another record is open. */
+  const load = useCallback(
+    (isActive: () => boolean) =>
+      api<{ record: OpenRecord }>(`/records/${id}`)
+        .then(({ record: next }) => {
+          if (!isActive()) return;
+          setRecord(next);
+          setError(null);
+        })
+        .catch((e: unknown) => {
+          if (isActive()) setError(e instanceof Error ? e.message : 'Could not open this record');
+        }),
+    [id],
+  );
+
   useEffect(() => {
     let active = true;
-    api<{ record: OpenRecord }>(`/records/${id}`)
-      .then(({ record: next }) => {
-        if (active) setRecord(next);
-      })
-      .catch((e: unknown) => {
-        if (active) setError(e instanceof Error ? e.message : 'Could not open this record');
-      });
+    void load(() => active);
     return () => {
       active = false;
     };
-  }, [id]);
+  }, [load]);
 
   return (
-    <Screen>
+    <Screen onRefresh={() => load(() => true)}>
       <Pressable
         onPress={() => (router.canGoBack() ? router.back() : router.replace('/records'))}
         accessibilityRole="button"

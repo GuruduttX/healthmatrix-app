@@ -16,11 +16,11 @@ const vaccineTitle = (name: string) => (/vaccin/i.test(name) ? name : `${name} v
  */
 export default function CareVaccineScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { vaccinations, error } = useVaccinations();
+  const { vaccinations, error, refresh } = useVaccinations();
   const vaccination = vaccinations?.find((v) => v.id === id);
 
   return (
-    <Screen>
+    <Screen onRefresh={refresh}>
       <Pressable
         onPress={() => (router.canGoBack() ? router.back() : router.dismissTo('/care'))}
         accessibilityRole="button"

@@ -11,6 +11,7 @@ import { Colors, Fonts, MaxContentWidth, Radius, Spacing } from '@/constants/the
 import { useAuth } from '@/features/auth/auth-context';
 import { useEmergencyProfile, type EmergencyFieldId } from '@/features/card/emergency-profile';
 import { MemberAvatar } from '@/features/profile/member-avatar';
+import { useRefreshControl } from '@/hooks/use-refresh-control';
 
 const GENDER_LABELS = { male: 'Male', female: 'Female', other: 'Other' } as const;
 
@@ -20,8 +21,9 @@ const GENDER_LABELS = { male: 'Male', female: 'Female', other: 'Other' } as cons
  * alerted and the scan is not logged.
  */
 export default function ResponderPreviewScreen() {
-  const { member } = useAuth();
-  const { profile, error } = useEmergencyProfile();
+  const { member, refreshMember } = useAuth();
+  const { profile, error, refresh } = useEmergencyProfile();
+  const refreshControl = useRefreshControl(() => Promise.allSettled([refreshMember(), refresh()]));
 
   if (!member || !profile) {
     return (
@@ -64,7 +66,10 @@ export default function ResponderPreviewScreen() {
         </Pressable>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={refreshControl}
+        contentContainerStyle={styles.content}>
         <View style={styles.banner}>
           <View style={styles.bannerTitle}>
             <Siren size={18} color={Colors.onInk} strokeWidth={2.2} />

@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 
 import { useAuth } from '@/features/auth/auth-context';
 import { api } from '@/services/api';
@@ -82,10 +82,11 @@ export function useEmergencyProfile() {
   const profile = current && current.memberId === memberId ? current.profile : null;
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  /** Loads the profile again, e.g. on pull-to-refresh. */
+  const refresh = useCallback(async () => {
     if (!memberId) return;
     const startedAt = version;
-    api<{ profile: EmergencyProfile }>('/members/me/emergency')
+    await api<{ profile: EmergencyProfile }>('/members/me/emergency')
       .then(({ profile: fresh }) => {
         if (version === startedAt) publish(memberId, fresh);
         setError(null);
@@ -94,6 +95,10 @@ export function useEmergencyProfile() {
         setError(e instanceof Error ? e.message : 'Could not load your emergency profile'),
       );
   }, [memberId]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
 
   /** Saves a change. With `optimistic`, the screen shows it before the server confirms. */
   const save = (update: EmergencyProfileUpdate, { optimistic = false } = {}) => {
@@ -124,5 +129,5 @@ export function useEmergencyProfile() {
     );
   };
 
-  return { profile, error, save };
+  return { profile, error, refresh, save };
 }

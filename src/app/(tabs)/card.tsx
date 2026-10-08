@@ -37,10 +37,10 @@ function toCardMember(member: Member): CardMember {
 }
 
 export default function CardScreen() {
-  const { member, signOut } = useAuth();
-  const { qr, error: qrError } = useEmergencyQr();
+  const { member, signOut, refreshMember } = useAuth();
+  const { qr, error: qrError, refresh: refreshQr } = useEmergencyQr();
   const [lockScreenQr, setLockScreenQr] = useState(sampleCard.lockScreenQr);
-  const { profile, error: profileError, save } = useEmergencyProfile();
+  const { profile, error: profileError, refresh: refreshProfile, save } = useEmergencyProfile();
   const [toggleError, setToggleError] = useState<string | null>(null);
 
   const toggleField = (id: EmergencyFieldId) => {
@@ -58,6 +58,7 @@ export default function CardScreen() {
   return (
     <Screen
       title="My card"
+      onRefresh={() => Promise.allSettled([refreshMember(), refreshQr(), refreshProfile()])}
       headerRight={
         <Pressable accessibilityRole="button" style={styles.share}>
           <Share2 size={15} color={Colors.text} strokeWidth={2.2} />

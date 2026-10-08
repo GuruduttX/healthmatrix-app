@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 
 import { useAuth } from '@/features/auth/auth-context';
 import { api } from '@/services/api';
@@ -82,13 +82,18 @@ export function useReminders() {
   const reminders = current && current.memberId === memberId ? current.reminders : null;
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  /** Loads the list again, e.g. on pull-to-refresh. */
+  const refresh = useCallback(async () => {
     if (!memberId) return;
-    refreshReminders(memberId).then(
+    await refreshReminders(memberId).then(
       () => setError(null),
       (e: unknown) => setError(message(e, 'Could not load your medicines')),
     );
   }, [memberId]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
 
   const signedIn = () => {
     if (!memberId) throw new Error('Please sign in');
@@ -164,5 +169,5 @@ export function useReminders() {
     }
   };
 
-  return { reminders, error, create, update, remove, markDose };
+  return { reminders, error, refresh, create, update, remove, markDose };
 }

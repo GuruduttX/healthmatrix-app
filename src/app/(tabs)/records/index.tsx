@@ -82,24 +82,31 @@ export default function RecordsScreen() {
   const [records, setRecords] = useState<RecordSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(() => {
-    let active = true;
-    api<{ records: RecordSummary[] }>('/records')
-      .then(({ records: list }) => {
-        if (!active) return;
-        setRecords(list);
-        setError(null);
-      })
-      .catch((e: unknown) => {
-        if (active) setError(e instanceof Error ? e.message : 'Could not load your records');
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
+  /** `isActive` drops the answer once the screen has moved on. */
+  const load = useCallback(
+    (isActive: () => boolean) =>
+      api<{ records: RecordSummary[] }>('/records')
+        .then(({ records: list }) => {
+          if (!isActive()) return;
+          setRecords(list);
+          setError(null);
+        })
+        .catch((e: unknown) => {
+          if (isActive()) setError(e instanceof Error ? e.message : 'Could not load your records');
+        }),
+    [],
+  );
 
   // Every visit picks up what doctors have added since.
-  useFocusEffect(load);
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      void load(() => active);
+      return () => {
+        active = false;
+      };
+    }, [load]),
+  );
 
   const filter = FILTERS.find((item) => item.id === filterId) ?? FILTERS[0]!;
   const needle = query.trim().toLowerCase();
@@ -112,7 +119,7 @@ export default function RecordsScreen() {
   const groups = groupByMonth(visible);
 
   return (
-    <Screen title="Records">
+    <Screen title="Records" onRefresh={() => load(() => true)}>
       <View style={styles.search}>
         <Search size={18} color={Colors.textMuted} strokeWidth={2} />
         <TextInput
@@ -173,7 +180,7 @@ export default function RecordsScreen() {
               <ThemedText type="small" themeColor="danger" style={styles.emptyText}>
                 {error}
               </ThemedText>
-              <Button label="Try again" variant="secondary" onPress={load} />
+              <Button label="Try again" variant="secondary" onPress={() => void load(() => true)} />
             </>
           ) : (
             <ActivityIndicator color={Colors.textSecondary} />

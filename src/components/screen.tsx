@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { useRefreshControl } from '@/hooks/use-refresh-control';
 import { useTabBarClearance } from '@/hooks/use-tab-bar-clearance';
 
 type ScreenProps = {
@@ -14,12 +15,22 @@ type ScreenProps = {
   headerRight?: ReactNode;
   /** Rendered over the scroll area, pinned above the tab bar (e.g. a floating button). */
   floating?: ReactNode;
+  /** Pulling the page down calls this to reload what it shows. */
+  onRefresh?: () => Promise<unknown>;
   children?: ReactNode;
 };
 
 /** Scrollable page shell shared by the tab screens. Leaves room for the floating tab bar. */
-export function Screen({ title, subtitle, headerRight, floating, children }: ScreenProps) {
+export function Screen({
+  title,
+  subtitle,
+  headerRight,
+  floating,
+  onRefresh,
+  children,
+}: ScreenProps) {
   const clearance = useTabBarClearance();
+  const refreshControl = useRefreshControl(onRefresh);
 
   return (
     <ThemedView style={styles.container}>
@@ -27,6 +38,7 @@ export function Screen({ title, subtitle, headerRight, floating, children }: Scr
         <ScrollView
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          refreshControl={refreshControl}
           contentContainerStyle={[
             styles.content,
             { paddingBottom: clearance + Spacing.three + (floating ? 56 : 0) },

@@ -28,6 +28,7 @@ import { type DoseStatus, type MedicineReminder } from '@/features/reminders/typ
 import { useNow } from '@/features/reminders/use-now';
 import { useReminders } from '@/features/reminders/use-reminders';
 import { WeekStrip, type DayMark } from '@/features/reminders/week-strip';
+import { useRefreshControl } from '@/hooks/use-refresh-control';
 import { useTabBarClearance } from '@/hooks/use-tab-bar-clearance';
 
 /** Running medicines first, then paused, then finished courses. */
@@ -51,8 +52,9 @@ function groupByPartOfDay(doses: Dose[]) {
 
 /** Medicine reminders: the day's doses to mark, and every medicine with its schedule. */
 export default function MedicinesScreen() {
-  const { reminders, error, update, markDose } = useReminders();
+  const { reminders, error, refresh, update, markDose } = useReminders();
   const clearance = useTabBarClearance();
+  const refreshControl = useRefreshControl(refresh);
   const now = useNow();
   const today = toDateKey(now);
   const [selected, setSelected] = useState(today);
@@ -119,6 +121,7 @@ export default function MedicinesScreen() {
 
         <ScrollView
           showsVerticalScrollIndicator={false}
+          refreshControl={refreshControl}
           contentContainerStyle={[styles.content, { paddingBottom: clearance + Spacing.three }]}>
           {!reminders ? (
             <View style={styles.loading}>

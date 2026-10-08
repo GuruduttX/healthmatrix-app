@@ -1,14 +1,7 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, SearchX, Stethoscope } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -19,6 +12,7 @@ import { Colors, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { DoctorCard } from '@/features/doctors/doctor-card';
 import { specialtyInfo } from '@/features/doctors/specialties';
 import { type Doctor } from '@/features/doctors/types';
+import { useRefreshControl } from '@/hooks/use-refresh-control';
 import { useTabBarClearance } from '@/hooks/use-tab-bar-clearance';
 import { api } from '@/services/api';
 
@@ -30,36 +24,38 @@ export default function SpecialtyDoctorsScreen() {
 
   const [doctors, setDoctors] = useState<Doctor[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(() => {
-    if (!info) return;
-    let active = true;
-    api<{ doctors: Doctor[] }>(`/doctors?specialty=${info.id}`)
-      .then(({ doctors: list }) => {
-        if (!active) return;
+  /** `isActive` drops the answer once the screen has moved on. */
+  const load = useCallback(
+    async (isActive: () => boolean) => {
+      if (!info) return;
+      try {
+        const { doctors: list } = await api<{ doctors: Doctor[] }>(
+          `/doctors?specialty=${info.id}`,
+        );
+        if (!isActive()) return;
         setDoctors(list);
         setError(null);
-      })
-      .catch((e: unknown) => {
-        if (active) setError(e instanceof Error ? e.message : 'Could not load doctors');
-      })
-      .finally(() => {
-        if (active) setRefreshing(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [info]);
+      } catch (e) {
+        if (isActive()) setError(e instanceof Error ? e.message : 'Could not load doctors');
+      }
+    },
+    [info],
+  );
 
   // Load again whenever the screen comes back into view (say, after booking), so each doctor's
   // next free slot is never stale.
-  useFocusEffect(load);
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      void load(() => active);
+      return () => {
+        active = false;
+      };
+    }, [load]),
+  );
 
-  const refresh = () => {
-    setRefreshing(true);
-    load();
-  };
+  const refreshControl = useRefreshControl(() => load(() => true));
 
   const Icon = info?.icon ?? Stethoscope;
   const count = doctors?.length ?? 0;
@@ -90,7 +86,7 @@ export default function SpecialtyDoctorsScreen() {
 
         <ScrollView
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
+          refreshControl={refreshControl}
           contentContainerStyle={[styles.content, { paddingBottom: clearance + Spacing.three }]}>
           {info ? (
             <View style={styles.intro}>
@@ -115,7 +111,11 @@ export default function SpecialtyDoctorsScreen() {
                   <ThemedText type="small" themeColor="danger" style={styles.center}>
                     {error}
                   </ThemedText>
-                  <Button label="Try again" variant="secondary" onPress={refresh} />
+                  <Button
+                    label="Try again"
+                    variant="secondary"
+                    onPress={() => void load(() => true)}
+                  />
                 </>
               ) : (
                 <ActivityIndicator color={Colors.textSecondary} />

@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 
 import { useAuth } from '@/features/auth/auth-context';
 import { api } from '@/services/api';
@@ -8,6 +8,7 @@ import { type Appointment, type Specialty } from './types';
 // One copy of the member's upcoming consults, shared by the Care tab and the booking screen.
 let snapshot: { memberId: string; appointments: Appointment[] } | null = null;
 const listeners = new Set<() => void>();
+let loading: { memberId: string; promise: Promise<void> } | null = null;
 
 function subscribe(listener: () => void) {
   listeners.add(listener);
@@ -23,6 +24,18 @@ function publish(memberId: string, appointments: Appointment[]) {
 const listFor = (memberId: string) =>
   snapshot?.memberId === memberId ? snapshot.appointments : [];
 
+/** Fetches the list again. Calls made while one is in flight share it. */
+export function refreshAppointments(memberId: string) {
+  if (loading?.memberId === memberId) return loading.promise;
+  const promise = api<{ appointments: Appointment[] }>('/consults')
+    .then(({ appointments }) => publish(memberId, appointments))
+    .finally(() => {
+      loading = null;
+    });
+  loading = { memberId, promise };
+  return promise;
+}
+
 export type BookingRequest = {
   doctorId: string;
   specialty: Specialty;
@@ -37,16 +50,18 @@ export function useAppointments() {
   const appointments = current && current.memberId === memberId ? current.appointments : null;
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  /** Loads the list again, e.g. on pull-to-refresh. */
+  const refresh = useCallback(async () => {
     if (!memberId) return;
-    api<{ appointments: Appointment[] }>('/consults').then(
-      ({ appointments: fresh }) => {
-        publish(memberId, fresh);
-        setError(null);
-      },
+    await refreshAppointments(memberId).then(
+      () => setError(null),
       (e: unknown) => setError(e instanceof Error ? e.message : 'Could not load your appointments'),
     );
   }, [memberId]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
 
   const book = async (request: BookingRequest) => {
     if (!memberId) throw new Error('Please sign in');
@@ -67,5 +82,5 @@ export function useAppointments() {
     );
   };
 
-  return { appointments, error, book, cancel };
+  return { appointments, error, refresh, book, cancel };
 }

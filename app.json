@@ -1,13 +1,15 @@
 {
   "expo": {
     "name": "HealthMatrix",
-    "slug": "healthmatrix",
+    "slug": "health-matrix",
+    "owner": "inventoappss-team",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "healthmatrix",
     "userInterfaceStyle": "light",
     "android": {
+      "package": "com.inventoapps.healthmatrix",
       "adaptiveIcon": {
         "backgroundColor": "#0E2A33",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -39,6 +41,11 @@
       "typedRoutes": true,
       "reactCompiler": true
     },
-    "backgroundColor": "#F3F7F7"
+    "backgroundColor": "#F3F7F7",
+    "extra": {
+      "eas": {
+        "projectId": "798aaf34-6b6d-4412-9b7f-eae462bc2e0c"
+      }
+    }
   }
 }

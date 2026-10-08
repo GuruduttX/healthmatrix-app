@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { useAuth } from '@/features/auth/auth-context';
 import { api } from '@/services/api';
@@ -32,6 +32,22 @@ export function useEmergencyQr() {
   const [qr, setQr] = useState<EmergencyQr | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  /** Fetches the server copy; `isActive` drops the answer once the member has changed. */
+  const load = useCallback(
+    (isActive: () => boolean) =>
+      api<{ qr: EmergencyQr }>('/members/me/qr')
+        .then(({ qr: fresh }) => {
+          if (!isActive() || !memberId) return;
+          setQr(fresh);
+          setError(null);
+          return storage.set(CACHE_KEY, JSON.stringify({ ...fresh, memberId }));
+        })
+        .catch((e: unknown) => {
+          if (isActive()) setError(e instanceof Error ? e.message : 'Could not load your QR');
+        }),
+    [memberId],
+  );
+
   useEffect(() => {
     if (!memberId) return;
     let active = true;
@@ -43,22 +59,17 @@ export function useEmergencyQr() {
         setQr((current) => current ?? { code: cached.code, url: cached.url });
       }
     });
-
-    api<{ qr: EmergencyQr }>('/members/me/qr')
-      .then(({ qr: fresh }) => {
-        if (!active) return;
-        setQr(fresh);
-        setError(null);
-        return storage.set(CACHE_KEY, JSON.stringify({ ...fresh, memberId }));
-      })
-      .catch((e: unknown) => {
-        if (active) setError(e instanceof Error ? e.message : 'Could not load your QR');
-      });
+    void load(() => active);
 
     return () => {
       active = false;
     };
-  }, [memberId]);
+  }, [memberId, load]);
 
-  return { qr, error };
+  /** Loads the QR again, e.g. on pull-to-refresh. */
+  const refresh = async () => {
+    if (memberId) await load(() => true);
+  };
+
+  return { qr, error, refresh };
 }

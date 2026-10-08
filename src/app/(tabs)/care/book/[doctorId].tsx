@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { CalendarCheck, Check, ChevronLeft, Lock, Video } from 'lucide-react-native';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -37,6 +37,7 @@ import {
   partOfDay,
   WEEKDAY_NAMES,
 } from '@/features/reminders/schedule';
+import { useRefreshControl } from '@/hooks/use-refresh-control';
 import { useTabBarClearance } from '@/hooks/use-tab-bar-clearance';
 import { ApiError, api } from '@/services/api';
 
@@ -63,7 +64,6 @@ export default function BookDoctorScreen() {
 
   const [data, setData] = useState<DoctorWithSlots | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [reloads, setReloads] = useState(0);
 
   const [specialty, setSpecialty] = useState<Specialty | null>(null);
   const [date, setDate] = useState<string | null>(null);
@@ -73,38 +73,50 @@ export default function BookDoctorScreen() {
   const [error, setError] = useState<string | null>(null);
   const [booked, setBooked] = useState<Appointment | null>(null);
 
+  /** Loads the doctor and free slots; `isActive` drops the answer once the screen has moved on. */
+  const load = useCallback(
+    (isActive: () => boolean) =>
+      api<DoctorWithSlots>(`/doctors/${doctorId}`)
+        .then((next) => {
+          if (!isActive()) return;
+          setData(next);
+          setLoadError(null);
+          // Keep the chosen day if it still has room, otherwise jump to the first free day.
+          setDate((current) => {
+            const keep = next.days.find(
+              (day) => day.date === current && day.slots.some((s) => s.available),
+            );
+            return (
+              keep?.date ??
+              next.days.find((day) => day.slots.some((s) => s.available))?.date ??
+              next.days[0]?.date ??
+              null
+            );
+          });
+          setSpecialty((current) => {
+            if (current) return current;
+            const fromList = next.doctor.specialties.find((id) => id === wanted);
+            return fromList ?? next.doctor.specialties[0] ?? null;
+          });
+        })
+        .catch((e: unknown) => {
+          if (isActive()) {
+            setLoadError(e instanceof Error ? e.message : 'Could not load this doctor');
+          }
+        }),
+    [doctorId, wanted],
+  );
+
   useEffect(() => {
     let active = true;
-    api<DoctorWithSlots>(`/doctors/${doctorId}`)
-      .then((next) => {
-        if (!active) return;
-        setData(next);
-        setLoadError(null);
-        // Keep the chosen day if it still has room, otherwise jump to the first free day.
-        setDate((current) => {
-          const keep = next.days.find(
-            (day) => day.date === current && day.slots.some((s) => s.available),
-          );
-          return (
-            keep?.date ??
-            next.days.find((day) => day.slots.some((s) => s.available))?.date ??
-            next.days[0]?.date ??
-            null
-          );
-        });
-        setSpecialty((current) => {
-          if (current) return current;
-          const fromList = next.doctor.specialties.find((id) => id === wanted);
-          return fromList ?? next.doctor.specialties[0] ?? null;
-        });
-      })
-      .catch((e: unknown) => {
-        if (active) setLoadError(e instanceof Error ? e.message : 'Could not load this doctor');
-      });
+    void load(() => active);
     return () => {
       active = false;
     };
-  }, [doctorId, wanted, reloads]);
+  }, [load]);
+
+  const reload = () => load(() => true);
+  const refreshControl = useRefreshControl(reload);
 
   const back = () => (router.canGoBack() ? router.back() : router.dismissTo('/care'));
 
@@ -128,7 +140,7 @@ export default function BookDoctorScreen() {
               <Button
                 label="Try again"
                 variant="secondary"
-                onPress={() => setReloads((n) => n + 1)}
+                onPress={() => void reload()}
               />
             </>
           ) : (
@@ -162,7 +174,7 @@ export default function BookDoctorScreen() {
       // Someone else took the slot: show the latest free times.
       if (e instanceof ApiError && (e.status === 409 || e.status === 400)) {
         setSlotAt(null);
-        setReloads((n) => n + 1);
+        void reload();
       }
     } finally {
       setBusy(false);
@@ -177,6 +189,7 @@ export default function BookDoctorScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          refreshControl={refreshControl}
           contentContainerStyle={[styles.content, { paddingBottom: clearance + Spacing.three }]}>
           <Surface style={styles.doctor}>
             <DoctorAvatar name={doctor.name} photoUrl={doctor.photoUrl} size={52} />

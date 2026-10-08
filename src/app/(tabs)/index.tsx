@@ -21,11 +21,11 @@ const ACTION_ROUTES: Record<QuickActionId, Href> = {
 };
 
 export default function HomeScreen() {
-  const { member } = useAuth();
+  const { member, refreshMember } = useAuth();
   const { hasUnreadNotifications, readings, insight, emergencyQr } = sampleHome;
 
   return (
-    <Screen>
+    <Screen onRefresh={refreshMember}>
       <View style={styles.sections}>
         <HomeHeader
           name={member?.name ?? ''}

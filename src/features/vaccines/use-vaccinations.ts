@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 
 import { useAuth } from '@/features/auth/auth-context';
 import { api } from '@/services/api';
@@ -64,13 +64,18 @@ export function useVaccinations() {
   const vaccinations = current && current.memberId === memberId ? current.vaccinations : null;
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  /** Loads the list again, e.g. on pull-to-refresh. */
+  const refresh = useCallback(async () => {
     if (!memberId) return;
-    refreshVaccinations(memberId).then(
+    await refreshVaccinations(memberId).then(
       () => setError(null),
       (e: unknown) => setError(e instanceof Error ? e.message : 'Could not load your vaccines'),
     );
   }, [memberId]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
 
   const markDose = (
     vaccinationId: string,
@@ -82,5 +87,5 @@ export function useVaccinations() {
     return markVaccineDose(memberId, vaccinationId, doseNumber, given, givenOn);
   };
 
-  return { vaccinations, error, markDose };
+  return { vaccinations, error, refresh, markDose };
 }

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 
 import { ApiError, setAuthToken } from '@/services/api';
 import { storage } from '@/services/storage';
@@ -17,6 +17,8 @@ type AuthContextValue = {
   signOut: () => Promise<void>;
   /** Replaces the signed-in member after a profile change. */
   updateMember: (member: Member) => Promise<void>;
+  /** Fetches the member again. Only a rejected token signs out; being offline does not. */
+  refreshMember: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -34,12 +36,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [member, setMember] = useState<Member | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const clear = async () => {
+  const clear = useCallback(async () => {
     await Promise.all([storage.remove(TOKEN_KEY), storage.remove(MEMBER_KEY)]);
     setAuthToken(null);
     setToken(null);
     setMember(null);
-  };
+  }, []);
+
+  const refreshMember = useCallback(
+    () =>
+      authApi
+        .me()
+        .then(({ member: fresh }) => {
+          setMember(fresh);
+          return storage.set(MEMBER_KEY, JSON.stringify(fresh));
+        })
+        .catch((error) => {
+          if (error instanceof ApiError && error.status === 401) return clear();
+        }),
+    [clear],
+  );
 
   useEffect(() => {
     (async () => {
@@ -57,19 +73,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setToken(storedToken);
       setMember(cached);
 
-      // Open straight away from the saved copy, then refresh it. Only a rejected token
-      // signs the member out; being offline does not.
-      authApi
-        .me()
-        .then(({ member: fresh }) => {
-          setMember(fresh);
-          return storage.set(MEMBER_KEY, JSON.stringify(fresh));
-        })
-        .catch((error) => {
-          if (error instanceof ApiError && error.status === 401) return clear();
-        });
+      // Open straight away from the saved copy, then refresh it.
+      void refreshMember();
     })().finally(() => setIsLoading(false));
-  }, []);
+  }, [clear, refreshMember]);
 
   const signIn = async (nextToken: string, nextMember: Member) => {
     await Promise.all([
@@ -93,7 +100,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ token, member, isLoading, signIn, signOut, updateMember }}>
+    <AuthContext.Provider
+      value={{ token, member, isLoading, signIn, signOut, updateMember, refreshMember }}>
       {children}
     </AuthContext.Provider>
   );

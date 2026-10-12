@@ -128,17 +128,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 2,
     paddingTop: 8,
-    paddingBottom: 6,
-    borderRadius: Radius.md,
+    paddingBottom: 7,
+    borderRadius: Radius.lg,
     borderWidth: 1.5,
     borderColor: 'transparent',
   },
   today: {
     borderColor: Colors.primaryLight,
+    backgroundColor: Colors.primarySoft,
   },
   selected: {
     borderColor: Colors.ink,
     backgroundColor: Colors.ink,
+    boxShadow: '0 8px 18px rgba(14, 42, 51, 0.25)',
   },
   dot: {
     width: 6,

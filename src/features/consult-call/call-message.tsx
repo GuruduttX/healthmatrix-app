@@ -6,6 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
+import { CallBackdrop } from './call-backdrop';
+
 type Action = { label: string; onPress: () => void };
 
 type CallMessageProps = {
@@ -30,6 +32,7 @@ export function CallMessage({
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.root, { paddingBottom: insets.bottom + Spacing.four }]}>
+      <CallBackdrop />
       <View style={styles.body}>
         <View style={[styles.icon, iconTone === 'success' && styles.iconSuccess]}>
           {Icon ? (
@@ -118,10 +121,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 52,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.pill,
   },
   primary: {
     backgroundColor: Colors.primary,
+    boxShadow: '0 8px 20px rgba(221, 67, 1, 0.45)',
   },
   secondary: {
     backgroundColor: 'rgba(255, 255, 255, 0.12)',

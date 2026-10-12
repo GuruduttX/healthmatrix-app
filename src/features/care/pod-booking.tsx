@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { IconTile } from '@/components/ui/icon-tile';
 import { Surface } from '@/components/ui/surface';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
 
 import { sampleCare, type Pod } from './sample-data';
 
@@ -34,7 +34,12 @@ export function PodBooking({
 
   return (
     <Surface style={styles.card}>
-      <ThemedText type="subtitle">Pods near you</ThemedText>
+      <View>
+        <ThemedText style={styles.title}>Pods near you</ThemedText>
+        <ThemedText type="caption" themeColor="textSecondary">
+          Pick a pod, then a slot for your {booking.test} test.
+        </ThemedText>
+      </View>
 
       <View>
         {pods.map((item, index) => {
@@ -48,10 +53,11 @@ export function PodBooking({
               accessibilityState={{ selected }}
               style={({ pressed }) => [
                 styles.pod,
-                index > 0 && styles.podDivider,
+                selected && styles.podSelected,
+                index > 0 && !selected && styles.podDivider,
                 pressed && styles.pressed,
               ]}>
-              <IconTile icon={Activity} tone={selected ? 'primary' : 'neutral'} size={36} />
+              <IconTile icon={Activity} tone={selected ? 'primary' : 'neutral'} size={40} />
               <View style={styles.flex}>
                 <ThemedText type="smallBold" numberOfLines={1}>
                   {item.name}
@@ -60,9 +66,11 @@ export function PodBooking({
                   {item.tier}, {hours}
                 </ThemedText>
               </View>
-              <ThemedText type="smallBold" themeColor={selected ? 'primary' : 'text'}>
-                {item.distanceKm} km
-              </ThemedText>
+              <View style={[styles.distance, selected && styles.distanceSelected]}>
+                <ThemedText style={[styles.distanceText, selected && styles.distanceTextSelected]}>
+                  {item.distanceKm} km
+                </ThemedText>
+              </View>
             </Pressable>
           );
         })}
@@ -70,7 +78,7 @@ export function PodBooking({
 
       {pod && slot ? (
         <View style={styles.slots}>
-          <ThemedText type="caption" themeColor="textSecondary">
+          <ThemedText type="smallBold" themeColor="textSecondary">
             {booking.day} slots at {pod.name}
           </ThemedText>
           <View style={styles.slotRow}>
@@ -95,8 +103,14 @@ export function PodBooking({
 
 const styles = StyleSheet.create({
   card: {
-    gap: Spacing.two,
-    padding: Spacing.three,
+    gap: Spacing.three - 4,
+    borderRadius: Radius.xl,
+    boxShadow: Shadows.lifted,
+  },
+  title: {
+    fontFamily: Fonts.display,
+    fontSize: 20,
+    lineHeight: 26,
   },
   flex: {
     flex: 1,
@@ -104,8 +118,32 @@ const styles = StyleSheet.create({
   pod: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two + 4,
+    gap: Spacing.three - 4,
     paddingVertical: 10,
+    paddingHorizontal: 10,
+    marginHorizontal: -10,
+    borderRadius: Radius.lg,
+  },
+  podSelected: {
+    backgroundColor: Colors.primarySoft,
+  },
+  distance: {
+    paddingVertical: 3,
+    paddingHorizontal: 9,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.backgroundSelected,
+  },
+  distanceSelected: {
+    backgroundColor: Colors.primary,
+  },
+  distanceText: {
+    fontFamily: Fonts.bold,
+    fontSize: 12,
+    lineHeight: 16,
+    color: Colors.inkMid,
+  },
+  distanceTextSelected: {
+    color: Colors.onInk,
   },
   podDivider: {
     borderTopWidth: 1,

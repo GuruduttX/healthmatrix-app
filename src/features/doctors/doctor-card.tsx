@@ -6,6 +6,7 @@ import {
   MapPin,
   ShieldCheck,
   Video,
+  type LucideIcon,
 } from 'lucide-react-native';
 import { type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -37,16 +38,16 @@ export function DoctorCard({ doctor, specialty, onBook }: DoctorCardProps) {
   return (
     <Surface style={styles.card}>
       <View style={styles.header}>
-        <DoctorAvatar name={doctor.name} photoUrl={doctor.photoUrl} size={60} />
+        <DoctorAvatar name={doctor.name} photoUrl={doctor.photoUrl} size={56} />
         <View style={styles.flex}>
           <View style={styles.nameRow}>
-            <ThemedText type="bodyBold" numberOfLines={2} style={styles.name}>
+            <ThemedText numberOfLines={2} style={styles.name}>
               {doctor.name}
             </ThemedText>
             <BadgeCheck size={17} color={Colors.success} strokeWidth={2.2} />
           </View>
           {doctor.qualifications ? (
-            <ThemedText type="small" themeColor="textSecondary">
+            <ThemedText type="caption" themeColor="textSecondary">
               {doctor.qualifications}
             </ThemedText>
           ) : null}
@@ -63,31 +64,24 @@ export function DoctorCard({ doctor, specialty, onBook }: DoctorCardProps) {
       </View>
 
       <View style={styles.facts}>
-        {doctor.languages.length ? (
-          <Fact icon={<Languages size={15} color={Colors.textSecondary} strokeWidth={2.2} />}>
-            Speaks {doctor.languages.join(', ')}
-          </Fact>
-        ) : null}
-        {doctor.location ? (
-          <Fact icon={<MapPin size={15} color={Colors.textSecondary} strokeWidth={2.2} />}>
-            {doctor.location}
-          </Fact>
-        ) : null}
         {doctor.experienceYears ? (
-          <Fact
-            icon={<BriefcaseMedical size={15} color={Colors.textSecondary} strokeWidth={2.2} />}>
-            {doctor.experienceYears} {doctor.experienceYears === 1 ? 'year' : 'years'} in practice
+          <Fact icon={BriefcaseMedical}>
+            {doctor.experienceYears} {doctor.experienceYears === 1 ? 'year' : 'years'}
           </Fact>
         ) : null}
-        <Fact icon={<ShieldCheck size={15} color={Colors.textSecondary} strokeWidth={2.2} />}>
-          Reg. {registration}
-        </Fact>
-        <Fact icon={<Video size={15} color={Colors.textSecondary} strokeWidth={2.2} />}>
-          Video consult, {doctor.slotMinutes} minutes
-        </Fact>
+        {doctor.languages.length ? <Fact icon={Languages}>{doctor.languages.join(', ')}</Fact> : null}
+        {doctor.location ? <Fact icon={MapPin}>{doctor.location}</Fact> : null}
+        <Fact icon={Video}>{doctor.slotMinutes} min video</Fact>
       </View>
 
-      <View style={styles.footer}>
+      <View style={styles.registration}>
+        <ShieldCheck size={13} color={Colors.textMuted} strokeWidth={2.2} />
+        <ThemedText type="caption" themeColor="textMuted" style={styles.flex} numberOfLines={1}>
+          Reg. {registration}
+        </ThemedText>
+      </View>
+
+      <View style={[styles.footer, !doctor.nextSlot && styles.footerNone]}>
         <View style={styles.flex}>
           <ThemedText type="caption" themeColor="textSecondary">
             Next available
@@ -95,12 +89,14 @@ export function DoctorCard({ doctor, specialty, onBook }: DoctorCardProps) {
           <ThemedText type="smallBold" themeColor={doctor.nextSlot ? 'success' : 'textMuted'}>
             {doctor.nextSlot
               ? formatSlot(doctor.nextSlot)
-              : `No free slots in the next ${doctor.bookingWindowDays} ${doctor.bookingWindowDays === 1 ? 'day' : 'days'}`}
+              : `None in the next ${doctor.bookingWindowDays} ${doctor.bookingWindowDays === 1 ? 'day' : 'days'}`}
           </ThemedText>
         </View>
         <Button
-          label="Book appointment"
+          label="Book"
           icon={CalendarPlus}
+          size="sm"
+          shadow={false}
           onPress={onBook}
           accessibilityLabel={`Book an appointment with ${doctor.name}`}
         />
@@ -109,11 +105,11 @@ export function DoctorCard({ doctor, specialty, onBook }: DoctorCardProps) {
   );
 }
 
-function Fact({ icon, children }: { icon: ReactNode; children: ReactNode }) {
+function Fact({ icon: Icon, children }: { icon: LucideIcon; children: ReactNode }) {
   return (
     <View style={styles.fact}>
-      {icon}
-      <ThemedText type="caption" themeColor="textSecondary" style={styles.flex}>
+      <Icon size={13} color={Colors.inkMid} strokeWidth={2.3} />
+      <ThemedText type="caption" style={styles.factText} numberOfLines={1}>
         {children}
       </ThemedText>
     </View>
@@ -122,8 +118,8 @@ function Fact({ icon, children }: { icon: ReactNode; children: ReactNode }) {
 
 const styles = StyleSheet.create({
   card: {
-    gap: Spacing.three,
-    padding: Spacing.three,
+    gap: Spacing.three - 2,
+    borderRadius: Radius.xl,
   },
   flex: {
     flex: 1,
@@ -131,7 +127,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: Spacing.two + 6,
+    gap: Spacing.three - 4,
   },
   nameRow: {
     flexDirection: 'row',
@@ -140,12 +136,15 @@ const styles = StyleSheet.create({
   },
   name: {
     flexShrink: 1,
+    fontFamily: Fonts.display,
+    fontSize: 17,
+    lineHeight: 22,
   },
   tags: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
-    marginTop: 6,
+    marginTop: 8,
   },
   tag: {
     paddingVertical: 3,
@@ -166,19 +165,44 @@ const styles = StyleSheet.create({
     color: Colors.primary,
   },
   facts: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 6,
-    padding: Spacing.two + 4,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.background,
   },
   fact: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
+    gap: 5,
+    maxWidth: '100%',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.background,
+  },
+  factText: {
+    flexShrink: 1,
+    fontFamily: Fonts.semibold,
+    color: Colors.inkMid,
+  },
+  registration: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: -4,
   },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two + 4,
+    gap: Spacing.three - 4,
+    paddingVertical: 10,
+    paddingLeft: 14,
+    paddingRight: 10,
+    borderRadius: Radius.lg,
+    backgroundColor: Colors.successSoft,
+  },
+  footerNone: {
+    backgroundColor: Colors.background,
   },
 });

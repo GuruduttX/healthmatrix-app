@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
 import { istToday } from '@/features/doctors/time';
 import { daysBetween, formatDay, formatShortDate } from '@/features/reminders/schedule';
 
@@ -238,14 +238,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   mark: {
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    borderRadius: Radius.md,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: Radius.pill,
     borderWidth: 1,
   },
   markPrimary: {
     borderColor: Colors.primary,
     backgroundColor: Colors.primary,
+    boxShadow: Shadows.glow,
   },
   markQuiet: {
     borderColor: Colors.border,

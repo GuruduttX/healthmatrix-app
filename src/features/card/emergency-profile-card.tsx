@@ -1,11 +1,14 @@
-import { CircleCheck, EyeOff, Lock, Pencil, Plus } from 'lucide-react-native';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { Check, EyeOff, Lock, Pencil, Plus, ShieldPlus } from 'lucide-react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { ErrorState } from '@/components/ui/empty-state';
+import { IconTile } from '@/components/ui/icon-tile';
+import { Skeleton, SkeletonGroup } from '@/components/ui/skeleton';
 import { Surface } from '@/components/ui/surface';
 import { Tag } from '@/components/ui/tag';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 
 import {
   EMERGENCY_FIELDS,
@@ -20,9 +23,16 @@ type EmergencyProfileCardProps = {
   error?: string | null;
   onToggle: (id: EmergencyFieldId) => void;
   onEdit: () => void;
+  /** Loads it again after an error. */
+  onRetry?: () => void;
 };
 
 const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/** Shorter names where the full one would not fit half the card's width. */
+const SHORT_LABELS: Partial<Record<EmergencyFieldId, string>> = {
+  emergencyContacts: 'Contacts',
+};
 
 /** "O+ · 1 allergy · 2 contacts" */
 function summary(profile: EmergencyProfile) {
@@ -37,19 +47,42 @@ function summary(profile: EmergencyProfile) {
     .join(' · ');
 }
 
-/** The member's emergency details, and field-by-field control over what a QR scan shows. */
-export function EmergencyProfileCard({ profile, error, onToggle, onEdit }: EmergencyProfileCardProps) {
-  if (!profile) {
-    return (
-      <Surface style={[styles.card, styles.loading]}>
-        {error ? (
-          <ThemedText type="small" themeColor="danger">
-            {error}
-          </ThemedText>
-        ) : (
-          <ActivityIndicator color={Colors.textSecondary} />
-        )}
+/** The card's shape while the profile loads. */
+function ProfileSkeleton() {
+  return (
+    <SkeletonGroup label="Loading your emergency profile">
+      <Surface style={styles.card}>
+        <View style={styles.header}>
+          <Skeleton width={40} height={40} radius={Radius.md} />
+          <View style={styles.flex}>
+            <Skeleton width="55%" height={15} />
+            <Skeleton width="40%" height={11} style={styles.gap} />
+          </View>
+        </View>
+        <Skeleton height={48} radius={Radius.pill} />
+        <View style={styles.grid}>
+          {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+            <Skeleton key={i} height={38} radius={Radius.md} style={styles.cellSkeleton} />
+          ))}
+        </View>
       </Surface>
+    </SkeletonGroup>
+  );
+}
+
+/** The member's emergency details, and field-by-field control over what a QR scan shows. */
+export function EmergencyProfileCard({
+  profile,
+  error,
+  onToggle,
+  onEdit,
+  onRetry,
+}: EmergencyProfileCardProps) {
+  if (!profile) {
+    return error ? (
+      <ErrorState title="Couldn’t load your emergency profile" message={error} onRetry={onRetry} />
+    ) : (
+      <ProfileSkeleton />
     );
   }
 
@@ -59,9 +92,13 @@ export function EmergencyProfileCard({ profile, error, onToggle, onEdit }: Emerg
   return (
     <Surface style={styles.card}>
       <View style={styles.header}>
-        <ThemedText type="bodyBold" style={styles.title}>
-          Emergency profile
-        </ThemedText>
+        <IconTile icon={ShieldPlus} tone="danger" size={40} />
+        <View style={styles.flex}>
+          <ThemedText type="bodyBold">Emergency profile</ThemedText>
+          <ThemedText type="caption" themeColor="textSecondary" numberOfLines={2}>
+            {empty ? 'Nothing added yet' : summary(profile)}
+          </ThemedText>
+        </View>
         <Tag
           label={`${shown} of ${EMERGENCY_FIELDS.length} shown`}
           tone={shown ? 'success' : 'neutral'}
@@ -75,9 +112,7 @@ export function EmergencyProfileCard({ profile, error, onToggle, onEdit }: Emerg
             knows how to help.
           </ThemedText>
         </View>
-      ) : (
-        <ThemedText type="smallBold">{summary(profile)}</ThemedText>
-      )}
+      ) : null}
 
       <Button
         label={empty ? 'Add emergency details' : 'Edit emergency details'}
@@ -87,7 +122,7 @@ export function EmergencyProfileCard({ profile, error, onToggle, onEdit }: Emerg
       />
 
       <ThemedText type="caption" themeColor="textSecondary">
-        Tap a field to show or hide it from anyone who scans your code.
+        Shown when someone scans your QR. Tap to show or hide.
       </ThemedText>
 
       <View style={styles.grid}>
@@ -100,14 +135,22 @@ export function EmergencyProfileCard({ profile, error, onToggle, onEdit }: Emerg
               accessibilityRole="switch"
               accessibilityState={{ checked: !isHidden }}
               accessibilityLabel={field.label}
-              style={({ pressed }) => [styles.field, pressed && styles.pressed]}>
-              {isHidden ? (
-                <EyeOff size={16} color={Colors.textMuted} strokeWidth={2} />
-              ) : (
-                <CircleCheck size={16} color={Colors.success} strokeWidth={2.2} />
-              )}
-              <ThemedText type="small" themeColor={isHidden ? 'textMuted' : 'text'} numberOfLines={1}>
-                {field.label}
+              style={({ pressed }) => [
+                styles.cell,
+                isHidden ? styles.cellHidden : styles.cellShown,
+                pressed && styles.pressed,
+              ]}>
+              <View style={[styles.cellIcon, isHidden ? styles.iconHidden : styles.iconShown]}>
+                {isHidden ? (
+                  <EyeOff size={11} color={Colors.textMuted} strokeWidth={2.6} />
+                ) : (
+                  <Check size={11} color={Colors.onInk} strokeWidth={3} />
+                )}
+              </View>
+              <ThemedText
+                style={[styles.cellText, { color: isHidden ? Colors.textMuted : Colors.text }]}
+                numberOfLines={1}>
+                {SHORT_LABELS[field.id] ?? field.label}
               </ThemedText>
             </Pressable>
           );
@@ -132,35 +175,72 @@ export function EmergencyProfileCard({ profile, error, onToggle, onEdit }: Emerg
 
 const styles = StyleSheet.create({
   card: {
-    gap: Spacing.two,
+    gap: Spacing.three - 4,
   },
-  loading: {
-    alignItems: 'center',
-    paddingVertical: Spacing.four,
+  flex: {
+    flex: 1,
+  },
+  gap: {
+    marginTop: 8,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
-  },
-  title: {
-    flex: 1,
+    gap: Spacing.three - 4,
   },
   nudge: {
     padding: Spacing.two + 4,
     borderRadius: Radius.md,
     backgroundColor: Colors.primarySoft,
   },
+  // Two toggles to a row: grow from a 40% basis so the gap never forces a wrap.
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: 6,
   },
-  field: {
-    width: '50%',
+  cell: {
+    flexGrow: 1,
+    flexBasis: '40%',
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingVertical: 7,
+    gap: 8,
+    minHeight: 38,
+    paddingHorizontal: 10,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+  },
+  cellSkeleton: {
+    flexGrow: 1,
+    flexBasis: '40%',
+  },
+  cellShown: {
+    borderColor: 'rgba(16, 128, 109, 0.16)',
+    backgroundColor: Colors.successSoft,
+  },
+  cellHidden: {
+    borderColor: Colors.border,
+    backgroundColor: Colors.background,
+  },
+  cellIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconShown: {
+    backgroundColor: Colors.success,
+  },
+  iconHidden: {
+    backgroundColor: Colors.backgroundSelected,
+  },
+  cellText: {
+    flexShrink: 1,
+    fontFamily: Fonts.semibold,
+    fontSize: 13,
+    lineHeight: 17,
   },
   pressed: {
     opacity: 0.6,
@@ -169,7 +249,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingTop: Spacing.two,
+    paddingTop: Spacing.three - 4,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
   },

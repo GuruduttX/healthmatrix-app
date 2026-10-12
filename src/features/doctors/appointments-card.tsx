@@ -90,7 +90,7 @@ export function UpcomingList({ appointments }: { appointments: Appointment[] }) 
                 {appointment.doctor?.name ?? 'Doctor'}
               </ThemedText>
               <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1}>
-                {specialtyLabel(appointment.specialty)} · Video consult
+                {specialtyLabel(appointment.specialty)}
               </ThemedText>
               <View style={styles.when}>
                 {cancelledByDoctor ? (
@@ -102,7 +102,7 @@ export function UpcomingList({ appointments }: { appointments: Appointment[] }) 
                   type="caption"
                   themeColor={cancelledByDoctor ? 'danger' : 'primary'}
                   style={[styles.whenText, cancelledByDoctor && styles.struck]}>
-                  {formatSlot(appointment.scheduledAt)}
+                  {formatSlot(appointment.scheduledAt)} · Video
                 </ThemedText>
               </View>
               {cancelledByDoctor ? (

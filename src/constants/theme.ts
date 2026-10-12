@@ -19,8 +19,17 @@ export const Colors = {
   primarySoft: '#FEF1EA',
 
   ink: '#0E2A33',
+  inkDeep: '#08191F',
   inkMid: '#244C56',
   onInk: '#FFFFFF',
+  /** Secondary text and hairlines on ink backgrounds. */
+  onInkMuted: 'rgba(255, 255, 255, 0.7)',
+  glass: 'rgba(255, 255, 255, 0.08)',
+  glassBorder: 'rgba(255, 255, 255, 0.14)',
+  /** Between ink and brand green; the middle of the consult card's gradient. */
+  teal: '#155A57',
+  /** Grey of a loading placeholder. */
+  skeleton: '#E3ECED',
 
   success: '#10806D',
   successSoft: '#DAF0EA',
@@ -31,6 +40,16 @@ export const Colors = {
 } as const;
 
 export type ThemeColor = keyof typeof Colors;
+
+/** Gradient stops shared across screens, so every dark header and brand badge matches Home. */
+export const Gradients = {
+  /** Dark headers: Home's hero, each tab's header, the emergency card. */
+  hero: [Colors.inkDeep, Colors.ink, Colors.inkMid],
+  /** Orange badges and icons: Ekaay's sparkle, avatars without a photo. */
+  brand: [Colors.primaryMid, Colors.primary],
+  /** Live and time-sensitive cards: the next consult. */
+  teal: [Colors.ink, Colors.teal, Colors.success],
+} as const;
 
 /** Keys match the font names loaded in `src/app/_layout.tsx`. */
 export const Fonts = {
@@ -63,6 +82,8 @@ export const Shadows = {
   card: '0 1px 2px rgba(14, 42, 51, 0.04), 0 6px 20px rgba(14, 42, 51, 0.05)',
   floating: '0 10px 30px rgba(14, 42, 51, 0.14)',
   glow: '0 8px 20px rgba(221, 67, 1, 0.35)',
+  /** Cards that sit over the dark Home hero. */
+  lifted: '0 2px 6px rgba(14, 42, 51, 0.06), 0 18px 40px rgba(14, 42, 51, 0.12)',
 } as const;
 
 /** Floating tab bar: pill height, gap below it, and how far the Ekaay button rises above it. */

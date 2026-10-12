@@ -53,7 +53,7 @@ export function ListEditor({
         <View style={styles.pills}>
           {items.map((item) => (
             <View key={item} style={styles.pill}>
-              <ThemedText type="smallBold" style={styles.pillText}>
+              <ThemedText type="smallBold" themeColor="onInk" style={styles.pillText}>
                 {item}
               </ThemedText>
               <Pressable
@@ -62,7 +62,7 @@ export function ListEditor({
                 accessibilityRole="button"
                 accessibilityLabel={`Remove ${item}`}
                 hitSlop={8}>
-                <X size={14} color={Colors.textSecondary} strokeWidth={2.4} />
+                <X size={14} color={Colors.onInkMuted} strokeWidth={2.6} />
               </Pressable>
             </View>
           ))}
@@ -134,11 +134,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     maxWidth: '100%',
-    paddingVertical: 6,
+    paddingVertical: 7,
     paddingLeft: 12,
     paddingRight: 10,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.backgroundSelected,
+    backgroundColor: Colors.ink,
   },
   pillText: {
     flexShrink: 1,
@@ -149,13 +149,14 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
+    minWidth: 0,
   },
   add: {
-    width: 48,
+    width: 52,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: Radius.md,
-    backgroundColor: Colors.ink,
+    borderRadius: 26,
+    backgroundColor: Colors.primary,
   },
   addDisabled: {
     opacity: 0.35,

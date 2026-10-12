@@ -1,9 +1,7 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import {
   CalendarCheck,
   CalendarClock,
-  ChevronLeft,
   ChevronRight,
   HeartPulse,
   Pill,
@@ -13,12 +11,16 @@ import {
   type LucideIcon,
 } from 'lucide-react-native';
 import { useCallback, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
+import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
+import { ErrorState } from '@/components/ui/empty-state';
+import { HeroBackground } from '@/components/ui/hero-background';
 import { IconTile } from '@/components/ui/icon-tile';
+import { Skeleton, SkeletonGroup, SkeletonList } from '@/components/ui/skeleton';
 import { Surface } from '@/components/ui/surface';
 import { Tag } from '@/components/ui/tag';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
@@ -145,20 +147,24 @@ export default function FamilyMemberScreen() {
 
   if (!overview) {
     return (
-      <Screen>
-        <BackLink onPress={back} />
-        <View style={styles.missing}>
-          {error ? (
-            <>
-              <ThemedText type="bodyBold">Couldn’t open this page</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary" style={styles.center}>
-                {error}
-              </ThemedText>
-            </>
-          ) : (
-            <ActivityIndicator color={Colors.textSecondary} />
-          )}
-        </View>
+      <Screen onBack={back} backLabel="My card" barTitle="Family">
+        {error ? (
+          <ErrorState
+            title="Couldn’t open this page"
+            message={error}
+            onRetry={() => void load(() => true)}
+          />
+        ) : (
+          <SkeletonGroup label="Loading their records" style={styles.stack}>
+            <Skeleton height={190} radius={Radius.xl} />
+            <View style={styles.skeletonTabs}>
+              {[0, 1, 2].map((i) => (
+                <Skeleton key={i} width={104} height={38} radius={Radius.pill} />
+              ))}
+            </View>
+            <SkeletonList rows={3} leading="tile" />
+          </SkeletonGroup>
+        )}
       </Screen>
     );
   }
@@ -191,239 +197,218 @@ export default function FamilyMemberScreen() {
   };
 
   return (
-    <Screen onRefresh={() => load(() => true)}>
-      <BackLink onPress={back} />
-
-      <LinearGradient
-        colors={[Colors.ink, Colors.inkMid]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.hero}>
-        <View style={styles.heroTop}>
-          <View style={styles.avatarRing}>
-            <MemberAvatar name={member.name} photoUrl={member.photoUrl} size={68} />
-          </View>
-          <View style={styles.flex}>
-            <ThemedText style={styles.heroName} numberOfLines={2}>
-              {member.name}
-            </ThemedText>
-            <ThemedText type="small" style={styles.heroMuted}>
-              {aboutLine(member)}
-            </ThemedText>
-            <ThemedText type="caption" style={styles.heroFaint}>
-              {formatMemberId(member.memberId)}
-            </ThemedText>
-          </View>
-        </View>
-
-        <View style={styles.stats}>
-          {tabs.map((item) => (
-            <View key={item.id} style={styles.stat}>
-              <ThemedText style={styles.statValue}>{item.count}</ThemedText>
-              <ThemedText style={styles.statLabel}>{item.label}</ThemedText>
+    <Screen
+      onRefresh={() => load(() => true)}
+      onBack={back}
+      backLabel="My card"
+      barTitle={firstName}>
+      <View style={styles.stack}>
+        {/* The same dark card as the tabs' headers: a View clips, the gradient is a layer. */}
+        <View style={styles.hero}>
+          <HeroBackground />
+          <View style={styles.heroTop}>
+            <View style={styles.avatarRing}>
+              <MemberAvatar name={member.name} photoUrl={member.photoUrl} size={68} />
             </View>
-          ))}
-        </View>
-      </LinearGradient>
-
-      {health.allergies.length || health.conditions.length ? (
-        <Surface style={styles.health}>
-          {health.allergies.length ? (
-            <View style={styles.healthRow}>
-              <TriangleAlert size={15} color={Colors.danger} strokeWidth={2.4} />
-              <ThemedText type="smallBold" style={styles.healthLabel}>
-                Allergies
+            <View style={styles.flex}>
+              <ThemedText style={styles.heroName} numberOfLines={2}>
+                {member.name}
               </ThemedText>
-              <View style={styles.tags}>
-                {health.allergies.map((allergy) => (
-                  <Tag key={allergy} label={allergy} tone="danger" />
-                ))}
-              </View>
-            </View>
-          ) : null}
-          {health.conditions.length ? (
-            <View style={styles.healthRow}>
-              <HeartPulse size={15} color={Colors.warning} strokeWidth={2.4} />
-              <ThemedText type="smallBold" style={styles.healthLabel}>
-                Conditions
+              <ThemedText type="small" style={styles.heroMuted}>
+                {aboutLine(member)}
               </ThemedText>
-              <View style={styles.tags}>
-                {health.conditions.map((condition) => (
-                  <Tag key={condition} label={condition} tone="warning" />
-                ))}
-              </View>
+              <ThemedText type="caption" style={styles.heroFaint}>
+                {formatMemberId(member.memberId)}
+              </ThemedText>
             </View>
-          ) : null}
-        </Surface>
-      ) : null}
+          </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.tabs}
-        accessibilityRole="tablist">
-        {tabs.map((item) => (
-          <Chip
-            key={item.id}
-            label={item.count ? `${item.label} · ${item.count}` : item.label}
-            selected={tab === item.id}
-            onPress={() => setTab(item.id)}
-          />
-        ))}
-      </ScrollView>
-
-      {tab === 'records' ? (
-        records.length ? (
-          <View>
-            {records.map((record, index) => (
-              <RecordRow
-                key={record.id}
-                record={record}
-                isLast={index === records.length - 1}
-                onPress={() => openRecord(record.id)}
-              />
+          <View style={styles.stats}>
+            {tabs.map((item) => (
+              <View key={item.id} style={styles.stat}>
+                <ThemedText style={styles.statValue}>{item.count}</ThemedText>
+                <ThemedText style={styles.statLabel}>{item.label}</ThemedText>
+              </View>
             ))}
           </View>
-        ) : (
-          <Empty
-            icon={Pill}
-            text={`No prescriptions or reports yet. They show up here when a doctor writes one for ${firstName}.`}
-          />
-        )
-      ) : tab === 'vaccines' ? (
-        vaccinations.length ? (
-          <Surface style={styles.list}>
-            {vaccinations.map((vaccination, index) => {
-              const next = vaccination.doses.find((dose) => dose.status !== 'given');
-              return (
-                <Row
-                  key={vaccination.id}
-                  first={index === 0}
-                  onPress={() => openRecord(vaccination.id)}>
-                  <IconTile
-                    icon={Syringe}
-                    tone={next?.status === 'overdue' ? 'danger' : next ? 'primary' : 'success'}
-                    size={40}
-                  />
+        </View>
+
+        {health.allergies.length || health.conditions.length ? (
+          <Surface style={styles.health}>
+            {health.allergies.length ? (
+              <View style={styles.healthRow}>
+                <TriangleAlert size={15} color={Colors.danger} strokeWidth={2.4} />
+                <ThemedText type="smallBold" style={styles.healthLabel}>
+                  Allergies
+                </ThemedText>
+                <View style={styles.tags}>
+                  {health.allergies.map((allergy) => (
+                    <Tag key={allergy} label={allergy} tone="danger" />
+                  ))}
+                </View>
+              </View>
+            ) : null}
+            {health.conditions.length ? (
+              <View style={styles.healthRow}>
+                <HeartPulse size={15} color={Colors.warning} strokeWidth={2.4} />
+                <ThemedText type="smallBold" style={styles.healthLabel}>
+                  Conditions
+                </ThemedText>
+                <View style={styles.tags}>
+                  {health.conditions.map((condition) => (
+                    <Tag key={condition} label={condition} tone="warning" />
+                  ))}
+                </View>
+              </View>
+            ) : null}
+          </Surface>
+        ) : null}
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabs}
+          accessibilityRole="tablist">
+          {tabs.map((item) => (
+            <Chip
+              key={item.id}
+              label={item.count ? `${item.label} · ${item.count}` : item.label}
+              selected={tab === item.id}
+              onPress={() => setTab(item.id)}
+            />
+          ))}
+        </ScrollView>
+
+        {tab === 'records' ? (
+          records.length ? (
+            <View>
+              {records.map((record, index) => (
+                <RecordRow
+                  key={record.id}
+                  record={record}
+                  isLast={index === records.length - 1}
+                  onPress={() => openRecord(record.id)}
+                />
+              ))}
+            </View>
+          ) : (
+            <Empty
+              icon={Pill}
+              text={`No prescriptions or reports yet. They show up here when a doctor writes one for ${firstName}.`}
+            />
+          )
+        ) : tab === 'vaccines' ? (
+          vaccinations.length ? (
+            <Surface style={styles.list}>
+              {vaccinations.map((vaccination, index) => {
+                const next = vaccination.doses.find((dose) => dose.status !== 'given');
+                return (
+                  <Row
+                    key={vaccination.id}
+                    first={index === 0}
+                    onPress={() => openRecord(vaccination.id)}>
+                    <IconTile
+                      icon={Syringe}
+                      tone={next?.status === 'overdue' ? 'danger' : next ? 'primary' : 'success'}
+                      size={40}
+                    />
+                    <View style={styles.flex}>
+                      <ThemedText type="smallBold" numberOfLines={1}>
+                        {vaccineTitle(vaccination.name)}
+                      </ThemedText>
+                      <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1}>
+                        {vaccination.givenDoses} of {vaccination.totalDoses} given
+                      </ThemedText>
+                      <View style={styles.rowTag}>
+                        <Tag label={vaccination.tag.label} tone={vaccination.tag.tone} />
+                      </View>
+                    </View>
+                    <ChevronRight size={18} color={Colors.textMuted} strokeWidth={2.2} />
+                  </Row>
+                );
+              })}
+            </Surface>
+          ) : (
+            <Empty icon={Syringe} text={`No vaccines prescribed for ${firstName} yet.`} />
+          )
+        ) : tab === 'medicines' ? (
+          medicines.length ? (
+            <Surface style={styles.list}>
+              {medicines.map((medicine, index) => (
+                <Row key={medicine.id} first={index === 0}>
+                  <IconTile icon={Pill} tone="success" size={40} />
                   <View style={styles.flex}>
                     <ThemedText type="smallBold" numberOfLines={1}>
-                      {vaccineTitle(vaccination.name)}
+                      {medicine.name}
                     </ThemedText>
-                    <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1}>
-                      {vaccination.givenDoses} of {vaccination.totalDoses} given
+                    {describeDose(medicine) ? (
+                      <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1}>
+                        {describeDose(medicine)}
+                      </ThemedText>
+                    ) : null}
+                    <ThemedText type="caption" themeColor="textMuted" numberOfLines={2}>
+                      {describeRepeat(medicine)} · {medicine.times.map(formatTime).join(', ')}
                     </ThemedText>
-                    <View style={styles.rowTag}>
-                      <Tag label={vaccination.tag.label} tone={vaccination.tag.tone} />
-                    </View>
                   </View>
-                  <ChevronRight size={18} color={Colors.textMuted} strokeWidth={2.2} />
                 </Row>
-              );
-            })}
-          </Surface>
-        ) : (
-          <Empty icon={Syringe} text={`No vaccines prescribed for ${firstName} yet.`} />
-        )
-      ) : tab === 'medicines' ? (
-        medicines.length ? (
-          <Surface style={styles.list}>
-            {medicines.map((medicine, index) => (
-              <Row key={medicine.id} first={index === 0}>
-                <IconTile icon={Pill} tone="success" size={40} />
-                <View style={styles.flex}>
-                  <ThemedText type="smallBold" numberOfLines={1}>
-                    {medicine.name}
-                  </ThemedText>
-                  {describeDose(medicine) ? (
-                    <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1}>
-                      {describeDose(medicine)}
-                    </ThemedText>
-                  ) : null}
-                  <ThemedText type="caption" themeColor="textMuted" numberOfLines={2}>
-                    {describeRepeat(medicine)} · {medicine.times.map(formatTime).join(', ')}
+              ))}
+            </Surface>
+          ) : (
+            <Empty icon={Pill} text={`${firstName} has no medicine reminders set.`} />
+          )
+        ) : consultCount ? (
+          <View style={styles.consults}>
+            {consults.upcoming.length ? (
+              <View style={styles.group}>
+                <View style={styles.groupTitle}>
+                  <CalendarClock size={14} color={Colors.primary} strokeWidth={2.4} />
+                  <ThemedText type="smallBold" themeColor="textSecondary">
+                    Upcoming
                   </ThemedText>
                 </View>
-              </Row>
-            ))}
-          </Surface>
-        ) : (
-          <Empty icon={Pill} text={`${firstName} has no medicine reminders set.`} />
-        )
-      ) : consultCount ? (
-        <View style={styles.consults}>
-          {consults.upcoming.length ? (
-            <View style={styles.group}>
-              <View style={styles.groupTitle}>
-                <CalendarClock size={14} color={Colors.primary} strokeWidth={2.4} />
-                <ThemedText type="smallBold" themeColor="textSecondary">
-                  Upcoming
-                </ThemedText>
+                <Surface style={styles.list}>
+                  {consults.upcoming.map((consult, index) => (
+                    <ConsultRow key={consult.id} consult={consult} first={index === 0} />
+                  ))}
+                </Surface>
               </View>
-              <Surface style={styles.list}>
-                {consults.upcoming.map((consult, index) => (
-                  <ConsultRow key={consult.id} consult={consult} first={index === 0} />
-                ))}
-              </Surface>
-            </View>
-          ) : null}
-          {consults.past.length ? (
-            <View style={styles.group}>
-              <View style={styles.groupTitle}>
-                <CalendarCheck size={14} color={Colors.success} strokeWidth={2.4} />
-                <ThemedText type="smallBold" themeColor="textSecondary">
-                  Past
-                </ThemedText>
+            ) : null}
+            {consults.past.length ? (
+              <View style={styles.group}>
+                <View style={styles.groupTitle}>
+                  <CalendarCheck size={14} color={Colors.success} strokeWidth={2.4} />
+                  <ThemedText type="smallBold" themeColor="textSecondary">
+                    Past
+                  </ThemedText>
+                </View>
+                <Surface style={styles.list}>
+                  {consults.past.map((consult, index) => (
+                    <ConsultRow key={consult.id} consult={consult} first={index === 0} />
+                  ))}
+                </Surface>
               </View>
-              <Surface style={styles.list}>
-                {consults.past.map((consult, index) => (
-                  <ConsultRow key={consult.id} consult={consult} first={index === 0} />
-                ))}
-              </Surface>
-            </View>
-          ) : null}
-        </View>
-      ) : (
-        <Empty icon={CalendarClock} text={`${firstName} hasn’t had a video consult yet.`} />
-      )}
-
-      <Pressable
-        onPress={remove}
-        disabled={removing}
-        accessibilityRole="button"
-        style={({ pressed }) => [styles.remove, pressed && styles.pressed]}>
-        {removing ? (
-          <ActivityIndicator color={Colors.danger} />
+            ) : null}
+          </View>
         ) : (
-          <>
-            <UserMinus size={16} color={Colors.danger} strokeWidth={2.2} />
-            <ThemedText type="smallBold" themeColor="danger">
-              Remove {firstName} from your family
-            </ThemedText>
-          </>
+          <Empty icon={CalendarClock} text={`${firstName} hasn’t had a video consult yet.`} />
         )}
-      </Pressable>
-      {error ? (
-        <ThemedText type="caption" themeColor="danger" style={styles.center}>
-          {error}
-        </ThemedText>
-      ) : null}
-    </Screen>
-  );
-}
 
-function BackLink({ onPress }: { onPress: () => void }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel="Back to your card"
-      hitSlop={10}
-      style={({ pressed }) => [styles.back, pressed && styles.pressed]}>
-      <ChevronLeft size={16} color={Colors.textSecondary} strokeWidth={2.2} />
-      <ThemedText type="small" themeColor="textSecondary">
-        Family
-      </ThemedText>
-    </Pressable>
+        <View style={styles.removeWrap}>
+          <Button
+            label={`Remove ${firstName} from your family`}
+            variant="danger"
+            icon={UserMinus}
+            loading={removing}
+            onPress={remove}
+          />
+        </View>
+        {error ? (
+          <ThemedText type="caption" themeColor="danger" style={styles.center}>
+            {error}
+          </ThemedText>
+        ) : null}
+      </View>
+    </Screen>
   );
 }
 
@@ -434,24 +419,25 @@ const styles = StyleSheet.create({
   center: {
     textAlign: 'center',
   },
-  back: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: Spacing.one,
-  },
   pressed: {
     opacity: 0.7,
   },
-  missing: {
-    alignItems: 'center',
-    gap: Spacing.one,
-    paddingVertical: Spacing.five,
+  stack: {
+    gap: Spacing.three,
+  },
+  skeletonTabs: {
+    flexDirection: 'row',
+    gap: Spacing.two,
   },
   hero: {
     gap: Spacing.three,
     padding: Spacing.three + 2,
-    borderRadius: Radius.xl - 4,
+    borderRadius: Radius.xl,
+    overflow: 'hidden',
+    backgroundColor: Colors.ink,
+  },
+  removeWrap: {
+    marginTop: Spacing.three,
   },
   heroTop: {
     flexDirection: 'row',
@@ -550,17 +536,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-  },
-  remove: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.two,
-    minHeight: 50,
-    marginTop: Spacing.three,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.dangerSoft,
-    backgroundColor: Colors.backgroundElement,
   },
 });

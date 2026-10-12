@@ -1,19 +1,16 @@
 import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Radius, Shadows, Spacing } from '@/constants/theme';
+import { TONES } from '@/components/ui/icon-tile';
+import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
 import { SPECIALTIES } from '@/features/doctors/specialties';
 
-/** Sideways-scrolling row of the specialties on the network. Tap one to see its doctors. */
+/** The specialties on the network as a grid of tiles, four to a row. Tap one to see its doctors. */
 export function SpecialtyList() {
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={styles.scroll}
-      contentContainerStyle={styles.content}>
-      {SPECIALTIES.map(({ id, label, icon: Icon }) => (
+    <View style={styles.card}>
+      {SPECIALTIES.map(({ id, label, short, icon: Icon, tone }) => (
         <Pressable
           key={id}
           onPress={() =>
@@ -22,54 +19,52 @@ export function SpecialtyList() {
           accessibilityRole="button"
           accessibilityLabel={`${label} doctors`}
           style={({ pressed }) => [styles.item, pressed && styles.pressed]}>
-          <View style={styles.icon}>
-            <Icon size={20} color={Colors.primary} strokeWidth={2} />
+          <View style={[styles.icon, { backgroundColor: TONES[tone].soft }]}>
+            <Icon size={22} color={TONES[tone].color} strokeWidth={2.1} />
           </View>
-          <ThemedText type="caption" style={styles.label} numberOfLines={2}>
-            {label}
+          <ThemedText style={styles.label} numberOfLines={2}>
+            {short}
           </ThemedText>
         </Pressable>
       ))}
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  // Bleed to the screen edges so the row scrolls under the page padding.
-  scroll: {
-    flexGrow: 0,
-    marginHorizontal: -Spacing.three,
-  },
-  content: {
-    gap: Spacing.two + 2,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.one,
-  },
-  item: {
-    width: 92,
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    paddingHorizontal: 6,
-    borderRadius: Radius.lg,
+  card: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    rowGap: Spacing.three,
+    paddingVertical: Spacing.three,
+    paddingHorizontal: Spacing.one,
+    borderRadius: Radius.xl,
     borderWidth: 1,
     borderColor: Colors.border,
     backgroundColor: Colors.backgroundElement,
     boxShadow: Shadows.card,
   },
+  item: {
+    width: '25%',
+    alignItems: 'center',
+    gap: Spacing.two,
+    paddingHorizontal: 2,
+  },
   pressed: {
     opacity: 0.7,
-    transform: [{ scale: 0.97 }],
+    transform: [{ scale: 0.95 }],
   },
   icon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 52,
+    height: 52,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.primarySoft,
   },
   label: {
+    fontFamily: Fonts.semibold,
+    fontSize: 12,
+    lineHeight: 15,
     textAlign: 'center',
     color: Colors.text,
   },

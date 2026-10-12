@@ -2,12 +2,13 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BadgeCheck, RotateCw, Siren } from 'lucide-react-native';
 import { useState } from 'react';
-import { ActivityIndicator, Animated, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Animated, Platform, Pressable, StyleSheet, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 
 import { ThemedText } from '@/components/themed-text';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Plans } from '@/constants/plans';
-import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { type BloodGroup, type PlanId } from '@/types';
 
 import { formatMemberId } from './sample-data';
@@ -72,11 +73,21 @@ export function MemberCard({ member, emergencyUrl, emergencyError }: MemberCardP
         style={styles.card}
         onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
         <Animated.View
-          style={[styles.face, face('0deg', '180deg', true), flipped && styles.inert]}>
+          style={[
+            styles.face,
+            styles.frontFace,
+            face('0deg', '180deg', true),
+            flipped && styles.inert,
+          ]}>
           <CardFront member={member} cardWidth={width} />
         </Animated.View>
         <Animated.View
-          style={[styles.face, face('180deg', '360deg', false), !flipped && styles.inert]}>
+          style={[
+            styles.face,
+            styles.backFace,
+            face('180deg', '360deg', false),
+            !flipped && styles.inert,
+          ]}>
           <CardBack
             firstName={member.firstName}
             emergencyUrl={emergencyUrl}
@@ -96,6 +107,9 @@ export function MemberCard({ member, emergencyUrl, emergencyError }: MemberCardP
   );
 }
 
+/** The front's gradient: light brand orange to a deep burnt orange. */
+const FRONT = [Colors.primaryMid, Colors.primary, '#A93200'] as const;
+
 /** The card is designed at this width; the member number scales with the real width. */
 const DESIGN_WIDTH = 358;
 
@@ -103,14 +117,26 @@ function CardFront({ member, cardWidth }: { member: MemberCardProps['member']; c
   const scale = cardWidth > 0 ? Math.min(cardWidth / DESIGN_WIDTH, 1.3) : 1;
 
   return (
-    <LinearGradient
-      colors={[Colors.inkMid, Colors.ink]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={styles.front}>
+    <View style={styles.front}>
+      {/* Brand orange, so the card stands out on the dark header behind it. */}
+      <LinearGradient
+        colors={FRONT}
+        locations={[0, 0.5, 1]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      {/* A soft sheen across the top, like light on a plastic card. */}
+      <LinearGradient
+        colors={['rgba(255, 255, 255, 0.22)', 'rgba(255, 255, 255, 0)']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0.55, y: 0.6 }}
+        style={StyleSheet.absoluteFill}
+      />
       <Image
         source={require('@/assets/images/logo-mark.png')}
         style={styles.watermark}
+        tintColor={Colors.onInk}
         contentFit="contain"
       />
 
@@ -119,6 +145,7 @@ function CardFront({ member, cardWidth }: { member: MemberCardProps['member']; c
           <Image
             source={require('@/assets/images/logo-mark.png')}
             style={styles.brandMark}
+            tintColor={Colors.onInk}
             contentFit="contain"
           />
           <View>
@@ -159,7 +186,7 @@ function CardFront({ member, cardWidth }: { member: MemberCardProps['member']; c
           <ThemedText style={styles.bloodGroupValue}>{member.bloodGroup}</ThemedText>
         </View>
       ) : null}
-    </LinearGradient>
+    </View>
   );
 }
 
@@ -175,6 +202,12 @@ function CardBack({ firstName, emergencyUrl, emergencyError, cardWidth }: CardBa
 
   return (
     <View style={styles.back}>
+      <LinearGradient
+        colors={[Colors.backgroundElement, Colors.primarySoft]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
       <View style={styles.backBand}>
         <Siren size={15} color={Colors.onInk} strokeWidth={2.2} />
         <ThemedText style={styles.backBandText} numberOfLines={1}>
@@ -189,7 +222,7 @@ function CardBack({ firstName, emergencyUrl, emergencyError, cardWidth }: CardBa
           ) : emergencyError ? (
             <ThemedText style={styles.qrError}>QR unavailable. Check your connection.</ThemedText>
           ) : (
-            <ActivityIndicator color={Colors.ink} />
+            <Skeleton width={qrSize} height={qrSize} radius={Radius.sm} />
           )}
         </View>
         <View style={styles.backText}>
@@ -217,12 +250,19 @@ const styles = StyleSheet.create({
   card: {
     aspectRatio: 85.6 / 54,
     borderRadius: Radius.xl - 4,
-    boxShadow: Shadows.floating,
+    boxShadow: '0 18px 40px rgba(8, 25, 31, 0.35)',
   },
+  // No border: a solid colour under each face keeps its rounded edge clean when clipped.
   face: {
     ...StyleSheet.absoluteFill,
     borderRadius: Radius.xl - 4,
     overflow: 'hidden',
+  },
+  frontFace: {
+    backgroundColor: Colors.primary,
+  },
+  backFace: {
+    backgroundColor: Colors.backgroundElement,
   },
   inert: {
     pointerEvents: 'none',
@@ -245,6 +285,7 @@ const styles = StyleSheet.create({
     top: '24%',
     width: '44%',
     aspectRatio: 1024 / 917,
+    opacity: 0.16,
   },
   topRow: {
     flexDirection: 'row',
@@ -326,24 +367,25 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: Radius.md,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.backgroundElement,
+    boxShadow: '0 4px 12px rgba(120, 30, 0, 0.25)',
   },
   bloodGroupLabel: {
     fontFamily: Fonts.semibold,
     fontSize: 9,
     lineHeight: 12,
-    color: Colors.onInk,
+    color: Colors.textSecondary,
   },
   bloodGroupValue: {
     fontFamily: Fonts.display,
     fontSize: 22,
     lineHeight: 26,
-    color: Colors.onInk,
+    color: Colors.danger,
   },
 
   back: {
     flex: 1,
-    backgroundColor: Colors.ink,
+    backgroundColor: Colors.backgroundElement,
   },
   backBand: {
     flexDirection: 'row',
@@ -372,6 +414,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 6,
     borderRadius: Radius.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
     backgroundColor: '#FFFFFF',
   },
   qrError: {
@@ -389,20 +433,20 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bold,
     fontSize: 13,
     lineHeight: 16,
-    color: Colors.onInk,
+    color: Colors.text,
   },
   backCopy: {
     fontFamily: Fonts.regular,
     fontSize: 10.5,
     lineHeight: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: Colors.textSecondary,
   },
   backHelplines: {
     marginTop: 2,
     fontFamily: Fonts.bold,
     fontSize: 10.5,
     lineHeight: 14,
-    color: Colors.primaryLight,
+    color: Colors.primary,
   },
   backFooter: {
     flexDirection: 'row',
@@ -414,6 +458,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.regular,
     fontSize: 8.5,
     lineHeight: 11,
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: Colors.textMuted,
   },
 });

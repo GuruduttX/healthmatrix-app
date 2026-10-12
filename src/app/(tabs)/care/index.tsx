@@ -15,10 +15,14 @@ import { refreshAppointments } from '@/features/doctors/use-appointments';
 import { refreshConsultRequests } from '@/features/doctors/use-consult-requests';
 import { useFeaturedDoctor } from '@/features/doctors/use-featured-doctor';
 import { usePastConsults } from '@/features/doctors/use-past-consults';
+import { HomeSection } from '@/features/home/home-section';
 import { TodayMedicinesCard } from '@/features/reminders/today-card';
 import { refreshReminders } from '@/features/reminders/use-reminders';
 import { refreshVaccinations } from '@/features/vaccines/use-vaccinations';
 import { VaccinesCard } from '@/features/vaccines/vaccines-card';
+
+/** How far the featured doctor card rides up over the header. */
+const OVERLAP = 56;
 
 export default function CareScreen() {
   const { pods } = sampleCare;
@@ -49,32 +53,50 @@ export default function CareScreen() {
   );
 
   return (
-    <Screen title="Care" subtitle="Doctors, pods, medicines and vaccines." onRefresh={refresh}>
+    <Screen
+      hero
+      title="Care"
+      subtitle="Doctors, pods, medicines and vaccines."
+      heroOverlap={OVERLAP}
+      onRefresh={refresh}>
       <View style={styles.sections}>
-        <DoctorHero featured={featured} />
+        <HomeSection index={0}>
+          <DoctorHero featured={featured} />
+        </HomeSection>
 
-        <ConsultsSection past={pastConsults} />
+        <HomeSection index={1}>
+          <ConsultsSection past={pastConsults} />
+        </HomeSection>
 
-        <View style={styles.section}>
-          <SectionHeader title="Find a specialist" />
+        <HomeSection title="Find a specialist" index={2}>
           <SpecialtyList />
-        </View>
+        </HomeSection>
 
-        <View style={styles.section}>
-          <SectionHeader title="Pods near you" />
-          <FindPodCard pods={pods} onPress={() => router.push('/care/pods')} />
-        </View>
+        <HomeSection index={3}>
+          <View style={styles.section}>
+            <SectionHeader
+              title="Pods near you"
+              actionLabel="Map"
+              onAction={() => router.push('/care/pods')}
+            />
+            <FindPodCard pods={pods} onPress={() => router.push('/care/pods')} />
+          </View>
+        </HomeSection>
 
-        <View style={styles.section}>
-          <SectionHeader
-            title="Medicines today"
-            actionLabel="Manage"
-            onAction={() => router.push('/care/medicines')}
-          />
-          <TodayMedicinesCard />
-        </View>
+        <HomeSection index={4}>
+          <View style={styles.section}>
+            <SectionHeader
+              title="Medicines today"
+              actionLabel="Manage"
+              onAction={() => router.push('/care/medicines')}
+            />
+            <TodayMedicinesCard />
+          </View>
+        </HomeSection>
 
-        <VaccinesCard />
+        <HomeSection index={5}>
+          <VaccinesCard />
+        </HomeSection>
       </View>
     </Screen>
   );
@@ -82,10 +104,9 @@ export default function CareScreen() {
 
 const styles = StyleSheet.create({
   sections: {
-    gap: Spacing.three + 4,
-    marginTop: Spacing.two,
+    gap: Spacing.four + 4,
   },
   section: {
-    gap: Spacing.two + 2,
+    gap: Spacing.three - 4,
   },
 });

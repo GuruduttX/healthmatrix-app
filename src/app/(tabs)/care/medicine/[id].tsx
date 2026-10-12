@@ -1,23 +1,44 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import { BellRing, CalendarDays, ChevronLeft, Clock, Minus, Plus, X } from 'lucide-react-native';
-import { useState, type ReactNode } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
+import { router, useLocalSearchParams, useNavigation } from 'expo-router';
+import { type NativeStackNavigationProp } from 'expo-router/native-stack';
 import {
-  ActivityIndicator,
+  BellRing,
+  CalendarDays,
+  Clock,
+  Minus,
+  NotebookPen,
+  Pill,
+  Plus,
+  Repeat,
+  SearchX,
+  Trash2,
+  UtensilsCrossed,
+  X,
+  type LucideIcon,
+} from 'lucide-react-native';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import {
   Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
-  TextInput,
   View,
+  type TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
+import { EmptyState, ErrorState } from '@/components/ui/empty-state';
+import { IconTile, type Tone } from '@/components/ui/icon-tile';
+import { Skeleton, SkeletonGroup } from '@/components/ui/skeleton';
+import { StackHeader } from '@/components/ui/stack-header';
 import { Surface } from '@/components/ui/surface';
+import { TextField } from '@/components/ui/text-field';
 import { Colors, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { formStyles } from '@/features/card/form-styles';
 import { DatePicker } from '@/features/reminders/date-picker';
@@ -133,9 +154,11 @@ function toDraft(form: Form): ReminderDraft {
   };
 }
 
+const NAME_MISSING = 'Enter the medicine name.';
+
 /** The first thing to fix before saving, if any. */
 function problem(form: Form) {
-  if (!form.name.trim()) return 'Enter the medicine name.';
+  if (!form.name.trim()) return NAME_MISSING;
   if (!form.times.length) return 'Add at least one time.';
   if (form.frequency === 'weekdays' && !form.weekdays.length) return 'Pick at least one day.';
   return null;
@@ -181,10 +204,32 @@ export default function MedicineFormScreen() {
   // `name` prefills a new medicine, e.g. from a line on a prescription.
   const { id, name: prefill } = useLocalSearchParams<{ id: string; name?: string }>();
   const isNew = id === 'new';
-  const { reminders, error: loadError, create, update, remove } = useReminders();
+  const { reminders, error: loadError, refresh, create, update, remove } = useReminders();
   const clearance = useTabBarClearance();
   // Fixed for the life of the form, so its defaults do not shift at midnight.
   const [today] = useState(() => toDateKey(new Date()));
+  const navigation = useNavigation<NativeStackNavigationProp<Record<string, object | undefined>>>();
+  const nameInput = useRef<TextInput>(null);
+
+  // A new medicine starts on its name, but only once the screen has slid in: the keyboard
+  // opening during the slide makes it stutter. Web may not report the end, so a timer backs it up.
+  useEffect(() => {
+    if (!isNew) return;
+    let focused = false;
+    const focusName = () => {
+      if (focused) return;
+      focused = true;
+      nameInput.current?.focus();
+    };
+    const unsubscribe = navigation.addListener('transitionEnd', (event) => {
+      if (!event.data.closing) focusName();
+    });
+    const fallback = setTimeout(focusName, 600);
+    return () => {
+      unsubscribe();
+      clearTimeout(fallback);
+    };
+  }, [isNew, navigation]);
 
   const existing = isNew ? undefined : reminders?.find((reminder) => reminder.id === id);
   const [form, setForm] = useState<Form | null>(() =>
@@ -210,17 +255,19 @@ export default function MedicineFormScreen() {
   if (!form) {
     return (
       <Shell title="Edit medicine" onBack={close}>
-        <View style={styles.loading}>
+        <View style={styles.content}>
           {reminders && !existing ? (
-            <ThemedText type="small" themeColor="textSecondary">
-              This medicine no longer exists.
-            </ThemedText>
+            <EmptyState
+              icon={SearchX}
+              tone="neutral"
+              title="This medicine no longer exists"
+              body="It may have been deleted on another device."
+              action={{ label: 'Back to medicines', onPress: close }}
+            />
           ) : loadError ? (
-            <ThemedText type="small" themeColor="danger">
-              {loadError}
-            </ThemedText>
+            <ErrorState title="Couldn’t load this medicine" message={loadError} onRetry={refresh} />
           ) : (
-            <ActivityIndicator color={Colors.textSecondary} />
+            <FormSkeleton />
           )}
         </View>
       </Shell>
@@ -291,26 +338,25 @@ export default function MedicineFormScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={[styles.content, { paddingBottom: clearance + Spacing.three }]}>
-          <Section title="Medicine">
-            <TextInput
+          <Section title="Medicine" icon={Pill} tone="primary">
+            <TextField
+              ref={nameInput}
+              label="Name"
               value={form.name}
               onChangeText={(name) => edit({ name })}
-              placeholder="Name, e.g. Metformin"
-              placeholderTextColor={Colors.textMuted}
+              placeholder="e.g. Metformin"
               autoCapitalize="words"
-              autoFocus={isNew}
               maxLength={60}
               editable={!busy}
-              style={formStyles.input}
+              error={error === NAME_MISSING ? error : null}
             />
-            <TextInput
+            <TextField
+              label="Dose (optional)"
               value={form.dose}
               onChangeText={(dose) => edit({ dose })}
-              placeholder="Dose, e.g. 500 mg (optional)"
-              placeholderTextColor={Colors.textMuted}
+              placeholder="e.g. 500 mg"
               maxLength={40}
               editable={!busy}
-              style={formStyles.input}
             />
             <View style={styles.wrapRow}>
               {DOSE_SUGGESTIONS.map((dose) => (
@@ -324,7 +370,7 @@ export default function MedicineFormScreen() {
             </View>
           </Section>
 
-          <Section title="With food?">
+          <Section title="With food?" icon={UtensilsCrossed} tone="warning">
             <View style={styles.wrapRow}>
               {MEAL_OPTIONS.map((option) => (
                 <Chip
@@ -337,7 +383,7 @@ export default function MedicineFormScreen() {
             </View>
           </Section>
 
-          <Section title="Times" hint="You get a reminder at each time.">
+          <Section title="Times" hint="You get a reminder at each time." icon={Clock} tone="success">
             <View style={styles.wrapRow}>
               {form.times.map((time, index) => (
                 <View
@@ -374,23 +420,21 @@ export default function MedicineFormScreen() {
                   onChange={(value) => setTimeEditor({ ...timeEditor, value })}
                 />
                 <View style={styles.editorActions}>
-                  <Pressable
-                    onPress={() => setTimeEditor(null)}
-                    accessibilityRole="button"
-                    style={({ pressed }) => [
-                      styles.secondaryAction,
-                      pressed && formStyles.pressed,
-                    ]}>
-                    <ThemedText type="smallBold">Cancel</ThemedText>
-                  </Pressable>
-                  <Pressable
-                    onPress={saveTime}
-                    accessibilityRole="button"
-                    style={({ pressed }) => [styles.primaryAction, pressed && formStyles.pressed]}>
-                    <ThemedText type="smallBold" themeColor="onInk">
-                      {timeEditor.index === null ? 'Add time' : 'Update time'}
-                    </ThemedText>
-                  </Pressable>
+                  <View style={styles.flex}>
+                    <Button
+                      label="Cancel"
+                      variant="secondary"
+                      size="sm"
+                      onPress={() => setTimeEditor(null)}
+                    />
+                  </View>
+                  <View style={styles.editorPrimary}>
+                    <Button
+                      label={timeEditor.index === null ? 'Add time' : 'Update time'}
+                      size="sm"
+                      onPress={saveTime}
+                    />
+                  </View>
                 </View>
               </View>
             ) : form.times.length < 8 ? (
@@ -418,7 +462,7 @@ export default function MedicineFormScreen() {
             ) : null}
           </Section>
 
-          <Section title="How often">
+          <Section title="How often" icon={Repeat} tone="neutral">
             <View style={styles.wrapRow}>
               {FREQUENCIES.map((option) => (
                 <Chip
@@ -497,7 +541,7 @@ export default function MedicineFormScreen() {
             ) : null}
           </Section>
 
-          <Section title={form.frequency === 'once' ? 'Date' : 'Dates'}>
+          <Section title={form.frequency === 'once' ? 'Date' : 'Dates'} icon={CalendarDays} tone="primary">
             <DateRow
               label={form.frequency === 'once' ? 'On' : 'Starts'}
               value={formatDay(form.startsOn, today)}
@@ -565,16 +609,15 @@ export default function MedicineFormScreen() {
             ) : null}
           </Section>
 
-          <Section title="Note" hint="Optional. Shown with the reminder.">
-            <TextInput
+          <Section title="Note" hint="Optional. Shown with the reminder." icon={NotebookPen} tone="neutral">
+            <TextField
               value={form.note}
               onChangeText={(note) => edit({ note })}
               placeholder="e.g. Take with a full glass of water"
-              placeholderTextColor={Colors.textMuted}
+              accessibilityLabel="Note"
               maxLength={120}
               multiline
               editable={!busy}
-              style={[formStyles.input, styles.note]}
             />
           </Section>
 
@@ -591,32 +634,21 @@ export default function MedicineFormScreen() {
             </ThemedText>
           ) : null}
 
-          <Pressable
+          <Button
+            label={isNew ? 'Save medicine' : 'Save changes'}
+            icon={BellRing}
+            loading={busy}
             onPress={save}
-            disabled={busy}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: busy, busy }}
-            style={({ pressed }) => [styles.save, pressed && formStyles.pressed]}>
-            {busy ? (
-              <ActivityIndicator color={Colors.onInk} />
-            ) : (
-              <ThemedText type="smallBold" themeColor="onInk">
-                {isNew ? 'Save medicine' : 'Save changes'}
-              </ThemedText>
-            )}
-          </Pressable>
+          />
 
           {!isNew ? (
-            <Pressable
-              onPress={deleteMedicine}
+            <Button
+              label="Delete medicine"
+              variant="danger"
+              icon={Trash2}
               disabled={busy}
-              accessibilityRole="button"
-              hitSlop={8}
-              style={styles.delete}>
-              <ThemedText type="smallBold" themeColor="danger">
-                Delete medicine
-              </ThemedText>
-            </Pressable>
+              onPress={deleteMedicine}
+            />
           ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
@@ -632,6 +664,7 @@ function suggestNextTime(times: TimeKey[]): TimeKey {
   return `${String(hour).padStart(2, '0')}:${last.slice(3)}`;
 }
 
+/** The page around the form: a warm wash, then a back bar. */
 function Shell({
   title,
   onBack,
@@ -643,37 +676,66 @@ function Shell({
 }) {
   return (
     <ThemedView style={styles.container}>
+      <LinearGradient
+        colors={['rgba(254, 241, 234, 0.9)', 'rgba(243, 247, 247, 0)']}
+        style={styles.wash}
+        pointerEvents="none"
+      />
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-        <View style={styles.topBar}>
-          <Pressable
-            onPress={onBack}
-            accessibilityRole="button"
-            accessibilityLabel="Back"
-            hitSlop={8}
-            style={({ pressed }) => [styles.round, pressed && formStyles.pressed]}>
-            <ChevronLeft size={20} color={Colors.text} strokeWidth={2.2} />
-          </Pressable>
-          <ThemedText type="subtitle">{title}</ThemedText>
-        </View>
+        <StackHeader onBack={onBack} backLabel="Medicines" title={title} />
         {children}
       </SafeAreaView>
     </ThemedView>
   );
 }
 
-function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
+/** One part of the form on a white card, with an icon beside its title. */
+function Section({
+  title,
+  hint,
+  icon,
+  tone = 'primary',
+  children,
+}: {
+  title: string;
+  hint?: string;
+  icon?: LucideIcon;
+  tone?: Tone;
+  children: ReactNode;
+}) {
   return (
     <Surface style={styles.section}>
       <View style={styles.sectionHeader}>
-        <ThemedText type="bodyBold">{title}</ThemedText>
-        {hint ? (
-          <ThemedText type="caption" themeColor="textSecondary">
-            {hint}
-          </ThemedText>
-        ) : null}
+        {icon ? <IconTile icon={icon} tone={tone} size={36} /> : null}
+        <View style={styles.flex}>
+          <ThemedText type="bodyBold">{title}</ThemedText>
+          {hint ? (
+            <ThemedText type="caption" themeColor="textSecondary">
+              {hint}
+            </ThemedText>
+          ) : null}
+        </View>
       </View>
       {children}
     </Surface>
+  );
+}
+
+/** Three of the form's cards while the medicine loads. */
+function FormSkeleton() {
+  return (
+    <SkeletonGroup label="Loading this medicine" style={styles.skeletonStack}>
+      {[0, 1, 2].map((i) => (
+        <Surface key={i} style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Skeleton width={36} height={36} radius={Radius.md} />
+            <Skeleton width={120} height={15} />
+          </View>
+          <Skeleton height={52} radius={Radius.md + 2} />
+          {i === 0 ? <Skeleton height={52} radius={Radius.md + 2} /> : null}
+        </Surface>
+      ))}
+    </SkeletonGroup>
   );
 }
 
@@ -777,28 +839,15 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two + 4,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
+  wash: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 280,
   },
-  round: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.backgroundElement,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  loading: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.three,
+  skeletonStack: {
+    gap: Spacing.three,
   },
   content: {
     gap: Spacing.three,
@@ -806,11 +855,12 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.one,
   },
   section: {
-    gap: Spacing.two + 4,
-    padding: Spacing.three,
+    gap: Spacing.three - 2,
   },
   sectionHeader: {
-    gap: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two + 4,
   },
   label: {
     marginTop: Spacing.one,
@@ -843,11 +893,12 @@ const styles = StyleSheet.create({
     paddingRight: 12,
     borderRadius: Radius.pill,
     borderWidth: 1.5,
-    borderColor: Colors.border,
-    backgroundColor: Colors.backgroundSelected,
+    borderColor: Colors.successSoft,
+    backgroundColor: Colors.successSoft,
   },
   timePillActive: {
-    borderColor: Colors.ink,
+    borderColor: Colors.success,
+    backgroundColor: Colors.backgroundElement,
   },
   timePillMain: {
     flexDirection: 'row',
@@ -857,32 +908,17 @@ const styles = StyleSheet.create({
     paddingLeft: 12,
   },
   editor: {
-    gap: Spacing.two,
-    padding: Spacing.two,
-    borderRadius: Radius.md,
+    gap: Spacing.three - 4,
+    padding: Spacing.three - 4,
+    borderRadius: Radius.lg,
     backgroundColor: Colors.background,
   },
   editorActions: {
     flexDirection: 'row',
     gap: Spacing.two,
   },
-  secondaryAction: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 44,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.backgroundElement,
-  },
-  primaryAction: {
+  editorPrimary: {
     flex: 1.4,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 44,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.ink,
   },
   dashed: {
     flexDirection: 'row',
@@ -890,10 +926,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     minHeight: 46,
-    borderRadius: Radius.md,
-    borderWidth: 1,
+    borderRadius: Radius.pill,
+    borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderColor: Colors.border,
+    borderColor: Colors.primaryLight,
+    backgroundColor: Colors.primarySoft,
   },
   weekdays: {
     flexDirection: 'row',
@@ -901,9 +938,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   weekday: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -912,6 +949,7 @@ const styles = StyleSheet.create({
   weekdayOn: {
     borderColor: Colors.ink,
     backgroundColor: Colors.ink,
+    boxShadow: '0 6px 14px rgba(14, 42, 51, 0.22)',
   },
   stepper: {
     flexDirection: 'row',
@@ -937,18 +975,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two + 2,
-    minHeight: 48,
+    minHeight: 52,
     paddingHorizontal: 14,
-    borderRadius: Radius.md,
-    borderWidth: 1,
+    borderRadius: Radius.md + 2,
+    borderWidth: 1.5,
     borderColor: Colors.border,
   },
   dateRowOpen: {
-    borderColor: Colors.ink,
-  },
-  note: {
-    minHeight: 72,
-    textAlignVertical: 'top',
+    borderColor: Colors.primary,
+    boxShadow: '0 0 0 4px rgba(221, 67, 1, 0.12)',
   },
   summary: {
     flexDirection: 'row',
@@ -956,17 +991,8 @@ const styles = StyleSheet.create({
     gap: Spacing.two + 2,
     padding: 14,
     borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(221, 67, 1, 0.14)',
     backgroundColor: Colors.primarySoft,
-  },
-  save: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 54,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.primary,
-  },
-  delete: {
-    alignSelf: 'center',
-    paddingVertical: Spacing.two,
   },
 });

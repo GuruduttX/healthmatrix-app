@@ -154,6 +154,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.success,
+    boxShadow: '0 6px 14px rgba(16, 128, 109, 0.35)',
   },
   undo: {
     width: 36,

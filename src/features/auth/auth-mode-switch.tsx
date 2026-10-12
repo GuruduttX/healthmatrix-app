@@ -43,16 +43,17 @@ export function AuthModeSwitch({ value, onChange, disabled }: AuthModeSwitchProp
 const styles = StyleSheet.create({
   track: {
     flexDirection: 'row',
+    gap: 4,
     padding: 4,
-    borderRadius: Radius.md + 2,
+    borderRadius: Radius.pill,
     backgroundColor: Colors.backgroundSelected,
   },
   option: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 40,
-    borderRadius: Radius.md - 2,
+    minHeight: 42,
+    borderRadius: Radius.pill,
   },
   optionSelected: {
     backgroundColor: Colors.backgroundElement,

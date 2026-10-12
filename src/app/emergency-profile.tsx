@@ -1,21 +1,29 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { ChevronLeft, ShieldAlert } from 'lucide-react-native';
-import { useState, type ReactNode } from 'react';
 import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-} from 'react-native';
+  Activity,
+  Droplet,
+  HeartHandshake,
+  Phone,
+  Pill,
+  ShieldAlert,
+  ShieldCheck,
+  TriangleAlert,
+  type LucideIcon,
+} from 'lucide-react-native';
+import { useState, type ReactNode } from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
+import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
+import { ErrorState } from '@/components/ui/empty-state';
+import { IconTile, type Tone } from '@/components/ui/icon-tile';
+import { Skeleton, SkeletonGroup } from '@/components/ui/skeleton';
+import { StackHeader } from '@/components/ui/stack-header';
 import { Surface } from '@/components/ui/surface';
+import { TextField } from '@/components/ui/text-field';
 import { Colors, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { ContactsEditor, type ContactDraft } from '@/features/card/contacts-editor';
 import {
@@ -23,7 +31,6 @@ import {
   type EmergencyProfile,
   type EmergencyProfileUpdate,
 } from '@/features/card/emergency-profile';
-import { formStyles } from '@/features/card/form-styles';
 import { addItem, ListEditor } from '@/features/card/list-editor';
 import { type BloodGroup } from '@/types';
 
@@ -51,6 +58,13 @@ const LISTS = {
 } as const;
 
 type ListKey = keyof typeof LISTS;
+
+/** The icon and colour beside each list's title. */
+const LIST_ICONS: Record<ListKey, { icon: LucideIcon; tone: Tone }> = {
+  allergies: { icon: TriangleAlert, tone: 'warning' },
+  conditions: { icon: Activity, tone: 'primary' },
+  medicines: { icon: Pill, tone: 'success' },
+};
 
 type Form = {
   bloodGroup?: BloodGroup;
@@ -118,7 +132,7 @@ function toUpdate(form: Form, drafts: Record<ListKey, string>): EmergencyProfile
 
 /** Where the member fills in what a responder sees after scanning their QR. */
 export default function EmergencyProfileScreen() {
-  const { profile, error: loadError, save } = useEmergencyProfile();
+  const { profile, error: loadError, refresh, save } = useEmergencyProfile();
   const [form, setForm] = useState<Form | null>(null);
   const [drafts, setDrafts] = useState(NO_DRAFTS);
   const [busy, setBusy] = useState(false);
@@ -160,235 +174,271 @@ export default function EmergencyProfileScreen() {
     }
   };
 
-  const canSave = changed && !busy;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.topBar}>
-        <Pressable
-          onPress={close}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          hitSlop={8}
-          style={({ pressed }) => [styles.back, pressed && formStyles.pressed]}>
-          <ChevronLeft size={20} color={Colors.text} strokeWidth={2.2} />
-        </Pressable>
-        <ThemedText type="bodyBold">Emergency details</ThemedText>
-        <View style={styles.back} />
-      </View>
+    <View style={styles.screen}>
+      <LinearGradient
+        colors={['rgba(254, 241, 234, 0.9)', 'rgba(243, 247, 247, 0)']}
+        style={styles.wash}
+        pointerEvents="none"
+      />
+      <SafeAreaView style={styles.safeArea}>
+        <StackHeader onBack={close} backLabel="My card" title="Emergency details" />
 
-      {!form ? (
-        <View style={styles.loading}>
-          {loadError ? (
-            <ThemedText type="small" themeColor="danger">
-              {loadError}
-            </ThemedText>
-          ) : (
-            <ActivityIndicator color={Colors.textSecondary} />
-          )}
-        </View>
-      ) : (
-        <KeyboardAvoidingView
-          style={styles.flex}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={styles.content}>
-            <View style={styles.intro}>
-              <ShieldAlert size={18} color={Colors.primary} strokeWidth={2.2} />
-              <ThemedText type="small" style={styles.flexText}>
-                Anyone who scans your QR sees these details, but only the fields you switch on in
-                My card.
-              </ThemedText>
-            </View>
-
-            <Section title="Blood group">
-              <View style={styles.bloodGroups}>
-                {BLOOD_GROUPS.map((group) => (
-                  <View key={group} style={styles.bloodGroup}>
-                    <Chip
-                      label={group}
-                      selected={form.bloodGroup === group}
-                      onPress={() =>
-                        edit({ bloodGroup: form.bloodGroup === group ? undefined : group })
-                      }
-                    />
-                  </View>
-                ))}
+        {!form ? (
+          <View style={styles.content}>
+            {loadError ? (
+              <ErrorState
+                title="Couldn’t load your emergency details"
+                message={loadError}
+                onRetry={() => void refresh()}
+              />
+            ) : (
+              <FormSkeleton />
+            )}
+          </View>
+        ) : (
+          <KeyboardAvoidingView
+            style={styles.flex}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.content}>
+              <View style={styles.intro}>
+                <View style={styles.introIcon}>
+                  <ShieldAlert size={18} color={Colors.primary} strokeWidth={2.2} />
+                </View>
+                <ThemedText type="small" style={styles.flexText}>
+                  Anyone who scans your QR sees these details, but only the fields you switch on in
+                  My card.
+                </ThemedText>
               </View>
-            </Section>
 
-            {(Object.keys(LISTS) as ListKey[]).map((key) => (
-              <Section key={key} title={LISTS[key].label} hint={LISTS[key].hint}>
-                <ListEditor
-                  items={form[key]}
-                  onChange={(items) => edit({ [key]: items })}
-                  draft={drafts[key]}
-                  onDraftChange={editDraft(key)}
-                  placeholder={LISTS[key].placeholder}
-                  suggestions={[...LISTS[key].suggestions]}
+              <Section title="Blood group" icon={Droplet} tone="danger">
+                <View style={styles.bloodGroups}>
+                  {BLOOD_GROUPS.map((group) => (
+                    <View key={group} style={styles.bloodGroup}>
+                      <Chip
+                        label={group}
+                        selected={form.bloodGroup === group}
+                        onPress={() =>
+                          edit({ bloodGroup: form.bloodGroup === group ? undefined : group })
+                        }
+                      />
+                    </View>
+                  ))}
+                </View>
+              </Section>
+
+              {(Object.keys(LISTS) as ListKey[]).map((key) => (
+                <Section
+                  key={key}
+                  title={LISTS[key].label}
+                  hint={LISTS[key].hint}
+                  icon={LIST_ICONS[key].icon}
+                  tone={LIST_ICONS[key].tone}>
+                  <ListEditor
+                    items={form[key]}
+                    onChange={(items) => edit({ [key]: items })}
+                    draft={drafts[key]}
+                    onDraftChange={editDraft(key)}
+                    placeholder={LISTS[key].placeholder}
+                    suggestions={[...LISTS[key].suggestions]}
+                    editable={!busy}
+                  />
+                </Section>
+              ))}
+
+              <Section
+                title="Emergency contacts"
+                hint="Family or friends to call first. A responder can call them from the page."
+                icon={Phone}
+                tone="success">
+                <ContactsEditor
+                  contacts={form.contacts}
+                  onChange={(contacts) => edit({ contacts })}
                   editable={!busy}
                 />
               </Section>
-            ))}
 
-            <Section
-              title="Emergency contacts"
-              hint="Family or friends to call first. A responder can call them from the page.">
-              <ContactsEditor
-                contacts={form.contacts}
-                onChange={(contacts) => edit({ contacts })}
-                editable={!busy}
-              />
-            </Section>
+              <Section title="Organ donor" icon={HeartHandshake} tone="danger">
+                <View style={styles.choices}>
+                  {[
+                    { label: 'Yes', value: true },
+                    { label: 'No', value: false },
+                  ].map((option) => (
+                    <View key={option.label} style={styles.choice}>
+                      <Chip
+                        label={option.label}
+                        selected={form.organDonor === option.value}
+                        onPress={() =>
+                          edit({
+                            organDonor: form.organDonor === option.value ? undefined : option.value,
+                          })
+                        }
+                      />
+                    </View>
+                  ))}
+                </View>
+              </Section>
 
-            <Section title="Organ donor">
-              <View style={styles.choices}>
-                {[
-                  { label: 'Yes', value: true },
-                  { label: 'No', value: false },
-                ].map((option) => (
-                  <View key={option.label} style={styles.choice}>
-                    <Chip
-                      label={option.label}
-                      selected={form.organDonor === option.value}
-                      onPress={() =>
-                        edit({
-                          organDonor: form.organDonor === option.value ? undefined : option.value,
-                        })
-                      }
-                    />
-                  </View>
-                ))}
-              </View>
-            </Section>
+              <Section title="Health insurance" icon={ShieldCheck} tone="neutral">
+                <TextField
+                  label="Insurer"
+                  value={form.insuranceProvider}
+                  onChangeText={(insuranceProvider) => edit({ insuranceProvider })}
+                  placeholder="e.g. Star Health"
+                  maxLength={60}
+                  editable={!busy}
+                />
+                <TextField
+                  label="Policy number (optional)"
+                  value={form.policyNumber}
+                  onChangeText={(policyNumber) => edit({ policyNumber })}
+                  placeholder="e.g. SH-2231-889"
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  maxLength={40}
+                  editable={!busy}
+                />
+              </Section>
 
-            <Section title="Health insurance">
-              <TextInput
-                value={form.insuranceProvider}
-                onChangeText={(insuranceProvider) => edit({ insuranceProvider })}
-                placeholder="Insurer, e.g. Star Health"
-                placeholderTextColor={Colors.textMuted}
-                maxLength={60}
-                editable={!busy}
-                style={formStyles.input}
-              />
-              <TextInput
-                value={form.policyNumber}
-                onChangeText={(policyNumber) => edit({ policyNumber })}
-                placeholder="Policy number (optional)"
-                placeholderTextColor={Colors.textMuted}
-                autoCapitalize="characters"
-                autoCorrect={false}
-                maxLength={40}
-                editable={!busy}
-                style={formStyles.input}
-              />
-            </Section>
-
-            {error ? (
-              <ThemedText type="small" themeColor="danger" accessibilityLiveRegion="polite">
-                {error}
-              </ThemedText>
-            ) : null}
-
-            <Pressable
-              onPress={submit}
-              disabled={!canSave}
-              accessibilityRole="button"
-              accessibilityState={{ disabled: !canSave, busy }}
-              style={({ pressed }) => [
-                styles.save,
-                !canSave && !busy && styles.saveDisabled,
-                pressed && formStyles.pressed,
-              ]}>
-              {busy ? (
-                <ActivityIndicator color={Colors.onInk} />
-              ) : (
-                <ThemedText type="smallBold" themeColor="onInk">
-                  Save details
+              {error ? (
+                <ThemedText type="small" themeColor="danger" accessibilityLiveRegion="polite">
+                  {error}
                 </ThemedText>
-              )}
-            </Pressable>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      )}
-    </SafeAreaView>
+              ) : null}
+
+              <Button
+                label="Save details"
+                loading={busy}
+                disabled={!changed}
+                onPress={submit}
+              />
+            </ScrollView>
+          </KeyboardAvoidingView>
+        )}
+      </SafeAreaView>
+    </View>
   );
 }
 
-function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
+/** One part of the form on a white card, with an icon beside its title. */
+function Section({
+  title,
+  hint,
+  icon,
+  tone = 'primary',
+  children,
+}: {
+  title: string;
+  hint?: string;
+  icon?: LucideIcon;
+  tone?: Tone;
+  children: ReactNode;
+}) {
   return (
     <Surface style={styles.section}>
       <View style={styles.sectionHeader}>
-        <ThemedText type="bodyBold">{title}</ThemedText>
-        {hint ? (
-          <ThemedText type="caption" themeColor="textSecondary">
-            {hint}
-          </ThemedText>
-        ) : null}
+        {icon ? <IconTile icon={icon} tone={tone} size={36} /> : null}
+        <View style={styles.flexText}>
+          <ThemedText type="bodyBold">{title}</ThemedText>
+          {hint ? (
+            <ThemedText type="caption" themeColor="textSecondary">
+              {hint}
+            </ThemedText>
+          ) : null}
+        </View>
       </View>
       {children}
     </Surface>
   );
 }
 
+/** A few of the form's cards while the profile loads. */
+function FormSkeleton() {
+  return (
+    <SkeletonGroup label="Loading your emergency details" style={styles.skeletonStack}>
+      {[0, 1, 2].map((i) => (
+        <Surface key={i} style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Skeleton width={36} height={36} radius={Radius.md} />
+            <Skeleton width={130} height={15} />
+          </View>
+          <View style={styles.skeletonChips}>
+            {[0, 1, 2, 3].map((j) => (
+              <Skeleton key={j} width={70} height={36} radius={Radius.pill} />
+            ))}
+          </View>
+        </Surface>
+      ))}
+    </SkeletonGroup>
+  );
+}
+
 const styles = StyleSheet.create({
-  safeArea: {
+  screen: {
     flex: 1,
-    alignItems: 'center',
     backgroundColor: Colors.background,
   },
-  flex: {
+  wash: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 280,
+  },
+  safeArea: {
     flex: 1,
     width: '100%',
     maxWidth: MaxContentWidth / 1.5,
+    alignSelf: 'center',
+  },
+  flex: {
+    flex: 1,
   },
   flexText: {
     flex: 1,
   },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-    maxWidth: MaxContentWidth / 1.5,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-  },
-  back: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loading: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.three,
-  },
   content: {
     gap: Spacing.three,
     padding: Spacing.three,
+    paddingTop: Spacing.one,
     paddingBottom: Spacing.five,
   },
   intro: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.two,
-    padding: Spacing.two + 4,
-    borderRadius: Radius.md,
+    alignItems: 'center',
+    gap: Spacing.two + 4,
+    padding: 14,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(221, 67, 1, 0.14)',
     backgroundColor: Colors.primarySoft,
   },
+  introIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.backgroundElement,
+  },
   section: {
-    gap: Spacing.two + 4,
-    padding: Spacing.three,
+    gap: Spacing.three - 2,
   },
   sectionHeader: {
-    gap: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two + 4,
+  },
+  skeletonStack: {
+    gap: Spacing.three,
+  },
+  skeletonChips: {
+    flexDirection: 'row',
+    gap: Spacing.two,
   },
   bloodGroups: {
     flexDirection: 'row',
@@ -406,15 +456,5 @@ const styles = StyleSheet.create({
   },
   choice: {
     flex: 1,
-  },
-  save: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 54,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.primary,
-  },
-  saveDisabled: {
-    opacity: 0.4,
   },
 });

@@ -4,9 +4,9 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Button } from '@/components/ui/button';
-import { IconTile } from '@/components/ui/icon-tile';
+import { EmptyState, ErrorState } from '@/components/ui/empty-state';
 import { SectionHeader } from '@/components/ui/section-header';
+import { SkeletonList } from '@/components/ui/skeleton';
 import { Surface } from '@/components/ui/surface';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { MemberAvatar } from '@/features/profile/member-avatar';
@@ -45,7 +45,7 @@ function MemberRow({ member, first }: { member: FamilyMember; first: boolean }) 
  * way to stop that.
  */
 export function FamilySection() {
-  const { members, viewers, error, removeLink } = useFamily();
+  const { members, viewers, error, refresh, removeLink } = useFamily();
   const [removing, setRemoving] = useState<string | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
 
@@ -76,15 +76,11 @@ export function FamilySection() {
       />
 
       {members === null ? (
-        <Surface style={styles.loading}>
-          {error ? (
-            <ThemedText type="small" themeColor="danger">
-              {error}
-            </ThemedText>
-          ) : (
-            <ActivityIndicator color={Colors.textSecondary} />
-          )}
-        </Surface>
+        error ? (
+          <ErrorState title="Couldn’t load your family" message={error} onRetry={refresh} />
+        ) : (
+          <SkeletonList rows={2} label="Loading your family" />
+        )
       ) : members.length ? (
         <Surface style={styles.card}>
           {members.map((member, index) => (
@@ -92,17 +88,12 @@ export function FamilySection() {
           ))}
         </Surface>
       ) : (
-        <Surface style={styles.empty}>
-          <IconTile icon={Users} tone="primary" size={48} />
-          <ThemedText type="bodyBold" style={styles.center}>
-            Your family’s health, in one place
-          </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary" style={styles.center}>
-            Add a parent, spouse or child. We text them a code to confirm, then you can see their
-            prescriptions, reports, vaccines and medicines.
-          </ThemedText>
-          <Button label="Add family member" icon={UserPlus} onPress={openAdd} />
-        </Surface>
+        <EmptyState
+          icon={Users}
+          title="Your family’s health, in one place"
+          body="Add a parent, spouse or child. We text them a code to confirm, then you can see their prescriptions, reports, vaccines and medicines."
+          action={{ label: 'Add family member', icon: UserPlus, onPress: openAdd }}
+        />
       )}
 
       {viewers?.length ? (
@@ -165,10 +156,6 @@ const styles = StyleSheet.create({
   card: {
     paddingVertical: Spacing.one,
   },
-  loading: {
-    alignItems: 'center',
-    padding: Spacing.four,
-  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -178,14 +165,6 @@ const styles = StyleSheet.create({
   divider: {
     borderTopWidth: 1,
     borderTopColor: Colors.border,
-  },
-  empty: {
-    alignItems: 'center',
-    gap: Spacing.two,
-    padding: Spacing.four,
-  },
-  center: {
-    textAlign: 'center',
   },
   viewers: {
     gap: Spacing.two,

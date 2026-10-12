@@ -1,19 +1,23 @@
 import { Image } from 'expo-image';
+import { useIsFocused } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { ArrowRight, Lock, QrCode, Sparkles, Video } from 'lucide-react-native';
 import { useEffect, useRef, type ReactNode } from 'react';
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   TextInput,
   View,
   type TextInputProps,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
+import { Button } from '@/components/ui/button';
+import { HeroBackground } from '@/components/ui/hero-background';
+import { TextField } from '@/components/ui/text-field';
 import { Colors, Fonts, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useKeyboardVisible } from '@/hooks/use-keyboard-visible';
 
@@ -43,8 +47,9 @@ type AuthFormProps = {
 };
 
 /**
- * Shared layout for the sign-in steps: logo, heading, fields, one button. It scrolls, and while
- * the keyboard is up it drops the logo and scrolls the fields and button into view above it.
+ * Shared layout for the sign-in steps: a dark header with the brand, then a white sheet with the
+ * heading, fields and one button. It scrolls, and while the keyboard is up it drops the header
+ * and scrolls the fields and button into view above it.
  */
 export function AuthForm({
   title,
@@ -60,6 +65,8 @@ export function AuthForm({
 }: AuthFormProps) {
   const enabled = canSubmit && !busy;
   const keyboardVisible = useKeyboardVisible();
+  const insets = useSafeAreaInsets();
+  const focused = useIsFocused();
   const scroll = useRef<ScrollView>(null);
   const inputs = useRef<(TextInput | null)[]>([]);
 
@@ -71,106 +78,126 @@ export function AuthForm({
   }, [keyboardVisible]);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.screen}>
+      {/* Light status bar text over the dark header, while it shows. */}
+      {focused && !keyboardVisible ? <StatusBar style="light" /> : null}
       {/* Android draws edge to edge, so the window no longer shrinks for the keyboard: pad on
           both platforms. */}
       <KeyboardAvoidingView style={styles.flex} behavior="padding">
         <ScrollView
           ref={scroll}
           style={styles.flex}
-          contentContainerStyle={[styles.container, keyboardVisible && styles.containerTop]}
+          contentContainerStyle={styles.container}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
           showsVerticalScrollIndicator={false}>
-          {keyboardVisible ? null : (
-            <Image
-              source={require('@/assets/images/logo-mark.png')}
-              style={styles.logo}
-              contentFit="contain"
-            />
-          )}
-          <ThemedText type="title">{title}</ThemedText>
-          <ThemedText themeColor="textSecondary">{subtitle}</ThemedText>
-
-          {beforeFields ? <View style={styles.beforeFields}>{beforeFields}</View> : null}
-
-          <View style={[styles.fields, beforeFields ? styles.fieldsAfterSlot : null]}>
-            {fields.map(({ label, prefix, style, ...field }, index) => {
-              const isLast = index === fields.length - 1;
-              return (
-                <View key={field.nativeID ?? index} style={styles.field}>
-                  <ThemedText type="caption" themeColor="textSecondary" style={styles.label}>
-                    {label}
-                  </ThemedText>
-                  <View style={[styles.inputRow, busy && styles.inputBusy]}>
-                    {prefix ? (
-                      <ThemedText style={styles.prefix} accessibilityElementsHidden>
-                        {prefix}
-                      </ThemedText>
-                    ) : null}
-                    <TextInput
-                      ref={(input) => {
-                        inputs.current[index] = input;
-                      }}
-                      accessibilityLabel={label}
-                      placeholderTextColor={Colors.textMuted}
-                      keyboardType="number-pad"
-                      returnKeyType={isLast ? 'done' : 'next'}
-                      submitBehavior={isLast ? 'blurAndSubmit' : 'submit'}
-                      onSubmitEditing={
-                        isLast
-                          ? enabled
-                            ? onSubmit
-                            : undefined
-                          : () => inputs.current[index + 1]?.focus()
-                      }
-                      editable={!busy}
-                      {...field}
-                      style={[styles.input, style]}
-                    />
-                  </View>
+          {keyboardVisible ? (
+            <View style={{ height: insets.top + Spacing.three }} />
+          ) : (
+            <View style={[styles.hero, { paddingTop: insets.top + Spacing.five }]}>
+              <HeroBackground />
+              <View style={styles.heroInner}>
+                <View style={styles.logoTile}>
+                  <Image
+                    source={require('@/assets/images/logo-mark.png')}
+                    style={styles.logo}
+                    contentFit="contain"
+                  />
                 </View>
-              );
-            })}
-          </View>
+                <ThemedText style={styles.brand}>HealthMatrix</ThemedText>
+                <ThemedText style={styles.tagline}>
+                  Your health ID, records and doctors, in one card.
+                </ThemedText>
+                <View style={styles.pills}>
+                  {FEATURES.map(({ icon: Icon, label }) => (
+                    <View key={label} style={styles.pill}>
+                      <Icon size={13} color={Colors.primaryLight} strokeWidth={2.4} />
+                      <ThemedText style={styles.pillText}>{label}</ThemedText>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </View>
+          )}
 
-          {error ? (
-            <ThemedText type="small" themeColor="danger" accessibilityLiveRegion="polite">
-              {error}
+          <View style={[styles.sheet, keyboardVisible && styles.sheetFlat]}>
+            <ThemedText style={styles.title}>{title}</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              {subtitle}
             </ThemedText>
-          ) : null}
 
-          <Pressable
-            disabled={!enabled}
-            onPress={onSubmit}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: !enabled, busy }}
-            style={({ pressed }) => [
-              styles.button,
-              !canSubmit && styles.buttonDisabled,
-              pressed && styles.buttonPressed,
-            ]}>
-            {busy ? (
-              <ActivityIndicator color={Colors.onInk} />
-            ) : (
-              <ThemedText type="smallBold" themeColor="onInk">
-                {buttonLabel}
+            {beforeFields ? <View style={styles.beforeFields}>{beforeFields}</View> : null}
+
+            <View style={[styles.fields, beforeFields ? styles.fieldsAfterSlot : null]}>
+              {fields.map(({ label, prefix, ...field }, index) => {
+                const isLast = index === fields.length - 1;
+                return (
+                  <TextField
+                    key={field.nativeID ?? index}
+                    ref={(input) => {
+                      inputs.current[index] = input;
+                    }}
+                    label={label}
+                    prefix={prefix}
+                    keyboardType="number-pad"
+                    returnKeyType={isLast ? 'done' : 'next'}
+                    submitBehavior={isLast ? 'blurAndSubmit' : 'submit'}
+                    onSubmitEditing={
+                      isLast
+                        ? enabled
+                          ? onSubmit
+                          : undefined
+                        : () => inputs.current[index + 1]?.focus()
+                    }
+                    editable={!busy}
+                    {...field}
+                  />
+                );
+              })}
+            </View>
+
+            {error ? (
+              <ThemedText type="small" themeColor="danger" accessibilityLiveRegion="polite">
+                {error}
               </ThemedText>
-            )}
-          </Pressable>
+            ) : null}
 
-          {footer}
+            <View style={styles.submit}>
+              <Button
+                label={buttonLabel}
+                icon={ArrowRight}
+                loading={busy}
+                disabled={!canSubmit}
+                onPress={onSubmit}
+              />
+            </View>
+
+            {footer}
+
+            <View style={styles.trust}>
+              <Lock size={12} color={Colors.textMuted} strokeWidth={2.2} />
+              <ThemedText type="caption" themeColor="textMuted">
+                Encrypted, and shared only with your consent
+              </ThemedText>
+            </View>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
+/** What membership brings, shown on the sign-in header. */
+const FEATURES = [
+  { icon: QrCode, label: 'Emergency QR' },
+  { icon: Sparkles, label: 'Ekaay AI' },
+  { icon: Video, label: 'Video consults' },
+];
+
 const styles = StyleSheet.create({
-  safeArea: {
+  screen: {
     flex: 1,
-    alignItems: 'center',
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.backgroundElement,
   },
   flex: {
     flex: 1,
@@ -178,75 +205,108 @@ const styles = StyleSheet.create({
   },
   container: {
     flexGrow: 1,
+  },
+  hero: {
+    paddingBottom: Spacing.five + Spacing.three,
+    backgroundColor: Colors.backgroundElement,
+  },
+  heroInner: {
     width: '100%',
     maxWidth: MaxContentWidth / 2,
     alignSelf: 'center',
-    justifyContent: 'center',
-    padding: Spacing.four,
+    alignItems: 'flex-start',
     gap: Spacing.two,
+    paddingHorizontal: Spacing.four,
   },
-  containerTop: {
-    justifyContent: 'flex-start',
+  logoTile: {
+    width: 60,
+    height: 60,
+    marginBottom: Spacing.two,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.backgroundElement,
+    boxShadow: '0 10px 24px rgba(0, 0, 0, 0.25)',
   },
   logo: {
-    width: 64,
-    height: 57,
-    marginBottom: Spacing.three,
+    width: 38,
+    height: 34,
+  },
+  brand: {
+    fontFamily: Fonts.display,
+    fontSize: 32,
+    lineHeight: 38,
+    color: Colors.onInk,
+  },
+  tagline: {
+    fontFamily: Fonts.medium,
+    fontSize: 15,
+    lineHeight: 22,
+    color: Colors.onInkMuted,
+  },
+  pills: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
+    marginTop: Spacing.two,
+  },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
+    backgroundColor: Colors.glass,
+  },
+  pillText: {
+    fontFamily: Fonts.semibold,
+    fontSize: 12,
+    lineHeight: 16,
+    color: Colors.onInk,
+  },
+  // The white sheet rides up over the bottom of the header.
+  sheet: {
+    flexGrow: 1,
+    width: '100%',
+    maxWidth: MaxContentWidth / 2,
+    alignSelf: 'center',
+    gap: Spacing.two,
+    marginTop: -Spacing.five,
+    padding: Spacing.four,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    backgroundColor: Colors.backgroundElement,
+  },
+  sheetFlat: {
+    marginTop: 0,
+  },
+  title: {
+    fontFamily: Fonts.display,
+    fontSize: 27,
+    lineHeight: 33,
   },
   beforeFields: {
     marginTop: Spacing.three,
   },
   fields: {
-    gap: Spacing.two + 2,
+    gap: Spacing.three,
     marginTop: Spacing.three,
   },
   fieldsAfterSlot: {
-    marginTop: Spacing.one,
+    marginTop: Spacing.two,
   },
-  field: {
-    gap: 6,
+  submit: {
+    marginTop: Spacing.two,
   },
-  label: {
-    fontFamily: Fonts.semibold,
-  },
-  inputRow: {
+  trust: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.backgroundElement,
-  },
-  inputBusy: {
-    opacity: 0.6,
-  },
-  prefix: {
-    paddingLeft: Spacing.three,
-    color: Colors.textSecondary,
-    fontFamily: Fonts.semibold,
-    fontSize: 16,
-  },
-  input: {
-    flex: 1,
-    minHeight: 52,
-    padding: Spacing.three,
-    color: Colors.text,
-    fontFamily: Fonts.medium,
-    fontSize: 16,
-  },
-  button: {
-    alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 54,
-    marginTop: Spacing.two,
-    padding: Spacing.three,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.primary,
-  },
-  buttonDisabled: {
-    opacity: 0.4,
-  },
-  buttonPressed: {
-    opacity: 0.85,
+    gap: 6,
+    marginTop: 'auto',
+    paddingTop: Spacing.four,
   },
 });

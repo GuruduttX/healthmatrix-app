@@ -1,22 +1,26 @@
-import { router } from 'expo-router';
-import { Camera, ChevronLeft, Lock, LogOut } from 'lucide-react-native';
+import { router, useIsFocused } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { BadgeCheck, Camera, CircleCheck, Lock, LogOut, ShieldCheck } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
-  TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
+import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
+import { HeroBackground } from '@/components/ui/hero-background';
+import { StackHeader } from '@/components/ui/stack-header';
 import { Surface } from '@/components/ui/surface';
+import { TextField } from '@/components/ui/text-field';
+import { Plans } from '@/constants/plans';
 import { Colors, Fonts, MaxContentWidth, Radius, Shadows, Spacing } from '@/constants/theme';
 import { authApi } from '@/features/auth/auth-api';
 import { useAuth } from '@/features/auth/auth-context';
@@ -31,6 +35,9 @@ const GENDERS: { id: Gender; label: string }[] = [
 ];
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Brand green, lifted so it reads on ink. */
+const ABHA_GREEN = '#7FD6C2';
 
 /** "HM 4829 1057 3316" */
 function formatMemberId(id: string) {
@@ -58,6 +65,9 @@ function confirmSignOut() {
 /** The signed-in member's profile: photo, name, number, email and gender. */
 export default function ProfileScreen() {
   const { member, updateMember, signOut } = useAuth();
+  const insets = useSafeAreaInsets();
+  // Light status bar text over the dark header, only while this screen is showing.
+  const focused = useIsFocused();
 
   const [name, setName] = useState(member?.name ?? '');
   const [email, setEmail] = useState(member?.email ?? '');
@@ -133,83 +143,97 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.topBar}>
-        <Pressable
-          onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          hitSlop={8}
-          style={({ pressed }) => [styles.back, pressed && styles.pressed]}>
-          <ChevronLeft size={20} color={Colors.text} strokeWidth={2.2} />
-        </Pressable>
-        <ThemedText type="bodyBold">Profile</ThemedText>
-        <View style={styles.back} />
-      </View>
-
+    <View style={styles.screen}>
+      {focused ? <StatusBar style="light" /> : null}
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.content}>
+          contentContainerStyle={styles.scroll}>
+          {/* Who you are, on the same dark header as the tabs. */}
           <View style={styles.hero}>
-            <Pressable
-              onPress={choosePhoto}
-              disabled={busy}
-              accessibilityRole="button"
-              accessibilityLabel="Change profile photo"
-              style={({ pressed }) => pressed && styles.pressed}>
-              <View style={styles.photoRing}>
-                <MemberAvatar
-                  name={trimmedName || member.name}
-                  photoUrl={member.photoUrl}
-                  localUri={photo?.uri}
-                  size={112}
-                />
+            <HeroBackground />
+            <View style={[styles.heroInner, { paddingTop: insets.top }]}>
+              <StackHeader
+                onBack={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+                title="Profile"
+                tone="dark"
+              />
+              <View style={styles.identity}>
+                <Pressable
+                  onPress={choosePhoto}
+                  disabled={busy}
+                  accessibilityRole="button"
+                  accessibilityLabel="Change profile photo"
+                  style={({ pressed }) => pressed && styles.pressed}>
+                  <View style={styles.photoRing}>
+                    <MemberAvatar
+                      name={trimmedName || member.name}
+                      photoUrl={member.photoUrl}
+                      localUri={photo?.uri}
+                      size={104}
+                    />
+                  </View>
+                  <View style={styles.cameraBadge}>
+                    <Camera size={16} color={Colors.onInk} strokeWidth={2.2} />
+                  </View>
+                </Pressable>
+                <ThemedText style={styles.name} numberOfLines={1}>
+                  {trimmedName || member.name}
+                </ThemedText>
+                <ThemedText type="caption" style={styles.memberId}>
+                  Member ID {formatMemberId(member.memberId)}
+                </ThemedText>
+                <View style={styles.badges}>
+                  <View style={styles.badge}>
+                    <BadgeCheck size={13} color={Colors.primaryLight} strokeWidth={2.4} />
+                    <ThemedText style={[styles.badgeText, { color: Colors.primaryLight }]}>
+                      {Plans[member.plan].name} plan
+                    </ThemedText>
+                  </View>
+                  {member.abhaLinked ? (
+                    <View style={styles.badge}>
+                      <ShieldCheck size={13} color={ABHA_GREEN} strokeWidth={2.4} />
+                      <ThemedText style={[styles.badgeText, { color: ABHA_GREEN }]}>
+                        ABHA linked
+                      </ThemedText>
+                    </View>
+                  ) : null}
+                </View>
               </View>
-              <View style={styles.cameraBadge}>
-                <Camera size={16} color={Colors.onInk} strokeWidth={2.2} />
-              </View>
-            </Pressable>
-            <ThemedText type="subtitle" style={styles.center} numberOfLines={1}>
-              {trimmedName || member.name}
-            </ThemedText>
-            <ThemedText type="caption" themeColor="textSecondary">
-              Member ID {formatMemberId(member.memberId)}
-            </ThemedText>
+            </View>
           </View>
 
-          <Surface style={styles.card}>
-            <Field label="Full name" error={trimmedName ? nameError : null}>
-              <TextInput
+          <View style={styles.content}>
+            <Surface style={styles.card}>
+              <TextField
+                label="Full name"
                 value={name}
                 onChangeText={edit(setName)}
                 placeholder="Your name"
-                placeholderTextColor={Colors.textMuted}
                 autoCapitalize="words"
                 autoComplete="name"
                 textContentType="name"
                 maxLength={60}
                 editable={!busy}
-                style={styles.input}
+                error={trimmedName ? nameError : null}
               />
-            </Field>
 
-            <Field label="Mobile number" hint="This is your login, so it can't be changed here.">
-              <View style={[styles.input, styles.readOnly]}>
-                <ThemedText style={styles.readOnlyText}>{formatPhone(member.phone)}</ThemedText>
-                <Lock size={15} color={Colors.textMuted} strokeWidth={2.2} />
-              </View>
-            </Field>
+              <TextField
+                label="Mobile number"
+                value={formatPhone(member.phone)}
+                editable={false}
+                hint="This is your login, so it can’t be changed here."
+                trailing={<Lock size={15} color={Colors.textMuted} strokeWidth={2.2} />}
+              />
 
-            <Field label="Email" error={emailError}>
-              <TextInput
+              <TextField
+                label="Email"
                 value={email}
                 onChangeText={edit(setEmail)}
                 placeholder="you@example.com"
-                placeholderTextColor={Colors.textMuted}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -217,75 +241,52 @@ export default function ProfileScreen() {
                 textContentType="emailAddress"
                 maxLength={120}
                 editable={!busy}
-                style={styles.input}
+                error={emailError}
               />
-            </Field>
 
-            <Field label="Gender">
-              <View style={styles.genders}>
-                {GENDERS.map((option) => (
-                  <View key={option.id} style={styles.gender}>
-                    <Chip
-                      label={option.label}
-                      selected={gender === option.id}
-                      onPress={() => edit(setGender)(option.id)}
-                    />
-                  </View>
-                ))}
-              </View>
-            </Field>
-          </Surface>
+              <Field label="Gender">
+                <View style={styles.genders}>
+                  {GENDERS.map((option) => (
+                    <View key={option.id} style={styles.gender}>
+                      <Chip
+                        label={option.label}
+                        selected={gender === option.id}
+                        onPress={() => edit(setGender)(option.id)}
+                      />
+                    </View>
+                  ))}
+                </View>
+              </Field>
+            </Surface>
 
-          {error ? (
-            <ThemedText type="small" themeColor="danger" accessibilityLiveRegion="polite">
-              {error}
-            </ThemedText>
-          ) : null}
-          {saved && !changed ? (
-            <ThemedText type="small" themeColor="success" accessibilityLiveRegion="polite">
-              Your profile is updated.
-            </ThemedText>
-          ) : null}
-
-          <Pressable
-            onPress={save}
-            disabled={!canSave}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: !canSave, busy }}
-            style={({ pressed }) => [
-              styles.save,
-              !canSave && !busy && styles.saveDisabled,
-              pressed && styles.pressed,
-            ]}>
-            {busy ? (
-              <ActivityIndicator color={Colors.onInk} />
-            ) : (
-              <ThemedText type="smallBold" themeColor="onInk">
-                Save changes
+            {error ? (
+              <ThemedText type="small" themeColor="danger" accessibilityLiveRegion="polite">
+                {error}
               </ThemedText>
-            )}
-          </Pressable>
-
-          <Pressable
-            onPress={signOutNow}
-            disabled={busy || signingOut}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: busy || signingOut, busy: signingOut }}
-            style={({ pressed }) => [styles.signOut, pressed && styles.pressed]}>
-            {signingOut ? (
-              <ActivityIndicator color={Colors.danger} />
-            ) : (
-              <>
-                <LogOut size={18} color={Colors.danger} strokeWidth={2.2} />
-                <ThemedText type="smallBold" themeColor="danger">
-                  Sign out
+            ) : null}
+            {saved && !changed ? (
+              <View style={styles.saved} accessibilityLiveRegion="polite">
+                <CircleCheck size={16} color={Colors.success} strokeWidth={2.4} />
+                <ThemedText type="smallBold" themeColor="success">
+                  Your profile is updated.
                 </ThemedText>
-              </>
-            )}
-          </Pressable>
+              </View>
+            ) : null}
+
+            <Button label="Save changes" loading={busy} disabled={!canSave} onPress={save} />
+
+            <Button
+              label="Sign out"
+              variant="danger"
+              icon={LogOut}
+              loading={signingOut}
+              disabled={busy}
+              onPress={signOutNow}
+            />
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -320,50 +321,36 @@ function Field({
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  screen: {
     flex: 1,
-    alignItems: 'center',
     backgroundColor: Colors.background,
   },
   flex: {
     flex: 1,
-    width: '100%',
-    maxWidth: MaxContentWidth / 1.5,
   },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-    maxWidth: MaxContentWidth / 1.5,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-  },
-  back: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
+  scroll: {
+    paddingBottom: Spacing.five,
   },
   pressed: {
     opacity: 0.75,
   },
-  content: {
-    gap: Spacing.three,
-    padding: Spacing.three,
-    paddingBottom: Spacing.five,
-  },
   hero: {
+    paddingBottom: Spacing.five + Spacing.three,
+  },
+  heroInner: {
+    width: '100%',
+    maxWidth: MaxContentWidth / 1.5,
+    alignSelf: 'center',
+  },
+  identity: {
     alignItems: 'center',
-    gap: Spacing.one,
-    paddingVertical: Spacing.two,
+    gap: 4,
+    paddingHorizontal: Spacing.three,
   },
   photoRing: {
     padding: 4,
-    borderRadius: 60,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.card,
+    borderRadius: 58,
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
   },
   cameraBadge: {
     position: 'absolute',
@@ -375,45 +362,60 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: Colors.background,
+    borderColor: Colors.ink,
     backgroundColor: Colors.primary,
   },
-  center: {
-    marginTop: Spacing.two,
+  name: {
+    marginTop: Spacing.two + 2,
+    fontFamily: Fonts.display,
+    fontSize: 24,
+    lineHeight: 30,
+    color: Colors.onInk,
     textAlign: 'center',
+  },
+  memberId: {
+    color: Colors.onInkMuted,
+  },
+  badges: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    marginTop: Spacing.two,
+  },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
+    backgroundColor: Colors.glass,
+  },
+  badgeText: {
+    fontFamily: Fonts.semibold,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  content: {
+    width: '100%',
+    maxWidth: MaxContentWidth / 1.5,
+    alignSelf: 'center',
+    gap: Spacing.three,
+    marginTop: -Spacing.five,
+    paddingHorizontal: Spacing.three,
   },
   card: {
     gap: Spacing.three,
-    padding: Spacing.three,
+    boxShadow: Shadows.lifted,
   },
   field: {
     gap: 6,
   },
   label: {
     fontFamily: Fonts.semibold,
-  },
-  input: {
-    minHeight: 48,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.backgroundElement,
-    color: Colors.text,
-    fontFamily: Fonts.medium,
-    fontSize: 16,
-  },
-  readOnly: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.background,
-  },
-  readOnlyText: {
-    fontFamily: Fonts.medium,
-    fontSize: 16,
-    color: Colors.textSecondary,
   },
   genders: {
     flexDirection: 'row',
@@ -422,26 +424,10 @@ const styles = StyleSheet.create({
   gender: {
     flex: 1,
   },
-  save: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 54,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.primary,
-  },
-  saveDisabled: {
-    opacity: 0.4,
-  },
-  signOut: {
+  saved: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.two,
-    minHeight: 54,
-    marginTop: Spacing.two,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.dangerSoft,
-    backgroundColor: Colors.backgroundElement,
+    gap: 6,
   },
 });

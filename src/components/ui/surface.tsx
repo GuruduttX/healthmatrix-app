@@ -9,8 +9,8 @@ export function Surface({ style, ...props }: ViewProps) {
 
 const styles = StyleSheet.create({
   surface: {
-    padding: 14,
-    borderRadius: Radius.lg,
+    padding: 16,
+    borderRadius: Radius.lg + 4,
     borderWidth: 1,
     borderColor: Colors.border,
     backgroundColor: Colors.backgroundElement,

@@ -14,6 +14,7 @@ import { StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { IconTile } from '@/components/ui/icon-tile';
+import { SectionHeader } from '@/components/ui/section-header';
 import { Surface } from '@/components/ui/surface';
 import { Tag } from '@/components/ui/tag';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
@@ -73,13 +74,13 @@ export function VaccineDetail({ vaccination, onChange, readOnly }: VaccineDetail
             .filter((row) => row.value)
             .map(({ icon: Icon, label, value }) => (
               <View key={label} style={styles.fact}>
-                <Icon size={16} color={Colors.textSecondary} strokeWidth={2.2} />
-                <ThemedText type="small" themeColor="textSecondary" style={styles.factLabel}>
-                  {label}
-                </ThemedText>
-                <ThemedText type="smallBold" style={styles.flex}>
-                  {value}
-                </ThemedText>
+                <IconTile icon={Icon} tone="neutral" size={34} />
+                <View style={styles.flex}>
+                  <ThemedText type="caption" themeColor="textMuted">
+                    {label}
+                  </ThemedText>
+                  <ThemedText type="smallBold">{value}</ThemedText>
+                </View>
               </View>
             ))}
         </Surface>
@@ -95,9 +96,10 @@ export function VaccineDetail({ vaccination, onChange, readOnly }: VaccineDetail
       ) : null}
 
       <View style={styles.section}>
-        <ThemedText type="smallBold" themeColor="textSecondary">
-          Doses
-        </ThemedText>
+        <SectionHeader
+          title="Doses"
+          meta={`${vaccination.givenDoses} of ${vaccination.totalDoses} given`}
+        />
         <Surface style={styles.doses}>
           <DoseTimeline
             vaccination={vaccination}
@@ -112,7 +114,7 @@ export function VaccineDetail({ vaccination, onChange, readOnly }: VaccineDetail
       </View>
 
       <View style={styles.note}>
-        <Info size={15} color={Colors.textSecondary} strokeWidth={2.2} />
+        <Info size={16} color={Colors.inkMid} strokeWidth={2.2} />
         <ThemedText type="caption" themeColor="textSecondary" style={styles.flex}>
           {readOnly
             ? 'Doses are marked given by the person themselves, from their own HealthMatrix app.'
@@ -140,30 +142,36 @@ export function VaccineDetail({ vaccination, onChange, readOnly }: VaccineDetail
 
       <View style={styles.actions}>
         {vaccination.prescriptionId ? (
-          <Button
-            label="View prescription"
-            variant="secondary"
-            icon={FileText}
-            onPress={() =>
-              router.push({
-                pathname: '/records/[id]',
-                params: { id: vaccination.prescriptionId! },
-              })
-            }
-          />
+          <View style={styles.flex}>
+            <Button
+              label="Prescription"
+              variant="secondary"
+              icon={FileText}
+              accessibilityLabel="View prescription"
+              onPress={() =>
+                router.push({
+                  pathname: '/records/[id]',
+                  params: { id: vaccination.prescriptionId! },
+                })
+              }
+            />
+          </View>
         ) : null}
         {vaccination.doctor ? (
-          <Button
-            label="Book a follow-up"
-            variant="secondary"
-            icon={CalendarPlus}
-            onPress={() =>
-              router.push({
-                pathname: '/care/book/[doctorId]',
-                params: { doctorId: vaccination.doctor!.id },
-              })
-            }
-          />
+          <View style={styles.flex}>
+            <Button
+              label="Follow-up"
+              variant="soft"
+              icon={CalendarPlus}
+              accessibilityLabel="Book a follow-up"
+              onPress={() =>
+                router.push({
+                  pathname: '/care/book/[doctorId]',
+                  params: { doctorId: vaccination.doctor!.id },
+                })
+              }
+            />
+          </View>
         ) : null}
       </View>
     </>
@@ -178,8 +186,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bold,
   },
   hero: {
-    gap: Spacing.two + 4,
-    marginTop: Spacing.one,
+    gap: Spacing.three - 4,
   },
   heroTop: {
     flexDirection: 'row',
@@ -198,15 +205,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.success,
   },
   facts: {
-    gap: Spacing.two + 2,
+    gap: Spacing.three - 4,
   },
   fact: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
-  },
-  factLabel: {
-    width: 56,
+    gap: Spacing.three - 4,
   },
   instructions: {
     gap: 4,
@@ -222,7 +226,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   section: {
-    gap: Spacing.two,
+    gap: Spacing.three - 4,
     marginTop: Spacing.one,
   },
   doses: {
@@ -231,7 +235,10 @@ const styles = StyleSheet.create({
   note: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
+    gap: Spacing.two + 2,
+    padding: 14,
+    borderRadius: Radius.lg,
+    backgroundColor: Colors.backgroundSelected,
   },
   doctor: {
     flexDirection: 'row',
@@ -240,7 +247,6 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: Spacing.two,
   },
 });

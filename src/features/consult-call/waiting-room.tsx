@@ -18,6 +18,8 @@ import { formatSlot } from '@/features/doctors/time';
 
 import { CallControl } from './call-control';
 
+import { CallBackdrop } from './call-backdrop';
+
 /**
  * `connecting` until the member is in the Twilio room; `doctorHere` once the doctor has the consult
  * open in the console (and so sees the member waiting, with an Admit button).
@@ -108,6 +110,7 @@ export function WaitingRoom({
 
   return (
     <View style={[styles.root, { paddingTop: insets.top + Spacing.two }]}>
+      <CallBackdrop />
       <View style={styles.header}>
         <ThemedText type="smallBold" style={styles.eyebrow}>
           Waiting room

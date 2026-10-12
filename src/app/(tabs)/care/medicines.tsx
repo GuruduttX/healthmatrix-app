@@ -1,17 +1,26 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { CalendarCheck, ChevronLeft, Pill, Plus } from 'lucide-react-native';
+import {
+  CalendarCheck,
+  Moon,
+  Plus,
+  Sun,
+  Sunrise,
+  Sunset,
+  type LucideIcon,
+} from 'lucide-react-native';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Pressable, StyleSheet, View } from 'react-native';
 
+import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Button } from '@/components/ui/button';
-import { IconTile } from '@/components/ui/icon-tile';
+import { EmptyState, ErrorState } from '@/components/ui/empty-state';
+import { IconTile, type Tone } from '@/components/ui/icon-tile';
 import { ProgressRing } from '@/components/ui/progress-ring';
 import { SectionHeader } from '@/components/ui/section-header';
+import { Skeleton, SkeletonGroup, SkeletonList } from '@/components/ui/skeleton';
 import { Surface } from '@/components/ui/surface';
-import { Colors, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
 import { DoseItem, doseState } from '@/features/reminders/dose-item';
 import { MedicineRow } from '@/features/reminders/medicine-row';
 import { NotificationBanner } from '@/features/reminders/notification-banner';
@@ -24,12 +33,19 @@ import {
   toDateKey,
   type Dose,
 } from '@/features/reminders/schedule';
+import { NoMedicinesCard } from '@/features/reminders/today-timeline';
 import { type DoseStatus, type MedicineReminder } from '@/features/reminders/types';
 import { useNow } from '@/features/reminders/use-now';
 import { useReminders } from '@/features/reminders/use-reminders';
 import { WeekStrip, type DayMark } from '@/features/reminders/week-strip';
-import { useRefreshControl } from '@/hooks/use-refresh-control';
-import { useTabBarClearance } from '@/hooks/use-tab-bar-clearance';
+
+/** The icon and colour beside each part of the day. */
+const PARTS: Record<string, { icon: LucideIcon; tone: Tone }> = {
+  Morning: { icon: Sunrise, tone: 'warning' },
+  Afternoon: { icon: Sun, tone: 'primary' },
+  Evening: { icon: Sunset, tone: 'danger' },
+  Night: { icon: Moon, tone: 'neutral' },
+};
 
 /** Running medicines first, then paused, then finished courses. */
 function sortForList(reminders: MedicineReminder[], today: string) {
@@ -50,11 +66,28 @@ function groupByPartOfDay(doses: Dose[]) {
   return groups;
 }
 
+/** The week, the day's summary and its doses while the medicines load. */
+function MedicinesSkeleton() {
+  return (
+    <SkeletonGroup label="Loading your medicines" style={styles.stack}>
+      <Surface style={styles.skeletonWeek}>
+        <Skeleton width={120} height={14} />
+        <View style={styles.skeletonDays}>
+          {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+            <Skeleton key={i} height={58} radius={Radius.lg} style={styles.flex} />
+          ))}
+        </View>
+      </Surface>
+      <Skeleton height={96} radius={Radius.xl} />
+      <Skeleton width={110} height={18} />
+      <SkeletonList rows={3} leading="tile" />
+    </SkeletonGroup>
+  );
+}
+
 /** Medicine reminders: the day's doses to mark, and every medicine with its schedule. */
 export default function MedicinesScreen() {
   const { reminders, error, refresh, update, markDose } = useReminders();
-  const clearance = useTabBarClearance();
-  const refreshControl = useRefreshControl(refresh);
   const now = useNow();
   const today = toDateKey(now);
   const [selected, setSelected] = useState(today);
@@ -90,88 +123,88 @@ export default function MedicinesScreen() {
     selected === today ? doses.find((dose) => !dose.status && dose.at > now) : undefined;
 
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-        <View style={styles.topBar}>
+    <Screen
+      // Always back to the Care page, even when this screen was opened from a notification.
+      onBack={() => router.dismissTo('/care')}
+      backLabel="Care"
+      barTitle="Medicines"
+      barRight={
+        reminders?.length ? (
           <Pressable
-            // Always back to the Care page, even when this screen was opened from a notification.
-            onPress={() => router.dismissTo('/care')}
+            onPress={add}
             accessibilityRole="button"
-            accessibilityLabel="Back to Care"
-            hitSlop={8}
-            style={({ pressed }) => [styles.round, pressed && styles.pressed]}>
-            <ChevronLeft size={20} color={Colors.text} strokeWidth={2.2} />
+            accessibilityLabel="Add a medicine"
+            hitSlop={4}
+            style={({ pressed }) => [styles.addPill, pressed && styles.pressed]}>
+            <Plus size={16} color={Colors.onInk} strokeWidth={2.6} />
+            <ThemedText type="smallBold" themeColor="onInk">
+              Add
+            </ThemedText>
           </Pressable>
-          <ThemedText type="subtitle" style={styles.title}>
-            Medicines
-          </ThemedText>
-          {reminders?.length ? (
-            <Pressable
-              onPress={add}
-              accessibilityRole="button"
-              accessibilityLabel="Add a medicine"
-              style={({ pressed }) => [styles.addPill, pressed && styles.pressed]}>
-              <Plus size={16} color={Colors.onInk} strokeWidth={2.6} />
-              <ThemedText type="smallBold" themeColor="onInk">
-                Add
-              </ThemedText>
-            </Pressable>
-          ) : null}
-        </View>
-
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          refreshControl={refreshControl}
-          contentContainerStyle={[styles.content, { paddingBottom: clearance + Spacing.three }]}>
-          {!reminders ? (
-            <View style={styles.loading}>
-              {error ? (
-                <ThemedText type="small" themeColor="danger">
-                  {error}
-                </ThemedText>
-              ) : (
-                <ActivityIndicator color={Colors.textSecondary} />
-              )}
-            </View>
-          ) : !reminders.length ? (
-            <EmptyState onAdd={add} />
+        ) : null
+      }
+      onRefresh={refresh}>
+      <View style={styles.stack}>
+        {!reminders ? (
+          error ? (
+            <ErrorState title="Couldn’t load your medicines" message={error} onRetry={refresh} />
           ) : (
-            <>
-              <NotificationBanner />
+            <MedicinesSkeleton />
+          )
+        ) : !reminders.length ? (
+          <NoMedicinesCard />
+        ) : (
+          <>
+            <NotificationBanner />
 
-              {actionError ? (
-                <ThemedText type="small" themeColor="danger" accessibilityLiveRegion="polite">
-                  {actionError}
+            {actionError ? (
+              <ThemedText type="small" themeColor="danger" accessibilityLiveRegion="polite">
+                {actionError}
+              </ThemedText>
+            ) : null}
+
+            <WeekStrip selected={selected} today={today} onSelect={setSelected} markFor={markFor} />
+
+            {/* The chosen day at a glance, on a soft green wash. */}
+            <View style={styles.summary}>
+              <LinearGradient
+                colors={[Colors.successSoft, Colors.backgroundElement]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <ProgressRing value={taken} total={doses.length} size={64} />
+              <View style={styles.flex}>
+                <ThemedText style={styles.summaryDay}>{formatDay(selected, today)}</ThemedText>
+                <ThemedText type="caption" themeColor="textSecondary">
+                  {doses.length
+                    ? `${taken} of ${doses.length} ${doses.length === 1 ? 'dose' : 'doses'} taken`
+                    : 'No medicines on this day'}
                 </ThemedText>
-              ) : null}
-
-              <WeekStrip selected={selected} today={today} onSelect={setSelected} markFor={markFor} />
-
-              <Surface style={styles.summary}>
-                <ProgressRing value={taken} total={doses.length} />
-                <View style={styles.flex}>
-                  <ThemedText type="bodyBold">{formatDay(selected, today)}</ThemedText>
-                  <ThemedText type="caption" themeColor="textSecondary">
-                    {doses.length
-                      ? `${taken} of ${doses.length} ${doses.length === 1 ? 'dose' : 'doses'} taken`
-                      : 'No medicines on this day'}
+              </View>
+              {next ? (
+                <View style={styles.next}>
+                  <ThemedText style={styles.nextLabel}>Next</ThemedText>
+                  <ThemedText type="smallBold" themeColor="onInk">
+                    {formatTime(next.time)}
                   </ThemedText>
                 </View>
-                {next ? (
-                  <View style={styles.next}>
-                    <ThemedText type="caption" themeColor="textSecondary">
-                      Next
+              ) : null}
+            </View>
+
+            {groupByPartOfDay(doses).map((group) => {
+              const part = PARTS[group.title] ?? PARTS.Morning!;
+              return (
+                <View key={group.title} style={styles.section}>
+                  <View style={styles.partHeader}>
+                    <IconTile icon={part.icon} tone={part.tone} size={32} />
+                    <ThemedText style={styles.partTitle} accessibilityRole="header">
+                      {group.title}
                     </ThemedText>
-                    <ThemedText type="smallBold" themeColor="primary">
-                      {formatTime(next.time)}
+                    <ThemedText type="caption" themeColor="textMuted">
+                      {group.doses.length} {group.doses.length === 1 ? 'dose' : 'doses'}
                     </ThemedText>
                   </View>
-                ) : null}
-              </Surface>
-
-              {groupByPartOfDay(doses).map((group) => (
-                <View key={group.title} style={styles.section}>
-                  <SectionHeader title={group.title} />
                   <Surface style={styles.list}>
                     {group.doses.map((dose, index) => (
                       <DoseItem
@@ -184,95 +217,48 @@ export default function MedicinesScreen() {
                     ))}
                   </Surface>
                 </View>
-              ))}
+              );
+            })}
 
-              {!doses.length ? (
-                <Surface style={styles.dayEmpty}>
-                  <CalendarCheck size={22} color={Colors.textMuted} strokeWidth={2} />
-                  <ThemedText type="small" themeColor="textSecondary">
-                    Nothing to take {selected === today ? 'today' : 'on this day'}.
-                  </ThemedText>
-                </Surface>
-              ) : null}
+            {!doses.length ? (
+              <EmptyState
+                icon={CalendarCheck}
+                tone="success"
+                title={`Nothing to take ${selected === today ? 'today' : 'on this day'}`}
+                body="Pick another day in the week above to see its doses."
+              />
+            ) : null}
 
-              <View style={styles.section}>
-                <SectionHeader title={`Your medicines (${reminders.length})`} />
-                <Surface style={styles.list}>
-                  {sortForList(reminders, today).map((reminder, index) => (
-                    <MedicineRow
-                      key={reminder.id}
-                      reminder={reminder}
-                      now={now}
-                      today={today}
-                      divider={index > 0}
-                      onPress={() =>
-                        router.push({ pathname: '/care/medicine/[id]', params: { id: reminder.id } })
-                      }
-                      onToggleActive={(active) => toggleActive(reminder, active)}
-                    />
-                  ))}
-                </Surface>
-              </View>
-            </>
-          )}
-        </ScrollView>
-      </SafeAreaView>
-    </ThemedView>
-  );
-}
-
-function EmptyState({ onAdd }: { onAdd: () => void }) {
-  return (
-    <Surface style={styles.empty}>
-      <IconTile icon={Pill} tone="primary" size={64} />
-      <ThemedText type="subtitle" style={styles.center}>
-        Never miss a dose
-      </ThemedText>
-      <ThemedText type="small" themeColor="textSecondary" style={styles.center}>
-        Add each medicine with its times and how often to take it. Your phone will remind you, and
-        you can tick off every dose.
-      </ThemedText>
-      <View style={styles.emptyButton}>
-        <Button label="Add a medicine" icon={Plus} onPress={onAdd} />
+            <View style={styles.section}>
+              <SectionHeader title="Your medicines" meta={`${reminders.length}`} />
+              <Surface style={styles.list}>
+                {sortForList(reminders, today).map((reminder, index) => (
+                  <MedicineRow
+                    key={reminder.id}
+                    reminder={reminder}
+                    now={now}
+                    today={today}
+                    divider={index > 0}
+                    onPress={() =>
+                      router.push({ pathname: '/care/medicine/[id]', params: { id: reminder.id } })
+                    }
+                    onToggleActive={(active) => toggleActive(reminder, active)}
+                  />
+                ))}
+              </Surface>
+            </View>
+          </>
+        )}
       </View>
-    </Surface>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  safeArea: {
-    flex: 1,
-    width: '100%',
-    maxWidth: MaxContentWidth,
+  stack: {
+    gap: Spacing.three + 2,
   },
   flex: {
-    flex: 1,
-  },
-  center: {
-    textAlign: 'center',
-  },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two + 4,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-  },
-  round: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.backgroundElement,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  title: {
     flex: 1,
   },
   addPill: {
@@ -283,47 +269,62 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: Radius.pill,
     backgroundColor: Colors.primary,
+    boxShadow: Shadows.glow,
   },
   pressed: {
     opacity: 0.75,
   },
-  content: {
-    gap: Spacing.three,
-    padding: Spacing.three,
-    paddingTop: Spacing.one,
-  },
-  loading: {
-    paddingVertical: Spacing.six,
-    alignItems: 'center',
-  },
   summary: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two + 4,
+    gap: Spacing.three - 2,
+    padding: Spacing.three,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.backgroundElement,
+    overflow: 'hidden',
+  },
+  summaryDay: {
+    fontFamily: Fonts.display,
+    fontSize: 20,
+    lineHeight: 25,
   },
   next: {
-    alignItems: 'flex-end',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: Radius.lg,
+    backgroundColor: Colors.ink,
+  },
+  nextLabel: {
+    fontFamily: Fonts.semibold,
+    fontSize: 11,
+    lineHeight: 14,
+    color: Colors.onInkMuted,
   },
   section: {
-    gap: Spacing.two,
+    gap: Spacing.two + 2,
+  },
+  partHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two + 2,
+  },
+  partTitle: {
+    flex: 1,
+    fontFamily: Fonts.display,
+    fontSize: 17,
+    lineHeight: 22,
   },
   list: {
     paddingVertical: 0,
   },
-  dayEmpty: {
+  skeletonWeek: {
+    gap: Spacing.three - 4,
+  },
+  skeletonDays: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two + 4,
-  },
-  empty: {
-    alignItems: 'center',
-    gap: Spacing.two + 4,
-    paddingVertical: Spacing.five,
-    paddingHorizontal: Spacing.four,
-    marginTop: Spacing.three,
-  },
-  emptyButton: {
-    alignSelf: 'stretch',
-    marginTop: Spacing.two,
+    gap: 6,
   },
 });

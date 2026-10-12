@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
   contact: {
     gap: Spacing.two,
     padding: Spacing.two + 4,
-    borderRadius: Radius.md,
+    borderRadius: Radius.lg,
     backgroundColor: Colors.background,
   },
   contactHeader: {
@@ -110,11 +110,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: Spacing.two,
   },
+  // minWidth 0 lets the two fields share the row instead of keeping their natural width.
   relation: {
     flex: 1,
+    minWidth: 0,
   },
   phone: {
     flex: 1.2,
+    minWidth: 0,
   },
   addContact: {
     flexDirection: 'row',
@@ -122,9 +125,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     minHeight: 48,
-    borderRadius: Radius.md,
-    borderWidth: 1,
+    borderRadius: Radius.pill,
+    borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderColor: Colors.border,
+    borderColor: Colors.primaryLight,
+    backgroundColor: Colors.primarySoft,
   },
 });

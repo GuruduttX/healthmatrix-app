@@ -1,84 +1,211 @@
-import { router, type Href } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { router, useFocusEffect, useIsFocused, type Href } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { Lock } from 'lucide-react-native';
+import { useCallback } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Screen } from '@/components/screen';
-import { SectionHeader } from '@/components/ui/section-header';
-import { Spacing } from '@/constants/theme';
+import { ThemedText } from '@/components/themed-text';
+import { Plans } from '@/constants/plans';
+import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-context';
+import { refreshAppointments } from '@/features/doctors/use-appointments';
+import { refreshConsultRequests } from '@/features/doctors/use-consult-requests';
+import { suggestedQuestions } from '@/features/ekaay/sample-data';
+import { refreshFamily } from '@/features/family/use-family';
 import { EkaayInsightCard } from '@/features/home/ekaay-insight-card';
 import { EmergencyBanner } from '@/features/home/emergency-banner';
-import { HomeHeader } from '@/features/home/home-header';
+import { FamilyStrip } from '@/features/home/family-strip';
+import { HomeHero } from '@/features/home/home-hero';
+import { HomeSection } from '@/features/home/home-section';
 import { QuickActions, type QuickActionId } from '@/features/home/quick-actions';
 import { ReadingCard } from '@/features/home/reading-card';
 import { sampleHome } from '@/features/home/sample-data';
+import { TodayPlan } from '@/features/home/today-plan';
+import { useNotifications } from '@/features/notifications/use-notifications';
+import { formatShortDate, toDateKey, WEEKDAY_NAMES } from '@/features/reminders/schedule';
+import { refreshReminders } from '@/features/reminders/use-reminders';
+import { refreshVaccinations } from '@/features/vaccines/use-vaccinations';
+import { useRefreshControl } from '@/hooks/use-refresh-control';
+import { useTabBarClearance } from '@/hooks/use-tab-bar-clearance';
 
-// Until the booking, consult and upload flows exist, each action opens its tab.
 const ACTION_ROUTES: Record<QuickActionId, Href> = {
-  'ask-ekaay': '/ekaay',
   'video-consult': '/care',
-  'book-pod': '/care',
+  'book-pod': '/care/pods',
+  medicines: '/care/medicines',
   'add-records': '/records',
 };
 
+/** Opens Ekaay, asking `question` when one was tapped. */
+function askEkaay(question?: string) {
+  router.navigate(question ? { pathname: '/ekaay', params: { q: question } } : '/ekaay');
+}
+
 export default function HomeScreen() {
   const { member, refreshMember } = useAuth();
-  const { hasUnreadNotifications, readings, insight, emergencyQr } = sampleHome;
+  const insets = useSafeAreaInsets();
+  const clearance = useTabBarClearance();
+  // Light status bar text over the hero, only while Home is showing.
+  const focused = useIsFocused();
+  const { readings, insight, emergencyQr } = sampleHome;
+  // The bell's dot: something needs attention now (a dose due, a consult starting).
+  const { notices } = useNotifications();
+  const hasUnread = notices?.some((notice) => notice.urgent) ?? false;
+
+  const memberId = member?.id;
+  // The cards below read shared stores; refreshing those updates each card.
+  const refreshControl = useRefreshControl(
+    () =>
+      Promise.allSettled([
+        refreshMember(),
+        ...(memberId
+          ? [
+              refreshAppointments(memberId),
+              refreshConsultRequests(memberId),
+              refreshReminders(memberId),
+              refreshVaccinations(memberId),
+              refreshFamily(memberId),
+            ]
+          : []),
+      ]),
+    // The spinner shows over the dark hero, below the status bar.
+    { tintColor: Colors.onInk, progressViewOffset: insets.top },
+  );
+
+  // A doctor can start or cancel a consult, or prescribe a vaccine, from the console while the
+  // member is elsewhere: check again whenever Home comes back into view.
+  useFocusEffect(
+    useCallback(() => {
+      if (!memberId) return;
+      void Promise.allSettled([
+        refreshAppointments(memberId),
+        refreshConsultRequests(memberId),
+        refreshVaccinations(memberId),
+      ]);
+    }, [memberId]),
+  );
+
+  const now = new Date();
+  const todayLabel = `${WEEKDAY_NAMES[now.getDay()]}, ${formatShortDate(toDateKey(now))}`;
 
   return (
-    <Screen onRefresh={refreshMember}>
-      <View style={styles.sections}>
-        <HomeHeader
+    <View style={styles.screen}>
+      {focused ? <StatusBar style="light" /> : null}
+      {/* Dark behind the content, so pulling down shows ink above the hero (and the spinner). */}
+      <ScrollView
+        style={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        refreshControl={refreshControl}
+        contentContainerStyle={styles.content}>
+        <HomeHero
           name={member?.name ?? ''}
           photoUrl={member?.photoUrl}
-          hasUnread={hasUnreadNotifications}
+          planName={member ? Plans[member.plan]?.name : undefined}
+          abhaLinked={member?.abhaLinked}
+          hasUnread={hasUnread}
+          topInset={insets.top}
+          suggestions={suggestedQuestions}
           onPressProfile={() => router.push('/profile')}
+          onPressNotifications={() => router.push('/notifications')}
+          onAsk={askEkaay}
         />
 
-        <View style={styles.section}>
-          <SectionHeader
-            title="Your latest readings"
-            actionLabel="See all"
-            onAction={() => router.navigate('/records')}
-          />
-          <View style={styles.readings}>
-            {readings.map((reading) => (
-              <ReadingCard key={reading.id} reading={reading} />
-            ))}
+        {/* Everything under the hero sits on the light page colour. */}
+        <View style={[styles.lower, { paddingBottom: clearance + Spacing.four }]}>
+          <View style={styles.bounce} />
+          <View style={styles.body}>
+            <QuickActions onPress={(id) => router.navigate(ACTION_ROUTES[id])} />
+
+            <HomeSection title="Today" meta={todayLabel} index={0}>
+              <TodayPlan />
+            </HomeSection>
+
+            <HomeSection
+              title="Your vitals"
+              actionLabel="See all"
+              onAction={() => router.navigate('/records')}
+              index={1}>
+              <View style={styles.grid}>
+                {readings.map((reading) => (
+                  <ReadingCard key={reading.id} reading={reading} />
+                ))}
+              </View>
+            </HomeSection>
+
+            <HomeSection index={2}>
+              <EkaayInsightCard
+                insight={insight}
+                primaryLabel="Book HbA1c"
+                onPrimary={() => router.navigate('/care/pods')}
+                secondaryLabel="Ask why"
+                onSecondary={() => askEkaay('Why is my fasting sugar rising?')}
+              />
+            </HomeSection>
+
+            <FamilyStrip index={3} />
+
+            <HomeSection title="Safety" index={4}>
+              <EmergencyBanner
+                isOn={emergencyQr.isOn}
+                carriers={emergencyQr.carriers}
+                onPress={() => router.navigate('/card')}
+              />
+            </HomeSection>
+
+            <View style={styles.trust}>
+              <Lock size={13} color={Colors.textMuted} strokeWidth={2.2} />
+              <ThemedText type="caption" themeColor="textMuted">
+                Encrypted, and shared only with your consent
+              </ThemedText>
+            </View>
           </View>
         </View>
-
-        <EkaayInsightCard
-          insight={insight}
-          primaryLabel="Book HbA1c"
-          onPrimary={() => router.navigate('/care')}
-          secondaryLabel="Ask Ekaay why"
-          onSecondary={() => router.navigate('/ekaay')}
-        />
-
-        <View style={styles.section}>
-          <SectionHeader title="Quick actions" />
-          <QuickActions onPress={(id) => router.navigate(ACTION_ROUTES[id])} />
-        </View>
-
-        <EmergencyBanner
-          isOn={emergencyQr.isOn}
-          carriers={emergencyQr.carriers}
-          onPress={() => router.navigate('/card')}
-        />
-      </View>
-    </Screen>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  sections: {
-    gap: Spacing.three + 4,
+  screen: {
+    flex: 1,
+    backgroundColor: Colors.background,
   },
-  section: {
-    gap: Spacing.two + 2,
+  scroll: {
+    backgroundColor: Colors.inkDeep,
   },
-  readings: {
+  content: {
+    flexGrow: 1,
+  },
+  lower: {
+    flexGrow: 1,
+    backgroundColor: Colors.background,
+  },
+  // Light below the last section too, for the bounce at the bottom on iOS.
+  bounce: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    height: 1000,
+    backgroundColor: Colors.background,
+  },
+  body: {
+    width: '100%',
+    maxWidth: MaxContentWidth,
+    alignSelf: 'center',
+    gap: Spacing.four + 4,
+    paddingHorizontal: Spacing.three,
+  },
+  grid: {
     flexDirection: 'row',
-    gap: Spacing.two,
+    flexWrap: 'wrap',
+    gap: Spacing.two + 4,
+  },
+  trust: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: -Spacing.two,
   },
 });

@@ -1,22 +1,17 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { CircleCheck, MessageSquareText, X } from 'lucide-react-native';
+import { CircleCheck, MessageSquareText } from 'lucide-react-native';
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-  type TextInputProps,
-} from 'react-native';
+import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
+import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { IconTile } from '@/components/ui/icon-tile';
-import { Colors, Fonts, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
+import { StackHeader } from '@/components/ui/stack-header';
+import { TextField } from '@/components/ui/text-field';
+import { Colors, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
 import { aboutLine, RELATIONS } from '@/features/family/relations';
 import { type FamilyMember, type Relation } from '@/features/family/types';
 import { familyApi, useFamily } from '@/features/family/use-family';
@@ -27,57 +22,6 @@ type Step = 'details' | 'code' | 'done';
 /** "9876543210" -> "+91 98765 43210" */
 const formatPhone = (phone: string) => `+91 ${phone.slice(0, 5)} ${phone.slice(5)}`;
 
-function Field({ label, prefix, ...input }: TextInputProps & { label: string; prefix?: string }) {
-  return (
-    <View style={styles.field}>
-      <ThemedText type="caption" themeColor="textSecondary" style={styles.label}>
-        {label}
-      </ThemedText>
-      <View style={styles.inputRow}>
-        {prefix ? <ThemedText style={styles.prefix}>{prefix}</ThemedText> : null}
-        <TextInput
-          accessibilityLabel={label}
-          placeholderTextColor={Colors.textMuted}
-          {...input}
-          style={[styles.input, input.style]}
-        />
-      </View>
-    </View>
-  );
-}
-
-function PrimaryButton({
-  label,
-  onPress,
-  disabled,
-  busy,
-}: {
-  label: string;
-  onPress: () => void;
-  disabled?: boolean;
-  busy?: boolean;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled || busy}
-      accessibilityRole="button"
-      accessibilityState={{ disabled: disabled || busy, busy }}
-      style={({ pressed }) => [
-        styles.button,
-        disabled && !busy && styles.buttonDisabled,
-        pressed && styles.pressed,
-      ]}>
-      {busy ? (
-        <ActivityIndicator color={Colors.onInk} />
-      ) : (
-        <ThemedText type="smallBold" themeColor="onInk">
-          {label}
-        </ThemedText>
-      )}
-    </Pressable>
-  );
-}
 
 /**
  * Adds a family member: their name, how they're related and their number; then the code texted
@@ -146,17 +90,12 @@ export default function AddFamilyMemberScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.topBar}>
-        <ThemedText type="bodyBold">Add family member</ThemedText>
-        <Pressable
-          onPress={close}
-          accessibilityRole="button"
-          accessibilityLabel="Close"
-          hitSlop={10}
-          style={({ pressed }) => [styles.close, pressed && styles.pressed]}>
-          <X size={20} color={Colors.text} strokeWidth={2.2} />
-        </Pressable>
-      </View>
+      <LinearGradient
+        colors={['rgba(254, 241, 234, 0.9)', 'rgba(243, 247, 247, 0)']}
+        style={styles.wash}
+        pointerEvents="none"
+      />
+      <StackHeader onBack={close} close title="Add family member" />
 
       <KeyboardAvoidingView style={styles.flex} behavior="padding">
         <ScrollView
@@ -174,7 +113,7 @@ export default function AddFamilyMemberScreen() {
                 </ThemedText>
               </View>
 
-              <Field
+              <TextField
                 label="Their name"
                 value={name}
                 onChangeText={(text) => {
@@ -209,7 +148,7 @@ export default function AddFamilyMemberScreen() {
               </View>
 
               {relation === 'other' ? (
-                <Field
+                <TextField
                   label="How are they related to you?"
                   value={relationName}
                   onChangeText={(text) => {
@@ -226,7 +165,7 @@ export default function AddFamilyMemberScreen() {
                 />
               ) : null}
 
-              <Field
+              <TextField
                 label="Their mobile number"
                 prefix="+91"
                 value={phone}
@@ -249,7 +188,7 @@ export default function AddFamilyMemberScreen() {
                 </ThemedText>
               ) : null}
 
-              <PrimaryButton label="Send code" onPress={send} disabled={!canSend} busy={busy} />
+              <Button label="Send code" onPress={send} disabled={!canSend} loading={busy} />
             </>
           ) : step === 'code' ? (
             <>
@@ -265,7 +204,7 @@ export default function AddFamilyMemberScreen() {
                 </ThemedText>
               </View>
 
-              <Field
+              <TextField
                 label="Their code"
                 value={code}
                 onChangeText={(text) => {
@@ -298,11 +237,11 @@ export default function AddFamilyMemberScreen() {
                 </ThemedText>
               ) : null}
 
-              <PrimaryButton
+              <Button
                 label={`Add ${firstName}`}
                 onPress={verify}
                 disabled={code.length !== 6}
-                busy={busy}
+                loading={busy}
               />
 
               <View style={styles.links}>
@@ -341,21 +280,13 @@ export default function AddFamilyMemberScreen() {
                 {aboutLine(member)}. You can now see their prescriptions, reports, vaccines and
                 medicines from your Card.
               </ThemedText>
-              <PrimaryButton
+              <Button
                 label={`See ${member.name.split(/\s+/)[0]}’s records`}
                 onPress={() =>
                   router.replace({ pathname: '/family/[id]', params: { id: member.id } })
                 }
               />
-              <Pressable
-                onPress={close}
-                accessibilityRole="button"
-                hitSlop={8}
-                style={styles.doneLink}>
-                <ThemedText type="smallBold" themeColor="textSecondary">
-                  Done
-                </ThemedText>
-              </Pressable>
+              <Button label="Done" variant="secondary" onPress={close} />
             </View>
           ) : null}
         </ScrollView>
@@ -369,30 +300,23 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
+  wash: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 280,
+  },
   flex: {
     flex: 1,
-  },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.two,
-  },
-  close: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.backgroundSelected,
   },
   content: {
     width: '100%',
     maxWidth: MaxContentWidth / 1.5,
     alignSelf: 'center',
     gap: Spacing.three,
-    padding: Spacing.four,
+    padding: Spacing.three,
+    paddingTop: Spacing.two,
     paddingBottom: Spacing.six,
   },
   intro: {
@@ -404,28 +328,6 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: Fonts.semibold,
   },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.backgroundElement,
-  },
-  prefix: {
-    paddingLeft: Spacing.three,
-    color: Colors.textSecondary,
-    fontFamily: Fonts.semibold,
-    fontSize: 16,
-  },
-  input: {
-    flex: 1,
-    minHeight: 52,
-    padding: Spacing.three,
-    color: Colors.text,
-    fontFamily: Fonts.medium,
-    fontSize: 16,
-  },
   code: {
     letterSpacing: 6,
     fontSize: 20,
@@ -434,16 +336,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.two,
-  },
-  button: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 54,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.primary,
-  },
-  buttonDisabled: {
-    opacity: 0.4,
   },
   pressed: {
     opacity: 0.8,
@@ -458,9 +350,6 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.five,
   },
   doneAvatar: {
-    alignSelf: 'center',
-  },
-  doneLink: {
     alignSelf: 'center',
   },
   doneBadge: {

@@ -11,6 +11,8 @@ export type Reading = {
 };
 
 export type Insight = {
+  /** One line, the headline of the card. */
+  title: string;
   text: string;
   metric: string;
   unit: string;
@@ -21,10 +23,11 @@ export type Insight = {
 
 /**
  * SAMPLE DATA from the brochure mock-up, so the Home screen can be designed
- * before the readings and insights APIs exist. The member's name comes from sign-in. Replace with API data.
+ * before the readings and insights APIs exist. The pulse reading is not in the brochure; pods
+ * measure it. The member's name, consults, medicines, vaccines and family are real. Replace with
+ * API data.
  */
 export const sampleHome = {
-  hasUnreadNotifications: true,
   readings: [
     {
       id: 'bp',
@@ -46,13 +49,22 @@ export const sampleHome = {
       id: 'spo2',
       label: 'Oxygen (SpO2)',
       value: '98',
-      unit: 'percent',
+      unit: '%',
       flag: 'normal',
       trend: [97, 98, 98, 97, 98, 98],
     },
+    {
+      id: 'pulse',
+      label: 'Resting pulse',
+      value: '72',
+      unit: 'bpm',
+      flag: 'normal',
+      trend: [76, 74, 75, 73, 72, 72],
+    },
   ] satisfies Reading[],
   insight: {
-    text: 'Your fasting sugar has risen in three tests since 2024. An HbA1c test will show what it means.',
+    title: 'Your fasting sugar is creeping up',
+    text: 'Up in each of your last three tests. An HbA1c test will show what it means.',
     metric: 'Fasting sugar',
     unit: 'mg/dL',
     normalMax: 99,

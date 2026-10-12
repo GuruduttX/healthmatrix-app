@@ -47,7 +47,9 @@ export function NotificationBanner() {
 
   return (
     <View style={styles.banner}>
-      <Icon size={20} color={Colors.warning} strokeWidth={2.2} />
+      <View style={styles.icon}>
+        <Icon size={18} color={Colors.warning} strokeWidth={2.3} />
+      </View>
       <View style={styles.text}>
         <ThemedText type="smallBold">
           {denied ? 'Notifications are off' : 'Get reminded on time'}
@@ -74,18 +76,28 @@ const styles = StyleSheet.create({
   banner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two + 4,
+    gap: Spacing.three - 4,
     padding: 14,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.xl - 4,
+    borderWidth: 1,
+    borderColor: 'rgba(181, 120, 10, 0.18)',
     backgroundColor: Colors.warningSoft,
+  },
+  icon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.backgroundElement,
   },
   text: {
     flex: 1,
   },
   button: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: Radius.md,
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+    borderRadius: Radius.pill,
     backgroundColor: Colors.ink,
   },
   pressed: {

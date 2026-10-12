@@ -1,11 +1,12 @@
 import { router } from 'expo-router';
+import { CalendarCheck, CalendarPlus, Stethoscope } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
-import { Chip } from '@/components/ui/chip';
+import { EmptyState } from '@/components/ui/empty-state';
 import { SectionHeader } from '@/components/ui/section-header';
-import { Surface } from '@/components/ui/surface';
+import { Segmented } from '@/components/ui/segmented';
+import { SkeletonList } from '@/components/ui/skeleton';
 import { Spacing } from '@/constants/theme';
 
 import { UpcomingList } from './appointments-card';
@@ -17,33 +18,28 @@ import { useConsultRequests } from './use-consult-requests';
 
 type Tab = 'upcoming' | 'past';
 
-/** A short note in place of an empty list, with an optional link. */
-function Empty({ text, link }: { text: string; link?: { label: string; onPress: () => void } }) {
-  return (
-    <Surface style={styles.empty}>
-      <ThemedText type="small" themeColor="textSecondary">
-        {text}
-      </ThemedText>
-      {link ? (
-        <Pressable onPress={link.onPress} accessibilityRole="button" hitSlop={8}>
-          <ThemedText type="smallBold" themeColor="primary">
-            {link.label}
-          </ThemedText>
-        </Pressable>
-      ) : null}
-    </Surface>
-  );
-}
+const findADoctor = () =>
+  router.push({ pathname: '/care/doctors/[specialty]', params: { specialty: 'general_medicine' } });
 
 /**
  * "Your consults" on the Care tab, with Upcoming and Past tabs. Opens on Upcoming when there is
- * one, otherwise on Past; hidden until the member has booked a consult. `past` comes from
- * `usePastConsults`, held by the Care screen so pull-to-refresh reloads it.
+ * one, otherwise on Past; placeholder rows while they load, and hidden once loaded if the member
+ * has never booked a consult. `past` comes from `usePastConsults`, held by the Care screen so
+ * pull-to-refresh reloads it.
  */
 export function ConsultsSection({ past }: { past: PastConsult[] | null }) {
   const { appointments } = useAppointments();
   const { requests } = useConsultRequests();
   const [chosen, setChosen] = useState<Tab | null>(null);
+
+  if (appointments === null && past === null) {
+    return (
+      <View style={styles.section}>
+        <SectionHeader title="Your consults" />
+        <SkeletonList rows={2} label="Loading your consults" />
+      </View>
+    );
+  }
 
   const upcoming = appointments ?? [];
   const asked = requests ?? [];
@@ -56,18 +52,14 @@ export function ConsultsSection({ past }: { past: PastConsult[] | null }) {
   return (
     <View style={styles.section}>
       <SectionHeader title="Your consults" />
-      <View style={styles.tabs} accessibilityRole="tablist">
-        <Chip
-          label={upcomingCount ? `Upcoming · ${upcomingCount}` : 'Upcoming'}
-          selected={tab === 'upcoming'}
-          onPress={() => setChosen('upcoming')}
-        />
-        <Chip
-          label={done.length ? `Past · ${done.length}` : 'Past'}
-          selected={tab === 'past'}
-          onPress={() => setChosen('past')}
-        />
-      </View>
+      <Segmented
+        value={tab}
+        onChange={setChosen}
+        options={[
+          { value: 'upcoming', label: 'Upcoming', count: upcomingCount },
+          { value: 'past', label: 'Past', count: done.length },
+        ]}
+      />
 
       {tab === 'upcoming' ? (
         upcomingCount ? (
@@ -76,22 +68,22 @@ export function ConsultsSection({ past }: { past: PastConsult[] | null }) {
             {upcoming.length ? <UpcomingList appointments={upcoming} /> : null}
           </View>
         ) : (
-          <Empty
-            text="No upcoming consults."
-            link={{
-              label: 'Find a doctor',
-              onPress: () =>
-                router.push({
-                  pathname: '/care/doctors/[specialty]',
-                  params: { specialty: 'general_medicine' },
-                }),
-            }}
+          <EmptyState
+            icon={CalendarPlus}
+            title="No upcoming consults"
+            body="Book a video consult with a general physician or a specialist."
+            action={{ label: 'Find a doctor', icon: Stethoscope, onPress: findADoctor }}
           />
         )
       ) : done.length ? (
         <PastConsultsList consults={done} />
       ) : (
-        <Empty text="Consults you have finished will show here, with their prescriptions." />
+        <EmptyState
+          icon={CalendarCheck}
+          tone="success"
+          title="No finished consults yet"
+          body="Consults you finish will show here, with their prescriptions."
+        />
       )}
     </View>
   );
@@ -99,17 +91,9 @@ export function ConsultsSection({ past }: { past: PastConsult[] | null }) {
 
 const styles = StyleSheet.create({
   section: {
-    gap: Spacing.two + 2,
+    gap: Spacing.three - 4,
   },
   lists: {
-    gap: Spacing.two + 2,
-  },
-  tabs: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-  },
-  empty: {
-    gap: Spacing.one,
-    padding: Spacing.three,
+    gap: Spacing.three - 4,
   },
 });

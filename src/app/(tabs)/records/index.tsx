@@ -1,21 +1,15 @@
 import { router, useFocusEffect } from 'expo-router';
-import { FileText, Search, X } from 'lucide-react-native';
-import { useCallback, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-} from 'react-native';
+import { FileText, Search, SearchX, Stethoscope, X } from 'lucide-react-native';
+import { useCallback, useState, type ReactNode } from 'react';
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
-import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
-import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
-import { RecordRow } from '@/features/records/record-row';
+import { EmptyState, ErrorState } from '@/components/ui/empty-state';
+import { Skeleton, SkeletonGroup } from '@/components/ui/skeleton';
+import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { RecordRow, RecordRowSkeleton } from '@/features/records/record-row';
 import { type RecordSummary } from '@/features/records/types';
 import { api } from '@/services/api';
 import { type RecordType } from '@/types';
@@ -75,6 +69,20 @@ function groupByMonth(records: RecordSummary[]) {
   return groups;
 }
 
+/** The timeline's shape while it loads: a month heading and four rows. */
+function TimelineSkeleton() {
+  return (
+    <SkeletonGroup label="Loading your records" style={styles.group}>
+      <Skeleton width={130} height={16} />
+      <View>
+        {[0, 1, 2, 3].map((i) => (
+          <RecordRowSkeleton key={i} isLast={i === 3} wide={i % 2 === 0} />
+        ))}
+      </View>
+    </SkeletonGroup>
+  );
+}
+
 /** The member's records timeline: prescriptions for now; reports and vaccines are coming. */
 export default function RecordsScreen() {
   const [query, setQuery] = useState('');
@@ -117,88 +125,131 @@ export default function RecordsScreen() {
         `${record.title} ${record.subtitle} ${record.keywords}`.toLowerCase().includes(needle)),
   );
   const groups = groupByMonth(visible);
+  const countOf = (types: RecordType[] | null) =>
+    (records ?? []).filter((record) => !types || types.includes(record.type)).length;
 
-  return (
-    <Screen title="Records" onRefresh={() => load(() => true)}>
-      <View style={styles.search}>
-        <Search size={18} color={Colors.textMuted} strokeWidth={2} />
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search reports, doctors, medicines"
-          placeholderTextColor={Colors.textMuted}
-          returnKeyType="search"
-          autoCorrect={false}
-          style={styles.searchInput}
-        />
-        {query ? (
-          <Pressable onPress={() => setQuery('')} hitSlop={10} accessibilityLabel="Clear search">
-            <X size={18} color={Colors.textMuted} strokeWidth={2} />
-          </Pressable>
-        ) : null}
-      </View>
+  const reset = () => {
+    setQuery('');
+    setFilterId('all');
+  };
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filters}
-        contentContainerStyle={styles.filtersContent}>
-        {FILTERS.map((filter) => (
-          <Chip
-            key={filter.id}
-            label={filter.label}
-            selected={filter.id === filterId}
-            onPress={() => setFilterId(filter.id)}
-          />
-        ))}
-      </ScrollView>
-
-      {groups.map((group) => (
-        <View key={group.heading} style={styles.group}>
-          <ThemedText type="smallBold" themeColor="textSecondary">
+  let body: ReactNode;
+  if (!records) {
+    body = error ? (
+      <ErrorState
+        title="Couldn’t load your records"
+        message={error}
+        onRetry={() => void load(() => true)}
+      />
+    ) : (
+      <TimelineSkeleton />
+    );
+  } else if (!records.length) {
+    body = (
+      <EmptyState
+        icon={FileText}
+        title="No records yet"
+        body={FILTERS[0]!.empty}
+        action={{ label: 'Find a doctor', icon: Stethoscope, onPress: () => router.navigate('/care') }}
+      />
+    );
+  } else if (!groups.length) {
+    body = needle ? (
+      <EmptyState
+        icon={SearchX}
+        tone="neutral"
+        title={`Nothing matches “${query.trim()}”`}
+        body="Try another word, like a doctor’s name or a medicine."
+        action={{ label: 'Clear search', icon: X, onPress: reset }}
+      />
+    ) : (
+      <EmptyState
+        icon={FileText}
+        tone="neutral"
+        title={`No ${filter.label.toLowerCase()} yet`}
+        body={filter.empty}
+        action={{ label: 'Show all records', onPress: () => setFilterId('all') }}
+      />
+    );
+  } else {
+    body = groups.map((group) => (
+      <View key={group.heading} style={styles.group}>
+        <View style={styles.groupHeader}>
+          <ThemedText style={styles.groupTitle} accessibilityRole="header">
             {group.heading}
           </ThemedText>
-          <View>
-            {group.records.map((record, index) => (
-              <RecordRow
-                key={record.id}
-                record={record}
-                isLast={index === group.records.length - 1}
-                onPress={() =>
-                  router.push({ pathname: '/records/[id]', params: { id: record.id } })
-                }
-              />
-            ))}
-          </View>
+          <ThemedText type="caption" themeColor="textMuted">
+            {group.records.length === 1 ? '1 record' : `${group.records.length} records`}
+          </ThemedText>
         </View>
-      ))}
+        <View>
+          {group.records.map((record, index) => (
+            <RecordRow
+              key={record.id}
+              record={record}
+              isLast={index === group.records.length - 1}
+              onPress={() => router.push({ pathname: '/records/[id]', params: { id: record.id } })}
+            />
+          ))}
+        </View>
+      </View>
+    ));
+  }
 
-      {!records ? (
-        <View style={styles.empty}>
-          {error ? (
-            <>
-              <ThemedText type="small" themeColor="danger" style={styles.emptyText}>
-                {error}
-              </ThemedText>
-              <Button label="Try again" variant="secondary" onPress={() => void load(() => true)} />
-            </>
-          ) : (
-            <ActivityIndicator color={Colors.textSecondary} />
-          )}
-        </View>
-      ) : groups.length === 0 ? (
-        <View style={styles.empty}>
-          <View style={styles.emptyIcon}>
-            <FileText size={24} color={Colors.textMuted} strokeWidth={2} />
+  return (
+    <Screen
+      hero
+      title="Records"
+      subtitle="Prescriptions, reports and vaccines, in one timeline."
+      onRefresh={() => load(() => true)}
+      heroContent={
+        <>
+          <View style={styles.search}>
+            <Search size={18} color={Colors.textMuted} strokeWidth={2.2} />
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Search reports, doctors, medicines"
+              placeholderTextColor={Colors.textMuted}
+              returnKeyType="search"
+              autoCorrect={false}
+              accessibilityLabel="Search records"
+              style={styles.searchInput}
+            />
+            {query ? (
+              <Pressable
+                onPress={() => setQuery('')}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel="Clear search"
+                style={styles.clear}>
+                <X size={14} color={Colors.textSecondary} strokeWidth={2.6} />
+              </Pressable>
+            ) : null}
           </View>
-          <ThemedText type="bodyBold">
-            {needle ? 'No records found' : 'Nothing here yet'}
-          </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary" style={styles.emptyText}>
-            {needle ? 'Try a different search or filter.' : filter.empty}
-          </ThemedText>
-        </View>
-      ) : null}
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            style={styles.filters}
+            contentContainerStyle={styles.filtersContent}>
+            {FILTERS.map((item) => {
+              const count = records ? countOf(item.types) : 0;
+              return (
+                <Chip
+                  key={item.id}
+                  variant="glass"
+                  label={count ? `${item.label}  ${count}` : item.label}
+                  selected={item.id === filterId}
+                  onPress={() => setFilterId(item.id)}
+                />
+              );
+            })}
+          </ScrollView>
+        </>
+      }>
+      <View style={styles.body}>{body}</View>
     </Screen>
   );
 }
@@ -207,22 +258,29 @@ const styles = StyleSheet.create({
   search: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
-    marginTop: Spacing.two,
-    paddingHorizontal: 14,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    gap: Spacing.two + 2,
+    minHeight: 52,
+    marginTop: Spacing.one,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Radius.lg + 2,
     backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.card,
+    boxShadow: '0 12px 30px rgba(0, 0, 0, 0.22)',
   },
   searchInput: {
     flex: 1,
     minWidth: 0,
-    paddingVertical: 12,
+    paddingVertical: 14,
     color: Colors.text,
     fontFamily: Fonts.medium,
     fontSize: 15,
+  },
+  clear: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.backgroundSelected,
   },
   // Bleed to the screen edges so chips scroll under the page padding.
   filters: {
@@ -232,27 +290,22 @@ const styles = StyleSheet.create({
   filtersContent: {
     gap: Spacing.two,
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.one,
+  },
+  body: {
+    gap: Spacing.four,
+    marginTop: Spacing.one,
   },
   group: {
-    gap: Spacing.two,
-    marginTop: Spacing.two,
+    gap: Spacing.three - 4,
   },
-  empty: {
-    alignItems: 'center',
-    gap: Spacing.two,
-    paddingVertical: Spacing.five,
-    paddingHorizontal: Spacing.four,
+  groupHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
   },
-  emptyIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.backgroundSelected,
-  },
-  emptyText: {
-    textAlign: 'center',
+  groupTitle: {
+    fontFamily: Fonts.display,
+    fontSize: 18,
+    lineHeight: 24,
   },
 });

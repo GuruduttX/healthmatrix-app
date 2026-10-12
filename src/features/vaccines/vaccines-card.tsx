@@ -8,7 +8,7 @@ import { IconTile } from '@/components/ui/icon-tile';
 import { SectionHeader } from '@/components/ui/section-header';
 import { Surface } from '@/components/ui/surface';
 import { Tag } from '@/components/ui/tag';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
 import { istToday } from '@/features/doctors/time';
 
 import { askGivenDay } from './dose-timeline';
@@ -153,9 +153,10 @@ const styles = StyleSheet.create({
   },
   mark: {
     paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: Radius.md,
+    paddingHorizontal: 14,
+    borderRadius: Radius.pill,
     backgroundColor: Colors.primary,
+    boxShadow: Shadows.glow,
   },
   bold: {
     fontFamily: Fonts.bold,

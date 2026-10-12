@@ -1,13 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import type {
-  LocalVideoTrack,
-  RemoteParticipant,
-  RemoteTrack,
-  RemoteVideoTrack,
-  Room,
-  TwilioError,
-  VideoTrack,
+// Imported up front, not on demand: a separately loaded chunk breaks in development whenever the
+// dev server rebuilds while the page is open ("Requiring unknown module"). It is safe to load
+// during server rendering; it touches the browser only when a call connects.
+import {
+  connect,
+  createLocalAudioTrack,
+  createLocalVideoTrack,
+  type LocalVideoTrack,
+  type RemoteParticipant,
+  type RemoteTrack,
+  type RemoteVideoTrack,
+  type Room,
+  type TwilioError,
+  type VideoTrack,
 } from 'twilio-video';
 
 import { CallLayout, confirmLeave, WEAK_NETWORK, type CallStatus } from './call-layout';
@@ -16,6 +22,8 @@ import { WaitingRoom } from './waiting-room';
 
 /** Twilio's code for a second connection with the same identity, which replaces the first. */
 const DUPLICATE_IDENTITY = 53205;
+/** Twilio's code for a room closed on purpose: the console does it to end or cancel a consult. */
+const ROOM_COMPLETED = 53118;
 
 /**
  * Why calls can't run here, or null when they can. Browsers only give a page the camera over
@@ -23,7 +31,10 @@ const DUPLICATE_IDENTITY = 53205;
  */
 export const videoUnavailableReason: string | null =
   typeof navigator !== 'undefined' && !navigator.mediaDevices?.getUserMedia
-    ? 'This browser can’t make video calls here. Open HealthMatrix in an up-to-date Chrome, Safari or Edge over a secure (https) link, or use the app.'
+    ? __DEV__ && typeof location !== 'undefined' && location.protocol === 'http:'
+      ? // The dev server over a network address: browsers keep the camera to https and localhost.
+        `Browsers only allow the camera on https or localhost, and this page is ${location.host}. On the computer running the dev server, open http://localhost:${location.port || '8081'} instead.`
+      : 'This browser can’t make video calls here. Open HealthMatrix in an up-to-date Chrome, Safari or Edge over a secure (https) link, or use the app.'
     : null;
 
 /** A Twilio video track in a <video> element, covering its box. */
@@ -57,7 +68,7 @@ function TrackVideo({ track, mirror }: { track: VideoTrack; mirror?: boolean }) 
 }
 
 /**
- * The consult in the browser, through Twilio's JavaScript SDK (loaded only when the room opens).
+ * The consult in the browser, through Twilio's JavaScript SDK.
  * The member joins the room with no camera or mic, which puts them in the doctor's waiting list;
  * when the doctor admits them, the doctor's media arrives, and the member's own goes on.
  */
@@ -131,7 +142,6 @@ export function VideoCall({
     void (async () => {
       let joined: Room;
       try {
-        const { connect } = await import('twilio-video');
         // No media yet: nothing leaves the browser until the doctor admits the member.
         joined = await connect(token, {
           name: roomName,
@@ -167,7 +177,7 @@ export function VideoCall({
         if (leaving.current) return;
         // The same member joined from another device or tab, which takes over the call.
         if (error?.code === DUPLICATE_IDENTITY) return onLeave();
-        onDisconnected();
+        onDisconnected(undefined, error?.code === ROOM_COMPLETED);
       });
     })();
 
@@ -211,7 +221,6 @@ export function VideoCall({
       if (!on || starting.current[kind]) return;
       starting.current[kind] = true;
       try {
-        const { createLocalAudioTrack, createLocalVideoTrack } = await import('twilio-video');
         const track =
           kind === 'audio'
             ? await createLocalAudioTrack()

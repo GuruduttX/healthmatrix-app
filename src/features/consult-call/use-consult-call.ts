@@ -9,8 +9,11 @@ const FIRST_RETRY_MS = 2000;
 const MAX_RETRY_MS = 15_000;
 
 export type CallPhase =
-  /** Asking the server for the room; `retry` after the call dropped. */
-  | { name: 'joining'; retry?: boolean }
+  /**
+   * Asking the server for the room. `retry`: after the call dropped, so pause first. `closing`:
+   * the room was closed on purpose, so ask straight away; it's usually ended or cancelled.
+   */
+  | { name: 'joining'; retry?: boolean; closing?: boolean }
   /**
    * In the Twilio room: in the waiting room until the doctor admits the member, then the call.
    * `admitted` is true when the doctor had already let them in before they joined.
@@ -69,9 +72,15 @@ export function useConsultCall(consultId: string) {
   }, [consultId, joining, retry]);
 
   /** The room dropped without the member leaving: the doctor ended the consult, or the network did. */
-  const onDisconnected = useCallback((reason?: string) => {
+  const onDisconnected = useCallback((reason?: string, closed?: boolean) => {
     if (reason) setConnectionIssue(reason);
-    setPhase((current) => (current.name === 'room' ? { name: 'joining', retry: true } : current));
+    setPhase((current) =>
+      current.name !== 'room'
+        ? current
+        : closed
+          ? { name: 'joining', closing: true }
+          : { name: 'joining', retry: true },
+    );
   }, []);
 
   const hangUp = useCallback(() => setPhase({ name: 'left' }), []);

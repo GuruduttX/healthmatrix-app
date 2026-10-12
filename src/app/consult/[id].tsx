@@ -92,7 +92,10 @@ function ConsultCall({ id }: { id: string }) {
   const screen = () => {
     switch (phase.name) {
       case 'joining':
-        return phase.retry ? (
+        return phase.closing ? (
+          // Usually "Consult complete" a moment later; never "Reconnecting" for a call that ended.
+          <CallMessage title="One moment…" />
+        ) : phase.retry ? (
           <CallMessage
             title={`Reconnecting to your consult with ${doctorName}…`}
             secondary={{ label: 'Close', onPress: close }}>

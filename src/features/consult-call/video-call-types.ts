@@ -14,6 +14,9 @@ export type VideoCallProps = {
   lobby: Omit<WaitingRoomProps, 'status'>;
   /** The member hung up. */
   onLeave: () => void;
-  /** The room dropped on its own: the doctor ended the consult, or the network failed. */
-  onDisconnected: (reason?: string) => void;
+  /**
+   * The room dropped on its own. `closed`: it was closed on purpose (the doctor ended or
+   * cancelled the consult), so check what happened straight away instead of reconnecting.
+   */
+  onDisconnected: (reason?: string, closed?: boolean) => void;
 };

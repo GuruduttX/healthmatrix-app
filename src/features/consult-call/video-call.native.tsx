@@ -5,6 +5,7 @@ import {
   type TrackIdentifier,
 } from '@twilio/video-react-native-sdk';
 import { useEffect, useRef, useState } from 'react';
+import { isRunningInExpoGo } from 'expo';
 import { BackHandler, NativeModules, Platform, StyleSheet, UIManager, View } from 'react-native';
 
 import { CallLayout, confirmLeave, WEAK_NETWORK, type CallStatus } from './call-layout';
@@ -21,7 +22,10 @@ export const videoUnavailableReason = (
     : UIManager.hasViewManagerConfig('RNCustomTwilioVideoView')
 )
   ? null
-  : 'This version of HealthMatrix can’t make video calls. Install the latest version of the app to join your consult.';
+  : isRunningInExpoGo()
+    ? // Only developers open the app in Expo Go.
+      'Video calls don’t work in Expo Go, which can’t include Twilio’s video code. Use a development build of HealthMatrix, or open the web app on your computer at localhost.'
+    : 'This version of HealthMatrix can’t make video calls. Install the latest version of the app to join your consult.';
 
 /** Lets the waiting room's camera preview release the camera before Twilio takes it. */
 const CAMERA_HANDOVER_MS = 400;
@@ -126,7 +130,8 @@ export function VideoCall({
           if (leaving.current) return;
           // The same member joined from another device, which takes over the call.
           if (/identity/i.test(String(error ?? ''))) return onLeave();
-          onDisconnected();
+          // "Room completed": the console closed it to end or cancel the consult.
+          onDisconnected(undefined, /room completed|53118/i.test(String(error ?? '')));
         }}
         onRoomIsReconnecting={() => setStatus('reconnecting')}
         onRoomDidReconnect={() => setStatus('connected')}

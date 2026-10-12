@@ -713,7 +713,8 @@ function SuccessBadge({ tone = 'success', children }: { tone?: 'success' | 'bran
             end={{ x: 1, y: 1 }}
             style={StyleSheet.absoluteFill}
           />
-          {children}
+          {/* In a View, so the icon paints above the gradient on web too. */}
+          <View>{children}</View>
         </View>
       </View>
     </View>

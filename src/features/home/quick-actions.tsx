@@ -1,9 +1,9 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { FileUp, MapPin, Pill, Video, type LucideIcon } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
-import { TONES, type Tone } from '@/components/ui/icon-tile';
 import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
 
 import { HERO_OVERLAP } from './home-hero';
@@ -15,7 +15,8 @@ type QuickAction = {
   label: string;
   hint: string;
   icon: LucideIcon;
-  tone: Tone;
+  /** The tile's gradient, light to deep. */
+  colors: readonly [string, string];
 };
 
 const ACTIONS: QuickAction[] = [
@@ -24,36 +25,38 @@ const ACTIONS: QuickAction[] = [
     label: 'Video consult',
     hint: 'A doctor, with your history open',
     icon: Video,
-    tone: 'primary',
+    colors: ['#F48A5A', Colors.primary],
   },
   {
     id: 'book-pod',
-    label: 'Book a pod',
+    label: 'Book Pod',
     hint: 'Screening near you, results in minutes',
     icon: MapPin,
-    tone: 'success',
+    colors: ['#2DB394', Colors.success],
   },
   {
     id: 'medicines',
     label: 'Medicines',
     hint: 'Reminders and today’s doses',
     icon: Pill,
-    tone: 'warning',
+    colors: ['#F5B544', '#D08A0A'],
   },
   {
     id: 'add-records',
-    label: 'Add records',
+    label: 'Records',
     hint: 'Photo, PDF or WhatsApp',
     icon: FileUp,
-    tone: 'neutral',
+    colors: ['#4A7C88', Colors.ink],
   },
 ];
+
+const TILE = 56;
 
 /** The four everyday actions, on a card that rides over the bottom of the hero. */
 export function QuickActions({ onPress }: { onPress: (id: QuickActionId) => void }) {
   return (
     <Animated.View entering={FadeInUp.duration(450).delay(40)} style={styles.card}>
-      {ACTIONS.map(({ id, label, hint, icon: Icon, tone }) => (
+      {ACTIONS.map(({ id, label, hint, icon: Icon, colors }) => (
         <Pressable
           key={id}
           onPress={() => onPress(id)}
@@ -61,10 +64,27 @@ export function QuickActions({ onPress }: { onPress: (id: QuickActionId) => void
           accessibilityLabel={label}
           accessibilityHint={hint}
           style={({ pressed }) => [styles.action, pressed && styles.pressed]}>
-          <View style={[styles.icon, { backgroundColor: TONES[tone].soft }]}>
-            <Icon size={23} color={TONES[tone].color} strokeWidth={2.1} />
+          {/* The tile clips its gradient to the corners. */}
+          <View style={styles.tile}>
+            <LinearGradient
+              colors={colors}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            {/* A soft highlight on the top-left, like light on glass. */}
+            <LinearGradient
+              colors={['rgba(255, 255, 255, 0.32)', 'rgba(255, 255, 255, 0)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0.7, y: 0.7 }}
+              style={StyleSheet.absoluteFill}
+            />
+            {/* In a View, so it paints above the gradient layers on web too. */}
+            <View>
+              <Icon size={24} color={Colors.onInk} strokeWidth={2.2} />
+            </View>
           </View>
-          <ThemedText type="caption" numberOfLines={2} style={styles.label}>
+          <ThemedText numberOfLines={2} style={styles.label}>
             {label}
           </ThemedText>
         </Pressable>
@@ -77,7 +97,8 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     marginTop: -HERO_OVERLAP,
-    paddingVertical: Spacing.three,
+    paddingTop: Spacing.three + 2,
+    paddingBottom: Spacing.three,
     paddingHorizontal: Spacing.one,
     borderRadius: Radius.xl,
     borderWidth: 1,
@@ -89,21 +110,24 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     alignItems: 'center',
-    gap: Spacing.two,
+    gap: Spacing.two + 2,
   },
   pressed: {
-    opacity: 0.75,
-    transform: [{ scale: 0.95 }],
+    opacity: 0.85,
+    transform: [{ scale: 0.94 }],
   },
-  icon: {
-    width: 54,
-    height: 54,
-    borderRadius: 18,
+  tile: {
+    width: TILE,
+    height: TILE,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   label: {
     fontFamily: Fonts.semibold,
+    fontSize: 12.5,
+    lineHeight: 16,
     textAlign: 'center',
     color: Colors.text,
   },

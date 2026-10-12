@@ -4,7 +4,7 @@ import { type Gender, type Member } from '@/types';
 export type SendOtpResult = {
   sent: boolean;
   isNewMember: boolean;
-  /** Only returned outside production, while no SMS provider is connected. */
+  /** Only returned outside production when Twilio is not configured, so no SMS was sent. */
   devCode?: string;
 };
 

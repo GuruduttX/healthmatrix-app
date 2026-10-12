@@ -8,7 +8,8 @@ const otpChallengeSchema = new mongoose.Schema(
     phone: { type: String, required: true, index: true },
     /** The name typed when creating an account; absent when logging in. */
     name: { type: String, trim: true },
-    codeHash: { type: String, required: true },
+    /** Set only for codes we made ourselves; Twilio Verify keeps its own codes. */
+    codeHash: { type: String },
     attempts: { type: Number, default: 0 },
     expiresAt: { type: Date, required: true, expires: 0 },
   },

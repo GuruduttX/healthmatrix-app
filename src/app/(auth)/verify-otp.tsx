@@ -82,7 +82,7 @@ export default function VerifyOtpScreen() {
           ) : null}
           {devCode ? (
             <ThemedText type="caption" themeColor="textMuted">
-              Testing only, no SMS is sent yet: your code is {devCode}
+              Testing only, no SMS was sent: your code is {devCode}
             </ThemedText>
           ) : null}
           <Pressable

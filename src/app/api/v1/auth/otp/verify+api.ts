@@ -12,6 +12,7 @@ import { connectDB } from '@/server/db';
 import { ensureQrLink } from '@/server/emergency';
 import { handle, HttpError } from '@/server/http';
 import { MemberModel, OtpChallengeModel } from '@/server/models';
+import { checkTwilioOtp } from '@/server/otp';
 
 const body = z.object({
   phone: z.string().regex(PHONE_PATTERN, 'Enter a valid 10-digit mobile number'),
@@ -29,7 +30,17 @@ export const POST = handle(async (request: Request) => {
   }).sort({ createdAt: -1 });
   if (!challenge) throw new HttpError(400, 'This code has expired. Ask for a new one.');
 
-  if (challenge.codeHash !== (await hashOtp(phone, code))) {
+  // A challenge without a hash was sent by Twilio Verify, which checks its own codes.
+  const check = challenge.codeHash
+    ? challenge.codeHash === (await hashOtp(phone, code))
+      ? 'approved'
+      : 'wrong'
+    : await checkTwilioOtp(phone, code);
+  if (check === 'expired') {
+    await challenge.deleteOne();
+    throw new HttpError(400, 'This code has expired. Ask for a new one.');
+  }
+  if (check === 'wrong') {
     challenge.attempts += 1;
     if (challenge.attempts >= OTP_MAX_ATTEMPTS) {
       await challenge.deleteOne();

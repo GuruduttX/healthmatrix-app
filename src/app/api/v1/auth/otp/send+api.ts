@@ -1,10 +1,10 @@
 import { z } from 'zod';
 
-import { generateOtp, hashOtp, OTP_RESEND_MS, OTP_TTL_MS, PHONE_PATTERN } from '@/server/auth';
+import { hashOtp, OTP_RESEND_MS, OTP_TTL_MS, PHONE_PATTERN } from '@/server/auth';
 import { connectDB } from '@/server/db';
-import { isProduction } from '@/server/env';
 import { handle, HttpError } from '@/server/http';
 import { MemberModel, OtpChallengeModel } from '@/server/models';
+import { sendOtp } from '@/server/otp';
 
 const phone = z.string().regex(PHONE_PATTERN, 'Enter a valid 10-digit mobile number');
 
@@ -37,21 +37,20 @@ export const POST = handle(async (request: Request) => {
     throw new HttpError(429, 'Please wait a few seconds before asking for another code');
   }
 
-  const code = generateOtp();
+  // Send first, so a failed SMS leaves no challenge behind to block a retry.
+  const delivery = await sendOtp(phone);
   await OtpChallengeModel.deleteMany({ phone });
   await OtpChallengeModel.create({
     phone,
     name: input.intent === 'signup' ? input.name : undefined,
-    codeHash: await hashOtp(phone, code),
+    codeHash: delivery.provider === 'dev' ? await hashOtp(phone, delivery.code) : undefined,
     expiresAt: new Date(Date.now() + OTP_TTL_MS),
   });
 
-  // No SMS provider is connected yet. Outside production the code is logged and returned so
-  // sign-in can be tested; in production we refuse rather than leak it.
-  if (isProduction()) {
-    throw new HttpError(503, 'Sign-in by SMS is not set up yet');
-  }
-  console.info(`[auth] OTP for ${phone}: ${code}`);
-
-  return Response.json({ sent: true, isNewMember: !hasAccount, devCode: code });
+  return Response.json({
+    sent: true,
+    isNewMember: !hasAccount,
+    // Only when no SMS provider is set up, which `sendOtp` refuses in production.
+    ...(delivery.provider === 'dev' && { devCode: delivery.code }),
+  });
 });

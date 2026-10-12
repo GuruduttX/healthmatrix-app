@@ -8,6 +8,10 @@ const schema = z.object({
   MONGODB_DB_NAME: z.string().min(1).default('healthmatrix'),
   /** Where emergency QR links point, e.g. https://healthmatrix.in/e. Read in `server/emergency.ts`. */
   EMERGENCY_BASE_URL: z.url(),
+  /** Twilio Verify sends sign-in codes. Without these, codes are logged instead (see `server/otp.ts`). */
+  TWILIO_ACCOUNT_SID: z.string().regex(/^AC\w{32}$/, 'must look like AC…').optional(),
+  TWILIO_AUTH_TOKEN: z.string().min(1).optional(),
+  TWILIO_VERIFY_SERVICE_SID: z.string().regex(/^VA\w{32}$/, 'must look like VA…').optional(),
 });
 
 let cached: z.infer<typeof schema> | undefined;

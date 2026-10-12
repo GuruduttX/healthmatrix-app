@@ -17,7 +17,13 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "permissions": ["android.permission.SCHEDULE_EXACT_ALARM"]
+      "permissions": [
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.BLUETOOTH_CONNECT"
+      ]
     },
     "web": {
       "output": "server",
@@ -35,7 +41,24 @@
         }
       ],
       "expo-secure-store",
-      ["expo-notifications", { "color": "#DD4301" }]
+      ["expo-notifications", { "color": "#DD4301" }],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "extraProguardRules": "-keep class com.twilio.** { *; }\n-keep class tvi.webrtc.** { *; }"
+          }
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "HealthMatrix uses your camera so your doctor can see you during a video consult.",
+          "microphonePermission": "HealthMatrix uses your microphone so your doctor can hear you during a video consult.",
+          "recordAudioAndroid": true,
+          "barcodeScannerEnabled": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
@@ -45,6 +68,13 @@
     "extra": {
       "eas": {
         "projectId": "798aaf34-6b6d-4412-9b7f-eae462bc2e0c"
+      }
+    },
+    "ios": {
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "audio"
+        ]
       }
     }
   }

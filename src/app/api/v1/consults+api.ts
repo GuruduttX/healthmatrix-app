@@ -8,6 +8,7 @@ import { busyTimes, scheduleOf } from '@/server/doctors';
 import { handle, HttpError } from '@/server/http';
 import { ConsultModel, DoctorModel } from '@/server/models';
 import { DEFAULT_CONSULT_MINUTES, isBookable } from '@/server/schedule';
+import { JOIN_GRACE_MS } from '@/server/video';
 
 /** How many upcoming consults a member can hold at once. */
 const MAX_UPCOMING = 5;
@@ -20,7 +21,8 @@ const minutesOf = (consult: { durationMinutes?: number | null }) =>
   consult.durationMinutes ?? DEFAULT_CONSULT_MINUTES;
 
 /**
- * The member's upcoming consults, soonest first: booked ones until their slot ends, ones the
+ * The member's upcoming consults, soonest first: booked ones until they can no longer be joined
+ * (the slot's end plus `JOIN_GRACE_MS`, in case the doctor runs late), ones the
  * doctor has started, and ones the doctor cancelled in the last two days.
  */
 export const GET = handle(async (request: Request) => {
@@ -46,7 +48,7 @@ export const GET = handle(async (request: Request) => {
   const shown = consults.filter(
     (consult) =>
       consult.status !== 'scheduled' ||
-      consult.scheduledAt.getTime() + minutesOf(consult) * 60_000 > now,
+      consult.scheduledAt.getTime() + minutesOf(consult) * 60_000 + JOIN_GRACE_MS > now,
   );
   return Response.json({ appointments: shown.map(toConsultJson) });
 });

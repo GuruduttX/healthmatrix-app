@@ -12,6 +12,9 @@ const schema = z.object({
   TWILIO_ACCOUNT_SID: z.string().regex(/^AC\w{32}$/, 'must look like AC…').optional(),
   TWILIO_AUTH_TOKEN: z.string().min(1).optional(),
   TWILIO_VERIFY_SERVICE_SID: z.string().regex(/^VA\w{32}$/, 'must look like VA…').optional(),
+  /** A Twilio API key for video consults (see `server/video.ts`), with TWILIO_ACCOUNT_SID. */
+  TWILIO_API_KEY_SID: z.string().regex(/^SK\w{32}$/, 'must look like SK…').optional(),
+  TWILIO_API_KEY_SECRET: z.string().min(1).optional(),
 });
 
 let cached: z.infer<typeof schema> | undefined;

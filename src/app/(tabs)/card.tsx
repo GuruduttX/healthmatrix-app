@@ -37,7 +37,7 @@ function toCardMember(member: Member): CardMember {
 }
 
 export default function CardScreen() {
-  const { member, signOut, refreshMember } = useAuth();
+  const { member, refreshMember } = useAuth();
   const { qr, error: qrError, refresh: refreshQr } = useEmergencyQr();
   const [lockScreenQr, setLockScreenQr] = useState(sampleCard.lockScreenQr);
   const { profile, error: profileError, refresh: refreshProfile, save } = useEmergencyProfile();
@@ -113,12 +113,6 @@ export default function CardScreen() {
             ))}
           </View>
         </Surface>
-
-        <Pressable onPress={signOut} hitSlop={8} style={styles.signOut}>
-          <ThemedText type="smallBold" themeColor="textSecondary">
-            Sign out
-          </ThemedText>
-        </Pressable>
       </View>
     </Screen>
   );
@@ -149,9 +143,5 @@ const styles = StyleSheet.create({
   avatars: {
     flexDirection: 'row',
     gap: 6,
-  },
-  signOut: {
-    alignSelf: 'center',
-    paddingVertical: Spacing.two,
   },
 });

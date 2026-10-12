@@ -62,6 +62,15 @@ function RootNavigator() {
             <Stack.Screen name="responder-preview" options={{ presentation: 'modal' }} />
             <Stack.Screen name="profile" />
             <Stack.Screen name="emergency-profile" />
+            <Stack.Screen
+              name="consult/[id]"
+              options={{
+                presentation: 'fullScreenModal',
+                animation: 'slide_from_bottom',
+                gestureEnabled: false,
+                contentStyle: { backgroundColor: Colors.ink },
+              }}
+            />
           </Stack.Protected>
           <Stack.Protected guard={!token}>
             <Stack.Screen name="(auth)" />

@@ -11,20 +11,23 @@ import { sampleCare } from '@/features/care/sample-data';
 import { SpecialtyList } from '@/features/care/specialty-list';
 import { UpcomingAppointments } from '@/features/doctors/appointments-card';
 import { refreshAppointments } from '@/features/doctors/use-appointments';
+import { useFeaturedDoctor } from '@/features/doctors/use-featured-doctor';
 import { TodayMedicinesCard } from '@/features/reminders/today-card';
 import { refreshReminders } from '@/features/reminders/use-reminders';
 import { refreshVaccinations } from '@/features/vaccines/use-vaccinations';
 import { VaccinesCard } from '@/features/vaccines/vaccines-card';
 
 export default function CareScreen() {
-  const { doctor, pods } = sampleCare;
+  const { pods } = sampleCare;
   const memberId = useAuth().member?.id;
+  const { featured, refresh: refreshFeatured } = useFeaturedDoctor();
 
   // The cards below read shared stores; refreshing those updates each card.
   const refresh = async () => {
     if (!memberId) return;
     await Promise.allSettled([
       refreshAppointments(memberId),
+      refreshFeatured(),
       refreshReminders(memberId),
       refreshVaccinations(memberId),
     ]);
@@ -33,7 +36,7 @@ export default function CareScreen() {
   return (
     <Screen title="Care" subtitle="Doctors, pods, medicines and vaccines." onRefresh={refresh}>
       <View style={styles.sections}>
-        <DoctorHero doctor={doctor} />
+        <DoctorHero featured={featured} />
 
         <UpcomingAppointments />
 

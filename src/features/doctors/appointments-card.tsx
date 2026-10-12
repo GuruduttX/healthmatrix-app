@@ -7,7 +7,8 @@ import { ThemedText } from '@/components/themed-text';
 import { SectionHeader } from '@/components/ui/section-header';
 import { Surface } from '@/components/ui/surface';
 import { Tag } from '@/components/ui/tag';
-import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { JOIN_OPENS_MS } from '@/features/consult-call/consult-call-api';
 import { useNow } from '@/features/reminders/use-now';
 
 import { DoctorAvatar } from './doctor-avatar';
@@ -31,6 +32,10 @@ function confirmCancel(appointment: Appointment) {
       { text: 'Cancel appointment', style: 'destructive', onPress: () => resolve(true) },
     ]),
   );
+}
+
+function join(appointment: Appointment) {
+  router.push({ pathname: '/consult/[id]', params: { id: appointment.id } });
 }
 
 /** Rebooking after the doctor cancelled: the same doctor, for the same specialty. */
@@ -76,6 +81,8 @@ export function UpcomingAppointments() {
           const running = appointment.status === 'in_progress';
           const cancelledByDoctor = appointment.status === 'cancelled';
           const soon = running || startsIn <= SOON_MS;
+          // The waiting room opens five minutes before the slot.
+          const canJoin = running || startsIn <= JOIN_OPENS_MS;
           return (
             <View key={appointment.id} style={[styles.row, index > 0 && styles.divider]}>
               <DoctorAvatar
@@ -108,6 +115,10 @@ export function UpcomingAppointments() {
                     Cancelled by doctor.{' '}
                     {appointment.cancelReason ?? 'Please book another slot.'}
                   </ThemedText>
+                ) : running ? (
+                  <ThemedText type="caption" themeColor="success" style={styles.cancelText}>
+                    The doctor is ready for you
+                  </ThemedText>
                 ) : null}
               </View>
               {cancelledByDoctor ? (
@@ -121,8 +132,18 @@ export function UpcomingAppointments() {
                     Book again
                   </ThemedText>
                 </Pressable>
-              ) : running ? (
-                <Tag label="Doctor is ready" tone="success" icon={Video} />
+              ) : canJoin ? (
+                <Pressable
+                  onPress={() => join(appointment)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Join video consult with ${appointment.doctor?.name ?? 'the doctor'}`}
+                  hitSlop={8}
+                  style={({ pressed }) => [styles.join, pressed && styles.pressed]}>
+                  <Video size={14} color={Colors.onInk} strokeWidth={2.4} />
+                  <ThemedText type="caption" style={styles.joinText}>
+                    {running ? 'Join now' : 'Join call'}
+                  </ThemedText>
+                </Pressable>
               ) : soon ? (
                 <Tag label="Starting soon" tone="success" icon={Video} />
               ) : (
@@ -196,6 +217,19 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: Colors.primary,
+  },
+  join: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.primary,
+  },
+  joinText: {
+    fontFamily: Fonts.bold,
+    color: Colors.onInk,
   },
   struck: {
     textDecorationLine: 'line-through',

@@ -32,6 +32,11 @@ const consultSchema = new mongoose.Schema(
     /** Set by the console when the doctor starts and ends the consult. */
     startedAt: Date,
     endedAt: Date,
+    /**
+     * When the member's app last checked in from the consult's waiting room, every few seconds
+     * while it is open. The console shows the member as waiting while this is recent.
+     */
+    memberLobbyAt: Date,
 
     accessGrant: { type: mongoose.Schema.Types.ObjectId, ref: 'AccessGrant' },
     /** Ekaay's one-page summary, ready before the consult starts. */

@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
-import { Camera, ChevronLeft, Lock } from 'lucide-react-native';
+import { Camera, ChevronLeft, Lock, LogOut } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -41,9 +42,22 @@ function formatPhone(phone: string) {
   return `+91 ${phone.slice(0, 5)} ${phone.slice(5)}`;
 }
 
+function confirmSignOut() {
+  const message = 'You will need an OTP sent to your phone to sign in again.';
+  if (Platform.OS === 'web') {
+    return Promise.resolve(globalThis.confirm?.(`Sign out?\n\n${message}`) ?? false);
+  }
+  return new Promise<boolean>((resolve) =>
+    Alert.alert('Sign out?', message, [
+      { text: 'Stay signed in', style: 'cancel', onPress: () => resolve(false) },
+      { text: 'Sign out', style: 'destructive', onPress: () => resolve(true) },
+    ]),
+  );
+}
+
 /** The signed-in member's profile: photo, name, number, email and gender. */
 export default function ProfileScreen() {
-  const { member, updateMember } = useAuth();
+  const { member, updateMember, signOut } = useAuth();
 
   const [name, setName] = useState(member?.name ?? '');
   const [email, setEmail] = useState(member?.email ?? '');
@@ -52,6 +66,7 @@ export default function ProfileScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   if (!member) return null;
 
@@ -108,6 +123,13 @@ export default function ProfileScreen() {
     } finally {
       setBusy(false);
     }
+  };
+
+  // Signing out swaps every screen for the sign-in stack, so there is nothing to navigate to.
+  const signOutNow = async () => {
+    if (!(await confirmSignOut())) return;
+    setSigningOut(true);
+    await signOut();
   };
 
   return (
@@ -241,6 +263,24 @@ export default function ProfileScreen() {
               <ThemedText type="smallBold" themeColor="onInk">
                 Save changes
               </ThemedText>
+            )}
+          </Pressable>
+
+          <Pressable
+            onPress={signOutNow}
+            disabled={busy || signingOut}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: busy || signingOut, busy: signingOut }}
+            style={({ pressed }) => [styles.signOut, pressed && styles.pressed]}>
+            {signingOut ? (
+              <ActivityIndicator color={Colors.danger} />
+            ) : (
+              <>
+                <LogOut size={18} color={Colors.danger} strokeWidth={2.2} />
+                <ThemedText type="smallBold" themeColor="danger">
+                  Sign out
+                </ThemedText>
+              </>
             )}
           </Pressable>
         </ScrollView>
@@ -391,5 +431,17 @@ const styles = StyleSheet.create({
   },
   saveDisabled: {
     opacity: 0.4,
+  },
+  signOut: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    minHeight: 54,
+    marginTop: Spacing.two,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.dangerSoft,
+    backgroundColor: Colors.backgroundElement,
   },
 });

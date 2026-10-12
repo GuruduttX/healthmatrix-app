@@ -11,17 +11,11 @@ export type Pod = {
 
 /**
  * SAMPLE DATA from the brochure mock-up, so the Care screen can be designed
- * before the pods and bookings APIs exist. The doctor, pods and slots are the
+ * before the pods and bookings APIs exist. The pods and slots are the
  * brochure's; the map positions are placeholders. Replace with API data.
  * Doctors, appointments, medicine reminders and vaccines are real.
  */
 export const sampleCare = {
-  doctor: {
-    name: 'Dr Anjali Mehta',
-    initials: 'AM',
-    qualifications: 'MBBS, MD (Medicine)',
-    role: 'General physician',
-  },
   pods: [
     { id: 'sector-1', name: 'Sector 1 clubhouse', tier: 'Arc Max', hours: 'Open till 8 pm', distanceKm: 0.4, map: { x: 56, y: 62 } },
     { id: 'market-street', name: 'Market Street pharmacy', tier: 'Arc Pro', hours: 'Open till 10 pm', distanceKm: 1.3, map: { x: 30, y: 30 } },

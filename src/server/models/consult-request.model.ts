@@ -13,7 +13,7 @@ const consultRequestSchema = new mongoose.Schema(
     member: { type: mongoose.Schema.Types.ObjectId, ref: 'Member', required: true },
     doctor: { type: mongoose.Schema.Types.ObjectId, ref: 'Doctor', required: true },
     specialty: { type: String, enum: SPECIALTIES, default: 'general_medicine' },
-    /** The start the member asked for, on a 5-minute mark. */
+    /** The start the member asked for, any whole minute. */
     requestedAt: { type: Date, required: true },
     /** The doctor's consult length when it was asked. */
     durationMinutes: { type: Number, required: true },

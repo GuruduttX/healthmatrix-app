@@ -4,7 +4,6 @@ import { requireMember } from '@/server/auth';
 import { SPECIALTIES } from '@/server/constants';
 import {
   MAX_PENDING_REQUESTS,
-  REQUEST_NOTICE_MS,
   REQUEST_SHOWN_MS,
   toConsultRequestJson,
 } from '@/server/consult-requests';
@@ -13,9 +12,7 @@ import { connectDB } from '@/server/db';
 import { busyTimes, scheduleOf } from '@/server/doctors';
 import { handle, HttpError } from '@/server/http';
 import { ConsultModel, ConsultRequestModel, DoctorModel } from '@/server/models';
-import { consultBusy, istDateKey, START_STEP_MINUTES } from '@/server/schedule';
-
-const STEP_MS = START_STEP_MINUTES * 60_000;
+import { consultBusy, istDateKey } from '@/server/schedule';
 
 const overlaps = (start: number, end: number, other: { start: number; end: number }) =>
   start < other.end && other.start < end;
@@ -78,14 +75,10 @@ export const POST = handle(async (request: Request) => {
   const at = new Date(requestedAt);
   const start = at.getTime();
   const end = start + schedule.slotMinutes * 60_000;
-  if (start % STEP_MS !== 0) {
-    throw new HttpError(400, `Pick a time on a ${START_STEP_MINUTES}-minute mark, like 3:25`);
-  }
-  if (start < now.getTime() + REQUEST_NOTICE_MS) {
-    throw new HttpError(
-      400,
-      'Ask for a time at least 30 minutes from now, so the doctor can reply',
-    );
+  // Any whole minute from now on: the doctor decides whether it works.
+  if (start % 60_000 !== 0) throw new HttpError(400, 'Pick a time in whole minutes');
+  if (start <= now.getTime()) {
+    throw new HttpError(400, 'That time has passed. Pick a later time.');
   }
   if (istDateKey(at) > istDateKey(now, schedule.bookingWindowDays - 1)) {
     throw new HttpError(

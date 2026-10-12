@@ -28,7 +28,7 @@ import { Chip } from '@/components/ui/chip';
 import { Surface } from '@/components/ui/surface';
 import { Colors, Fonts, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { formStyles } from '@/features/card/form-styles';
-import { CustomTimePicker } from '@/features/doctors/custom-time-picker';
+import { CustomTimeInput } from '@/features/doctors/custom-time-input';
 import { DoctorAvatar } from '@/features/doctors/doctor-avatar';
 import { isSpecialty, specialtyLabel } from '@/features/doctors/specialties';
 import { formatSlot, istInstant, istParts, istToday } from '@/features/doctors/time';
@@ -85,15 +85,14 @@ function emptyDayText(day: SlotDay | undefined) {
 
 /** How often the open screen reloads the doctor's free times. */
 const SLOTS_REFRESH_MS = 60_000;
-/** A custom time must be at least this far ahead. Matches `REQUEST_NOTICE_MS` on the server. */
-const REQUEST_NOTICE_MS = 30 * 60 * 1000;
 
 /** Booking one of the doctor's open slots, or asking them for a time of the member's own. */
 type Mode = 'slots' | 'request';
 
-/** Today's earliest "HH:mm" a custom time can be asked for, on a 5-minute mark. */
+/** The earliest day and "HH:mm" a custom time can be asked for: the next whole minute. */
 function earliestRequestTime(now: Date) {
-  const at = new Date(Math.ceil((now.getTime() + REQUEST_NOTICE_MS) / 300_000) * 300_000);
+  // The next whole minute: at 3:24:10 that's 3:25.
+  const at = new Date(Math.floor(now.getTime() / 60_000) * 60_000 + 60_000);
   const { date, time } = istParts(at);
   return { date, time };
 }
@@ -228,16 +227,24 @@ export default function BookDoctorScreen() {
   const day = days.find((d) => d.date === date);
   const chosen = day?.slots.find((slot) => slot.at === slotAt && slot.available);
   const soonest = earliestRequestTime(now);
-  // Today only from 30 minutes on; a day the window ends before is closed.
-  const requestEarliest = date === soonest.date ? soonest.time : null;
-  const requestDayOpen = !!date && date >= soonest.date;
-  const requestAt = date && requestTime && requestDayOpen ? istInstant(date, requestTime) : null;
+  // Today, the time must still be ahead; the minute after now is offered to start with.
+  const requestPassed =
+    !!date &&
+    !!requestTime &&
+    (date < soonest.date || (date === soonest.date && requestTime < soonest.time));
+  const requestTimeError = !requestTime
+    ? 'Enter a time, like 3:25 PM.'
+    : requestPassed
+      ? `That time has passed. Pick ${formatTime(soonest.time)} or later.`
+      : null;
+  const requestAt =
+    date && requestTime && !requestPassed ? istInstant(date, requestTime) : null;
   const canSubmit = mode === 'slots' ? !!chosen : !!requestAt;
 
   const switchMode = (next: Mode) => {
     setMode(next);
     setSlotAt(null);
-    setRequestTime(null);
+    setRequestTime(next === 'request' ? soonest.time : null);
     setError(null);
   };
 
@@ -357,7 +364,7 @@ export default function BookDoctorScreen() {
                     onPress={() => {
                       setDate(d.date);
                       setSlotAt(null);
-                      setRequestTime(null);
+                      setRequestTime(mode === 'request' ? soonest.time : null);
                       setError(null);
                     }}
                     disabled={mode === 'slots' && !free}
@@ -407,24 +414,21 @@ export default function BookDoctorScreen() {
                 <View style={styles.requestNote}>
                   <Clock size={15} color={Colors.primary} strokeWidth={2.2} />
                   <ThemedText type="caption" themeColor="textSecondary" style={styles.flex}>
-                    Ask {doctor.name} for any time, like 3:25 PM. Nothing is booked until they
-                    confirm; you’ll see their answer under Your consults in Care.
+                    Ask {doctor.name} for any time on the day you picked above. Nothing is booked
+                    until they confirm; you’ll see their answer under Your consults in Care.
                   </ThemedText>
                 </View>
-                {requestDayOpen ? (
-                  <CustomTimePicker
-                    value={requestTime}
+                {date ? (
+                  <CustomTimeInput
+                    // A new day starts again from the minute after now.
+                    key={date}
+                    initial={soonest.time}
                     onChange={(time) => {
                       setRequestTime(time);
                       setError(null);
                     }}
-                    earliest={requestEarliest}
+                    error={requestTimeError}
                   />
-                ) : null}
-                {!requestDayOpen || (requestEarliest && requestEarliest > '22:55') ? (
-                  <ThemedText type="small" themeColor="textSecondary">
-                    It’s too late to ask for today. Pick another day.
-                  </ThemedText>
                 ) : null}
               </>
             ) : day && day.slots.length ? (

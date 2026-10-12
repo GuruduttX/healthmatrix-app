@@ -19,7 +19,7 @@ The app creates documents here. Add a mirror model, `src/models/consult-request.
 member:        ObjectId → Member, required
 doctor:        ObjectId → Doctor, required
 specialty:     String, enum SPECIALTIES, default "general_medicine"
-requestedAt:   Date, required   // the start asked for, always on a 5-minute mark
+requestedAt:   Date, required   // the start asked for: any whole minute, e.g. 3:27 PM, possibly only minutes away
 durationMinutes: Number, required // the doctor's consult length when asked
 reason:        String            // what the patient wants to discuss, optional
 status:        String, enum ["pending", "approved", "declined", "withdrawn"], default "pending"
@@ -34,6 +34,7 @@ Rules:
 - Only the console moves a request from `pending` to `approved` or `declined`. The app only creates requests and sets `withdrawn`.
 - Every change must be **conditional on `status: "pending"`**, e.g. `updateOne({ _id, doctor, status: "pending" }, …)`. Then a doctor answering and a patient withdrawing at the same moment can't both win. If nothing matched, reload and tell the doctor that the patient withdrew it.
 - A pending request whose `requestedAt` has passed is **expired**: the app shows "No reply in time". Don't offer Approve for it; show it greyed out as "Expired", or leave it out.
+- Patients can ask for a time **only a minute or two away**, so new requests must reach the doctor quickly. Keep the Today card and sidebar badge fresh: re-read them when the page regains focus, and on the console's existing refresh. Show "starts in 4 min" in brand colour for requests under 15 minutes away.
 
 ## Approving: create the consult safely
 
@@ -134,7 +135,7 @@ Hide the Today card when there are no requests.
 - `npm run lint` and `npm run build` pass.
 - `src/lib/schedule.ts` is unchanged (`cmp` with the app's `src/server/schedule.ts` prints nothing).
 - Manual test with the app (web at `http://localhost:8081` works):
-  1. The patient opens a doctor, taps **Custom time**, and picks today at a time 40+ minutes from now, e.g. 3:25 PM. They tap Send request and see "Request sent".
+  1. The patient opens a doctor, taps **Custom time**, and types today at a time a few minutes from now, e.g. 3:27 PM. The default is the next minute. They tap Send request and see "Request sent".
   2. The console's Today shows the request with Approve and Decline, the sidebar badge is 1, and there's a notification.
   3. **Approve.** In the app (Care → Your consults → Upcoming), the request is replaced by a booked consult at 3:25 PM, which can be joined 5 minutes before.
   4. Repeat and **Decline** with a note. The app shows "Doctor not available" with the note and a **Book a slot** button.

@@ -4,8 +4,6 @@ import { type PopulatedDoctor } from './consults';
 import { toDoctorJson } from './doctors';
 import { type ConsultRequest } from './models';
 
-/** How far ahead of the time asked for a request must come, so the doctor can answer. */
-export const REQUEST_NOTICE_MS = 30 * 60 * 1000;
 /** How many unanswered requests a member can have at once. */
 export const MAX_PENDING_REQUESTS = 3;
 /** A declined or unanswered request stays on the member's list this long, so they see why. */

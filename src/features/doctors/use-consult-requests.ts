@@ -36,7 +36,7 @@ export function refreshConsultRequests(memberId: string) {
 export type TimeRequest = {
   doctorId: string;
   specialty: Specialty;
-  /** ISO, on a 5-minute mark. */
+  /** ISO, a whole minute in the future. */
   requestedAt: string;
   reason?: string;
 };

@@ -70,8 +70,11 @@ export function askGivenDay(
 
 type DoseTimelineProps = {
   vaccination: VaccinationRecord;
-  /** Saves a mark; the timeline shows a spinner on that dose until it settles. */
-  onMark: (dose: VaccineDose, given: boolean, givenOn?: string) => Promise<unknown>;
+  /**
+   * Saves a mark; the timeline shows a spinner on that dose until it settles. Leave it out for a
+   * read-only timeline, e.g. a family member's vaccine.
+   */
+  onMark?: (dose: VaccineDose, given: boolean, givenOn?: string) => Promise<unknown>;
 };
 
 /** Every dose of a vaccine on a rail: what is done, what is due, and Mark given / Undo. */
@@ -82,6 +85,7 @@ export function DoseTimeline({ vaccination, onMark }: DoseTimelineProps) {
   const nextNumber = vaccination.doses.find((dose) => dose.status !== 'given')?.number;
 
   const run = async (dose: VaccineDose, given: boolean, givenOn?: string) => {
+    if (!onMark) return;
     setBusy(dose.number);
     setError(null);
     try {
@@ -142,7 +146,7 @@ export function DoseTimeline({ vaccination, onMark }: DoseTimelineProps) {
                 </ThemedText>
               </View>
 
-              {busy === dose.number ? (
+              {!onMark ? null : busy === dose.number ? (
                 <ActivityIndicator color={Colors.textSecondary} />
               ) : dose.status === 'given' ? (
                 <Pressable

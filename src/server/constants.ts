@@ -69,3 +69,13 @@ export const REMINDER_FREQUENCIES = ['once', 'daily', 'weekdays', 'interval', 'm
 export const MEAL_TIMINGS = ['before_food', 'after_food', 'with_food', 'empty_stomach'] as const;
 
 export const DOSE_STATUSES = ['taken', 'skipped'] as const;
+
+/** How a family member is related to the person who added them. Mirrors `features/family`. */
+export const FAMILY_RELATIONS = [
+  'spouse',
+  'child',
+  'parent',
+  'sibling',
+  'grandparent',
+  'other',
+] as const;

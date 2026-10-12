@@ -62,6 +62,7 @@ function RootNavigator() {
             <Stack.Screen name="responder-preview" options={{ presentation: 'modal' }} />
             <Stack.Screen name="profile" />
             <Stack.Screen name="emergency-profile" />
+            <Stack.Screen name="family" />
             <Stack.Screen
               name="consult/[id]"
               options={{

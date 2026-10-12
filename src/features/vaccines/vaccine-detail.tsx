@@ -30,10 +30,12 @@ type VaccineDetailProps = {
   /** Called with the vaccine as saved after a dose is marked. Screens reading the shared list
    * from `useVaccinations` are updated anyway and can leave it out. */
   onChange?: (vaccination: VaccinationRecord) => void;
+  /** A family member's vaccine: doses can't be marked from here. */
+  readOnly?: boolean;
 };
 
 /** A vaccine opened up: how it is given, every dose and its status, and who prescribed it. */
-export function VaccineDetail({ vaccination, onChange }: VaccineDetailProps) {
+export function VaccineDetail({ vaccination, onChange, readOnly }: VaccineDetailProps) {
   const { markDose } = useVaccinations();
   const done = vaccination.givenDoses === vaccination.totalDoses;
   const progress = vaccination.totalDoses ? vaccination.givenDoses / vaccination.totalDoses : 0;
@@ -99,8 +101,11 @@ export function VaccineDetail({ vaccination, onChange }: VaccineDetailProps) {
         <Surface style={styles.doses}>
           <DoseTimeline
             vaccination={vaccination}
-            onMark={async (dose, given, givenOn) =>
-              onChange?.(await markDose(vaccination.id, dose.number, given, givenOn))
+            onMark={
+              readOnly
+                ? undefined
+                : async (dose, given, givenOn) =>
+                    onChange?.(await markDose(vaccination.id, dose.number, given, givenOn))
             }
           />
         </Surface>
@@ -109,7 +114,9 @@ export function VaccineDetail({ vaccination, onChange }: VaccineDetailProps) {
       <View style={styles.note}>
         <Info size={15} color={Colors.textSecondary} strokeWidth={2.2} />
         <ThemedText type="caption" themeColor="textSecondary" style={styles.flex}>
-          Get each dose at a clinic or hospital, then mark it given here so your reminders stop.
+          {readOnly
+            ? 'Doses are marked given by the person themselves, from their own HealthMatrix app.'
+            : 'Get each dose at a clinic or hospital, then mark it given here so your reminders stop.'}
         </ThemedText>
       </View>
 

@@ -1,0 +1,213 @@
+import { router } from 'expo-router';
+import { ChevronRight, ShieldCheck, UserPlus, Users } from 'lucide-react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+
+import { ThemedText } from '@/components/themed-text';
+import { Button } from '@/components/ui/button';
+import { IconTile } from '@/components/ui/icon-tile';
+import { SectionHeader } from '@/components/ui/section-header';
+import { Surface } from '@/components/ui/surface';
+import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { MemberAvatar } from '@/features/profile/member-avatar';
+
+import { confirmRemove } from './confirm';
+import { aboutLine, relationLabel } from './relations';
+import { type FamilyMember, type FamilyViewer } from './types';
+import { useFamily } from './use-family';
+
+const openAdd = () => router.push('/family/add');
+
+function MemberRow({ member, first }: { member: FamilyMember; first: boolean }) {
+  return (
+    <Pressable
+      onPress={() => router.push({ pathname: '/family/[id]', params: { id: member.id } })}
+      accessibilityRole="button"
+      accessibilityLabel={`${member.name}, ${aboutLine(member)}. Open their records.`}
+      style={({ pressed }) => [styles.row, !first && styles.divider, pressed && styles.pressed]}>
+      <MemberAvatar name={member.name} photoUrl={member.photoUrl} size={44} />
+      <View style={styles.flex}>
+        <ThemedText type="smallBold" numberOfLines={1}>
+          {member.name}
+        </ThemedText>
+        <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1}>
+          {aboutLine(member)}
+        </ThemedText>
+      </View>
+      <ChevronRight size={18} color={Colors.textMuted} strokeWidth={2.2} />
+    </Pressable>
+  );
+}
+
+/**
+ * "Family" on the Card tab: the people the member added (each opens their records), a way to
+ * add someone, and the people who added the member and so can see the member's records, with a
+ * way to stop that.
+ */
+export function FamilySection() {
+  const { members, viewers, error, removeLink } = useFamily();
+  const [removing, setRemoving] = useState<string | null>(null);
+  const [removeError, setRemoveError] = useState<string | null>(null);
+
+  const revoke = async (viewer: FamilyViewer) => {
+    const ok = await confirmRemove(
+      `Stop ${viewer.name} seeing your records?`,
+      `${viewer.name} added you as their ${relationLabel(viewer.relation).toLowerCase()}. They won’t see your prescriptions, reports or vaccines any more, unless you share a new code with them.`,
+      'Stop sharing',
+    );
+    if (!ok) return;
+    setRemoving(viewer.linkId);
+    setRemoveError(null);
+    try {
+      await removeLink(viewer.linkId);
+    } catch (e) {
+      setRemoveError(e instanceof Error ? e.message : 'Could not remove that. Try again.');
+    } finally {
+      setRemoving(null);
+    }
+  };
+
+  return (
+    <View style={styles.section}>
+      <SectionHeader
+        title="Family"
+        actionLabel={members?.length ? 'Add' : undefined}
+        onAction={openAdd}
+      />
+
+      {members === null ? (
+        <Surface style={styles.loading}>
+          {error ? (
+            <ThemedText type="small" themeColor="danger">
+              {error}
+            </ThemedText>
+          ) : (
+            <ActivityIndicator color={Colors.textSecondary} />
+          )}
+        </Surface>
+      ) : members.length ? (
+        <Surface style={styles.card}>
+          {members.map((member, index) => (
+            <MemberRow key={member.linkId} member={member} first={index === 0} />
+          ))}
+        </Surface>
+      ) : (
+        <Surface style={styles.empty}>
+          <IconTile icon={Users} tone="primary" size={48} />
+          <ThemedText type="bodyBold" style={styles.center}>
+            Your family’s health, in one place
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.center}>
+            Add a parent, spouse or child. We text them a code to confirm, then you can see their
+            prescriptions, reports, vaccines and medicines.
+          </ThemedText>
+          <Button label="Add family member" icon={UserPlus} onPress={openAdd} />
+        </Surface>
+      )}
+
+      {viewers?.length ? (
+        <View style={styles.viewers}>
+          <View style={styles.viewersHeader}>
+            <ShieldCheck size={15} color={Colors.success} strokeWidth={2.4} />
+            <ThemedText type="smallBold" themeColor="textSecondary">
+              Who can see your records
+            </ThemedText>
+          </View>
+          <Surface style={styles.card}>
+            {viewers.map((viewer, index) => (
+              <View key={viewer.linkId} style={[styles.row, index > 0 && styles.divider]}>
+                <MemberAvatar name={viewer.name} photoUrl={viewer.photoUrl} size={36} />
+                <View style={styles.flex}>
+                  <ThemedText type="smallBold" numberOfLines={1}>
+                    {viewer.name}
+                  </ThemedText>
+                  <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1}>
+                    Added you as their {relationLabel(viewer.relation).toLowerCase()}
+                  </ThemedText>
+                </View>
+                <Pressable
+                  onPress={() => revoke(viewer)}
+                  disabled={removing === viewer.linkId}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Stop ${viewer.name} seeing your records`}
+                  hitSlop={8}
+                  style={({ pressed }) => [styles.remove, pressed && styles.pressed]}>
+                  {removing === viewer.linkId ? (
+                    <ActivityIndicator size="small" color={Colors.danger} />
+                  ) : (
+                    <ThemedText type="caption" themeColor="danger" style={styles.bold}>
+                      Remove
+                    </ThemedText>
+                  )}
+                </Pressable>
+              </View>
+            ))}
+          </Surface>
+          {removeError ? (
+            <ThemedText type="caption" themeColor="danger">
+              {removeError}
+            </ThemedText>
+          ) : null}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  section: {
+    gap: Spacing.two + 2,
+  },
+  flex: {
+    flex: 1,
+  },
+  card: {
+    paddingVertical: Spacing.one,
+  },
+  loading: {
+    alignItems: 'center',
+    padding: Spacing.four,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two + 4,
+    paddingVertical: 12,
+  },
+  divider: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  empty: {
+    alignItems: 'center',
+    gap: Spacing.two,
+    padding: Spacing.four,
+  },
+  center: {
+    textAlign: 'center',
+  },
+  viewers: {
+    gap: Spacing.two,
+    marginTop: Spacing.two,
+  },
+  viewersHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  remove: {
+    minWidth: 64,
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    borderColor: Colors.dangerSoft,
+  },
+  bold: {
+    fontFamily: Fonts.bold,
+  },
+  pressed: {
+    opacity: 0.7,
+  },
+});

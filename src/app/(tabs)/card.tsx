@@ -5,7 +5,6 @@ import { Pressable, StyleSheet, Switch, View } from 'react-native';
 
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
-import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Surface } from '@/components/ui/surface';
 import { Colors, Radius, Spacing } from '@/constants/theme';
@@ -15,6 +14,8 @@ import { EmergencyProfileCard } from '@/features/card/emergency-profile-card';
 import { MemberCard, type CardMember } from '@/features/card/member-card';
 import { sampleCard } from '@/features/card/sample-data';
 import { useEmergencyQr } from '@/features/card/use-emergency-qr';
+import { FamilySection } from '@/features/family/family-section';
+import { useFamily } from '@/features/family/use-family';
 import { type Member } from '@/types';
 
 /** ISO date -> "09/26", as printed on the card. */
@@ -42,6 +43,7 @@ export default function CardScreen() {
   const [lockScreenQr, setLockScreenQr] = useState(sampleCard.lockScreenQr);
   const { profile, error: profileError, refresh: refreshProfile, save } = useEmergencyProfile();
   const [toggleError, setToggleError] = useState<string | null>(null);
+  const { refresh: refreshFamily } = useFamily();
 
   const toggleField = (id: EmergencyFieldId) => {
     if (!profile) return;
@@ -58,7 +60,9 @@ export default function CardScreen() {
   return (
     <Screen
       title="My card"
-      onRefresh={() => Promise.allSettled([refreshMember(), refreshQr(), refreshProfile()])}
+      onRefresh={() =>
+        Promise.allSettled([refreshMember(), refreshQr(), refreshProfile(), refreshFamily()])
+      }
       headerRight={
         <Pressable accessibilityRole="button" style={styles.share}>
           <Share2 size={15} color={Colors.text} strokeWidth={2.2} />
@@ -103,16 +107,7 @@ export default function CardScreen() {
           onPress={() => router.push('/responder-preview')}
         />
 
-        <Surface style={styles.row}>
-          <ThemedText type="bodyBold" style={styles.rowText}>
-            Family cards
-          </ThemedText>
-          <View style={styles.avatars}>
-            {sampleCard.family.map((person) => (
-              <Avatar key={person.initials} initials={person.initials} color={person.color} size={34} />
-            ))}
-          </View>
-        </Surface>
+        <FamilySection />
       </View>
     </Screen>
   );
@@ -139,9 +134,5 @@ const styles = StyleSheet.create({
   },
   rowText: {
     flex: 1,
-  },
-  avatars: {
-    flexDirection: 'row',
-    gap: 6,
   },
 });

@@ -13,6 +13,8 @@ import { refreshAppointments } from '@/features/doctors/use-appointments';
 import { refreshConsultRequests } from '@/features/doctors/use-consult-requests';
 import { suggestedQuestions } from '@/features/ekaay/sample-data';
 import { refreshFamily } from '@/features/family/use-family';
+import { sampleCare } from '@/features/care/sample-data';
+import { CareCarousel, type CareCard } from '@/features/home/care-carousel';
 import { EkaayInsightCard } from '@/features/home/ekaay-insight-card';
 import { EmergencyBanner } from '@/features/home/emergency-banner';
 import { FamilyStrip } from '@/features/home/family-strip';
@@ -40,6 +42,52 @@ const ACTION_ROUTES: Record<QuickActionId, Href> = {
 function askEkaay(question?: string) {
   router.navigate(question ? { pathname: '/ekaay', params: { q: question } } : '/ekaay');
 }
+
+const nearestPod = sampleCare.pods.reduce((a, b) => (b.distanceKm < a.distanceKm ? b : a));
+
+/** The photo cards under "Care for you". */
+const careCards: CareCard[] = [
+  {
+    id: 'pods',
+    image: require('@/assets/images/home/book-pod.jpg'),
+    tag: `${nearestPod.distanceKm} km away`,
+    title: 'Screening pods near you',
+    caption: `${nearestPod.name} · results in minutes`,
+    action: 'Book Pod',
+    onPress: () => router.navigate('/care/pods'),
+  },
+  {
+    id: 'doctors',
+    image: require('@/assets/images/home/video-consult.jpg'),
+    tag: 'Video consult',
+    title: 'See a doctor from home',
+    caption: 'They’ll have your history open',
+    action: 'Find a doctor',
+    onPress: () =>
+      router.navigate({
+        pathname: '/care/doctors/[specialty]',
+        params: { specialty: 'general_medicine' },
+      }),
+  },
+  {
+    id: 'records',
+    image: require('@/assets/images/home/add-records.jpg'),
+    tag: 'Records',
+    title: 'Bring your old reports',
+    caption: 'Snap a photo or forward a PDF',
+    action: 'Open Records',
+    onPress: () => router.navigate('/records'),
+  },
+  {
+    id: 'ekaay',
+    image: require('@/assets/images/home/ask-ekaay.jpg'),
+    tag: 'Ekaay AI',
+    title: 'Questions about a report?',
+    caption: 'Answers from your own records',
+    action: 'Ask Ekaay',
+    onPress: () => askEkaay(),
+  },
+];
 
 export default function HomeScreen() {
   const { member, refreshMember } = useAuth();
@@ -142,9 +190,13 @@ export default function HomeScreen() {
               />
             </HomeSection>
 
-            <FamilyStrip index={3} />
+            <HomeSection title="Care for you" index={3}>
+              <CareCarousel cards={careCards} />
+            </HomeSection>
 
-            <HomeSection title="Safety" index={4}>
+            <FamilyStrip index={4} />
+
+            <HomeSection title="Safety" index={5}>
               <EmergencyBanner
                 isOn={emergencyQr.isOn}
                 carriers={emergencyQr.carriers}

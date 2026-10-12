@@ -15,6 +15,8 @@ const familyInviteSchema = new mongoose.Schema(
     /** Used for their account if this number has none yet. */
     name: { type: String, trim: true, required: true },
     relation: { type: String, enum: FAMILY_RELATIONS, default: 'other' },
+    /** In their own words when `relation` is "other", e.g. "Cousin" or "Friend". */
+    relationName: { type: String, trim: true, maxlength: 30 },
     /** Set only for codes we made ourselves; Twilio Verify keeps its own codes. */
     codeHash: String,
     attempts: { type: Number, default: 0 },

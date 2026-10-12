@@ -8,18 +8,25 @@ import { handle, HttpError } from '@/server/http';
 import { FamilyInviteModel, FamilyLinkModel, MemberModel } from '@/server/models';
 import { sendOtp } from '@/server/otp';
 
-const body = z.object({
-  phone: z.string().regex(PHONE_PATTERN, 'Enter a valid 10-digit mobile number'),
-  name: z.string({ error: 'Enter their name' }).trim().min(2, 'Enter their name').max(60),
-  relation: z.enum(FAMILY_RELATIONS, 'Choose how they are related to you'),
-});
+const body = z
+  .object({
+    phone: z.string().regex(PHONE_PATTERN, 'Enter a valid 10-digit mobile number'),
+    name: z.string({ error: 'Enter their name' }).trim().min(2, 'Enter their name').max(60),
+    relation: z.enum(FAMILY_RELATIONS, 'Choose how they are related to you'),
+    /** Required for "other": how they're related, in the member's words. */
+    relationName: z.string().trim().max(30, 'Keep it under 30 letters').optional(),
+  })
+  .refine((input) => input.relation !== 'other' || (input.relationName?.length ?? 0) >= 2, {
+    message: 'Say how they are related, e.g. Cousin or Friend',
+    path: ['relationName'],
+  });
 
 /**
  * Step 1 of adding a family member: texts a code to their phone. They read it out to the member,
  * which is their say-so for the member to see their records. See `verify+api.ts` for step 2.
  */
 export const POST = handle(async (request: Request) => {
-  const { phone, name, relation } = body.parse(await request.json());
+  const { phone, name, relation, relationName } = body.parse(await request.json());
   await connectDB();
   const me = await requireMember(request);
 
@@ -46,6 +53,7 @@ export const POST = handle(async (request: Request) => {
     phone,
     name,
     relation,
+    relationName: relation === 'other' ? relationName : undefined,
     codeHash: delivery.provider === 'dev' ? await hashOtp(phone, delivery.code) : undefined,
     expiresAt: new Date(Date.now() + OTP_TTL_MS),
   });

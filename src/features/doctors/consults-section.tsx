@@ -9,9 +9,11 @@ import { Surface } from '@/components/ui/surface';
 import { Spacing } from '@/constants/theme';
 
 import { UpcomingList } from './appointments-card';
+import { ConsultRequestsList } from './consult-requests-list';
 import { PastConsultsList } from './past-consults';
 import { type PastConsult } from './types';
 import { useAppointments } from './use-appointments';
+import { useConsultRequests } from './use-consult-requests';
 
 type Tab = 'upcoming' | 'past';
 
@@ -40,20 +42,23 @@ function Empty({ text, link }: { text: string; link?: { label: string; onPress: 
  */
 export function ConsultsSection({ past }: { past: PastConsult[] | null }) {
   const { appointments } = useAppointments();
+  const { requests } = useConsultRequests();
   const [chosen, setChosen] = useState<Tab | null>(null);
 
   const upcoming = appointments ?? [];
+  const asked = requests ?? [];
   const done = past ?? [];
-  if (upcoming.length === 0 && done.length === 0) return null;
+  const upcomingCount = upcoming.length + asked.length;
+  if (upcomingCount === 0 && done.length === 0) return null;
 
-  const tab = chosen ?? (upcoming.length > 0 ? 'upcoming' : 'past');
+  const tab = chosen ?? (upcomingCount > 0 ? 'upcoming' : 'past');
 
   return (
     <View style={styles.section}>
       <SectionHeader title="Your consults" />
       <View style={styles.tabs} accessibilityRole="tablist">
         <Chip
-          label={upcoming.length ? `Upcoming · ${upcoming.length}` : 'Upcoming'}
+          label={upcomingCount ? `Upcoming · ${upcomingCount}` : 'Upcoming'}
           selected={tab === 'upcoming'}
           onPress={() => setChosen('upcoming')}
         />
@@ -65,8 +70,11 @@ export function ConsultsSection({ past }: { past: PastConsult[] | null }) {
       </View>
 
       {tab === 'upcoming' ? (
-        upcoming.length ? (
-          <UpcomingList appointments={upcoming} />
+        upcomingCount ? (
+          <View style={styles.lists}>
+            {asked.length ? <ConsultRequestsList requests={asked} /> : null}
+            {upcoming.length ? <UpcomingList appointments={upcoming} /> : null}
+          </View>
         ) : (
           <Empty
             text="No upcoming consults."
@@ -91,6 +99,9 @@ export function ConsultsSection({ past }: { past: PastConsult[] | null }) {
 
 const styles = StyleSheet.create({
   section: {
+    gap: Spacing.two + 2,
+  },
+  lists: {
     gap: Spacing.two + 2,
   },
   tabs: {

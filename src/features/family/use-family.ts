@@ -34,7 +34,13 @@ export function refreshFamily(memberId: string) {
   return promise;
 }
 
-export type InviteRequest = { phone: string; name: string; relation: Relation };
+export type InviteRequest = {
+  phone: string;
+  name: string;
+  relation: Relation;
+  /** Required for "other". */
+  relationName?: string;
+};
 export type InviteResult = { sent: boolean; hasAccount: boolean; devCode?: string };
 
 export const familyApi = {

@@ -75,7 +75,7 @@ export const POST = handle(async (request: Request) => {
 
   const link = await FamilyLinkModel.findOneAndUpdate(
     { owner: me._id, member: member._id },
-    { $setOnInsert: { relation: invite.relation } },
+    { $setOnInsert: { relation: invite.relation, relationName: invite.relationName } },
     { upsert: true, new: true },
   );
   return Response.json({ member: toFamilyMemberJson(member, link) }, { status: 201 });

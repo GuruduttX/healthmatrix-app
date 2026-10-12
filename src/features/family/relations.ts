@@ -10,12 +10,16 @@ export const RELATIONS: { id: Relation; label: string }[] = [
   { id: 'other', label: 'Other' },
 ];
 
-export const relationLabel = (relation: Relation) =>
-  RELATIONS.find((r) => r.id === relation)?.label ?? 'Family';
+/** "Parent", or for "other" the name given when adding them ("Cousin"). */
+export const relationLabel = (relation: Relation, relationName?: string) =>
+  (relation === 'other' && relationName) ||
+  RELATIONS.find((r) => r.id === relation)?.label ||
+  'Family';
 
 /** "Mother, 62 · B+", the line under a family member's name. */
 export function aboutLine(person: {
   relation: Relation;
+  relationName?: string;
   gender?: 'male' | 'female' | 'other';
   age?: number;
   bloodGroup?: string;
@@ -30,7 +34,7 @@ export function aboutLine(person: {
   const who =
     (person.gender === 'male' || person.gender === 'female'
       ? gendered[person.relation]?.[person.gender]
-      : undefined) ?? relationLabel(person.relation);
+      : undefined) ?? relationLabel(person.relation, person.relationName);
   const first = person.age !== undefined ? `${who}, ${person.age}` : who;
   return [first, person.bloodGroup].filter(Boolean).join(' · ');
 }

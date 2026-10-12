@@ -88,6 +88,7 @@ export default function AddFamilyMemberScreen() {
   const [step, setStep] = useState<Step>('details');
   const [name, setName] = useState('');
   const [relation, setRelation] = useState<Relation | null>(null);
+  const [relationName, setRelationName] = useState('');
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [devCode, setDevCode] = useState<string | undefined>();
@@ -99,7 +100,8 @@ export default function AddFamilyMemberScreen() {
 
   const firstName = name.trim().split(/\s+/)[0] || 'them';
   const phoneValid = /^[6-9]\d{9}$/.test(phone);
-  const canSend = name.trim().length >= 2 && !!relation && phoneValid;
+  const otherNamed = relation !== 'other' || relationName.trim().length >= 2;
+  const canSend = name.trim().length >= 2 && !!relation && otherNamed && phoneValid;
   const close = () => (router.canGoBack() ? router.back() : router.replace('/card'));
 
   const send = async () => {
@@ -108,7 +110,12 @@ export default function AddFamilyMemberScreen() {
     setError(null);
     setNotice(null);
     try {
-      const result = await familyApi.invite({ phone, name: name.trim(), relation });
+      const result = await familyApi.invite({
+        phone,
+        name: name.trim(),
+        relation,
+        ...(relation === 'other' && { relationName: relationName.trim() }),
+      });
       setHasAccount(result.hasAccount);
       setDevCode(result.devCode);
       setCode('');
@@ -200,6 +207,24 @@ export default function AddFamilyMemberScreen() {
                   ))}
                 </View>
               </View>
+
+              {relation === 'other' ? (
+                <Field
+                  label="How are they related to you?"
+                  value={relationName}
+                  onChangeText={(text) => {
+                    setRelationName(text);
+                    setError(null);
+                  }}
+                  placeholder="e.g. Cousin, Uncle, Friend"
+                  autoCapitalize="words"
+                  autoComplete="off"
+                  autoFocus
+                  maxLength={30}
+                  editable={!busy}
+                  returnKeyType="next"
+                />
+              ) : null}
 
               <Field
                 label="Their mobile number"

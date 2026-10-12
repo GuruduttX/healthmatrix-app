@@ -1,5 +1,13 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { CalendarCheck, Check, ChevronLeft, Lock, Video } from 'lucide-react-native';
+import {
+  CalendarCheck,
+  Check,
+  ChevronLeft,
+  Clock,
+  Lock,
+  Send,
+  Video,
+} from 'lucide-react-native';
 import { useCallback, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
@@ -20,17 +28,21 @@ import { Chip } from '@/components/ui/chip';
 import { Surface } from '@/components/ui/surface';
 import { Colors, Fonts, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { formStyles } from '@/features/card/form-styles';
+import { CustomTimePicker } from '@/features/doctors/custom-time-picker';
 import { DoctorAvatar } from '@/features/doctors/doctor-avatar';
 import { isSpecialty, specialtyLabel } from '@/features/doctors/specialties';
-import { formatSlot, istToday } from '@/features/doctors/time';
+import { formatSlot, istInstant, istParts, istToday } from '@/features/doctors/time';
 import {
   type Appointment,
+  type ConsultRequest,
   type DoctorWithSlots,
   type Slot,
   type SlotDay,
   type Specialty,
 } from '@/features/doctors/types';
 import { useAppointments } from '@/features/doctors/use-appointments';
+import { useConsultRequests } from '@/features/doctors/use-consult-requests';
+import { useNow } from '@/features/reminders/use-now';
 import {
   formatDay,
   formatTime,
@@ -73,6 +85,18 @@ function emptyDayText(day: SlotDay | undefined) {
 
 /** How often the open screen reloads the doctor's free times. */
 const SLOTS_REFRESH_MS = 60_000;
+/** A custom time must be at least this far ahead. Matches `REQUEST_NOTICE_MS` on the server. */
+const REQUEST_NOTICE_MS = 30 * 60 * 1000;
+
+/** Booking one of the doctor's open slots, or asking them for a time of the member's own. */
+type Mode = 'slots' | 'request';
+
+/** Today's earliest "HH:mm" a custom time can be asked for, on a 5-minute mark. */
+function earliestRequestTime(now: Date) {
+  const at = new Date(Math.ceil((now.getTime() + REQUEST_NOTICE_MS) / 300_000) * 300_000);
+  const { date, time } = istParts(at);
+  return { date, time };
+}
 
 /** Book a video consult with one doctor: pick a day, a time, and say what it's about. */
 export default function BookDoctorScreen() {
@@ -81,6 +105,8 @@ export default function BookDoctorScreen() {
     specialty?: string;
   }>();
   const { book } = useAppointments();
+  const { send: sendRequest } = useConsultRequests();
+  const now = useNow();
   const clearance = useTabBarClearance();
 
   const [data, setData] = useState<DoctorWithSlots | null>(null);
@@ -93,6 +119,9 @@ export default function BookDoctorScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [booked, setBooked] = useState<Appointment | null>(null);
+  const [mode, setMode] = useState<Mode>('slots');
+  const [requestTime, setRequestTime] = useState<string | null>(null);
+  const [requested, setRequested] = useState<ConsultRequest | null>(null);
 
   /** Loads the doctor and free slots; `isActive` drops the answer once the screen has moved on. */
   const load = useCallback(
@@ -154,6 +183,14 @@ export default function BookDoctorScreen() {
 
   const back = () => (router.canGoBack() ? router.back() : router.dismissTo('/care'));
 
+  if (requested) {
+    return (
+      <Shell title="Request sent" onBack={() => router.dismissTo('/care')}>
+        <RequestSent request={requested} />
+      </Shell>
+    );
+  }
+
   if (booked) {
     return (
       <Shell title="Booked" onBack={() => router.dismissTo('/care')}>
@@ -190,6 +227,39 @@ export default function BookDoctorScreen() {
   const today = istToday();
   const day = days.find((d) => d.date === date);
   const chosen = day?.slots.find((slot) => slot.at === slotAt && slot.available);
+  const soonest = earliestRequestTime(now);
+  // Today only from 30 minutes on; a day the window ends before is closed.
+  const requestEarliest = date === soonest.date ? soonest.time : null;
+  const requestDayOpen = !!date && date >= soonest.date;
+  const requestAt = date && requestTime && requestDayOpen ? istInstant(date, requestTime) : null;
+  const canSubmit = mode === 'slots' ? !!chosen : !!requestAt;
+
+  const switchMode = (next: Mode) => {
+    setMode(next);
+    setSlotAt(null);
+    setRequestTime(null);
+    setError(null);
+  };
+
+  const request = async () => {
+    if (!requestAt || !specialty) return;
+    setBusy(true);
+    setError(null);
+    try {
+      setRequested(
+        await sendRequest({
+          doctorId: doctor.id,
+          specialty,
+          requestedAt: requestAt,
+          reason: reason.trim() || undefined,
+        }),
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not send the request. Try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const confirm = async () => {
     if (!chosen || !specialty) return;
@@ -287,16 +357,17 @@ export default function BookDoctorScreen() {
                     onPress={() => {
                       setDate(d.date);
                       setSlotAt(null);
+                      setRequestTime(null);
                       setError(null);
                     }}
-                    disabled={!free}
+                    disabled={mode === 'slots' && !free}
                     accessibilityRole="button"
-                    accessibilityState={{ selected, disabled: !free }}
+                    accessibilityState={{ selected, disabled: mode === 'slots' && !free }}
                     accessibilityLabel={`${formatDay(d.date, today)}, ${free ? `${free} free slots` : dayStatus(d, free).toLowerCase()}`}
                     style={({ pressed }) => [
                       styles.day,
                       selected && styles.daySelected,
-                      !free && styles.dayFull,
+                      mode === 'slots' && !free && styles.dayFull,
                       pressed && styles.pressed,
                     ]}>
                     <ThemedText type="caption" themeColor={selected ? 'onInk' : 'textSecondary'}>
@@ -316,8 +387,47 @@ export default function BookDoctorScreen() {
             </ScrollView>
           </Section>
 
-          <Section title="Choose a time" hint="India time (IST)">
-            {day && day.slots.length ? (
+          <Section
+            title={mode === 'slots' ? 'Choose a time' : 'Ask for a time'}
+            hint="India time (IST)">
+            <View style={styles.modes}>
+              <Chip
+                label="Open slots"
+                selected={mode === 'slots'}
+                onPress={() => switchMode('slots')}
+              />
+              <Chip
+                label="Custom time"
+                selected={mode === 'request'}
+                onPress={() => switchMode('request')}
+              />
+            </View>
+            {mode === 'request' ? (
+              <>
+                <View style={styles.requestNote}>
+                  <Clock size={15} color={Colors.primary} strokeWidth={2.2} />
+                  <ThemedText type="caption" themeColor="textSecondary" style={styles.flex}>
+                    Ask {doctor.name} for any time, like 3:25 PM. Nothing is booked until they
+                    confirm; you’ll see their answer under Your consults in Care.
+                  </ThemedText>
+                </View>
+                {requestDayOpen ? (
+                  <CustomTimePicker
+                    value={requestTime}
+                    onChange={(time) => {
+                      setRequestTime(time);
+                      setError(null);
+                    }}
+                    earliest={requestEarliest}
+                  />
+                ) : null}
+                {!requestDayOpen || (requestEarliest && requestEarliest > '22:55') ? (
+                  <ThemedText type="small" themeColor="textSecondary">
+                    It’s too late to ask for today. Pick another day.
+                  </ThemedText>
+                ) : null}
+              </>
+            ) : day && day.slots.length ? (
               groupSlots(day.slots).map((group) => (
                 <View key={group.title} style={styles.group}>
                   <ThemedText type="caption" themeColor="textSecondary" style={styles.groupTitle}>
@@ -391,18 +501,18 @@ export default function BookDoctorScreen() {
           ) : null}
 
           <Pressable
-            onPress={confirm}
-            disabled={!chosen || busy}
+            onPress={mode === 'slots' ? confirm : request}
+            disabled={!canSubmit || busy}
             accessibilityRole="button"
-            accessibilityState={{ disabled: !chosen || busy, busy }}
+            accessibilityState={{ disabled: !canSubmit || busy, busy }}
             style={({ pressed }) => [
               styles.book,
-              !chosen && styles.bookDisabled,
+              !canSubmit && styles.bookDisabled,
               pressed && styles.pressed,
             ]}>
             {busy ? (
               <ActivityIndicator color={Colors.onInk} />
-            ) : (
+            ) : mode === 'slots' ? (
               <>
                 <ThemedText type="smallBold" themeColor="onInk">
                   {chosen ? 'Confirm booking' : 'Pick a time to continue'}
@@ -410,6 +520,20 @@ export default function BookDoctorScreen() {
                 {chosen ? (
                   <ThemedText type="caption" style={styles.bookSub}>
                     {formatSlot(chosen.at)}
+                  </ThemedText>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <View style={styles.sendRow}>
+                  {requestAt ? <Send size={15} color={Colors.onInk} strokeWidth={2.4} /> : null}
+                  <ThemedText type="smallBold" themeColor="onInk">
+                    {requestAt ? `Send request to ${doctor.name}` : 'Pick a day and time'}
+                  </ThemedText>
+                </View>
+                {requestAt ? (
+                  <ThemedText type="caption" style={styles.bookSub}>
+                    {formatSlot(requestAt)}
                   </ThemedText>
                 ) : null}
               </>
@@ -472,6 +596,55 @@ function Confirmation({ appointment }: { appointment: Appointment }) {
   );
 }
 
+function RequestSent({ request }: { request: ConsultRequest }) {
+  return (
+    <View style={styles.done}>
+      <View style={[styles.doneIcon, styles.requestIcon]}>
+        <Send size={34} color={Colors.onInk} strokeWidth={2.4} />
+      </View>
+      <ThemedText type="title" style={styles.center}>
+        Request sent
+      </ThemedText>
+      <ThemedText type="small" themeColor="textSecondary" style={styles.center}>
+        {request.doctor?.name ?? 'The doctor'} will confirm or decline. If they confirm, it’s
+        booked and shows under Your consults in Care. If not, you can pick one of their open
+        slots.
+      </ThemedText>
+
+      <Surface style={styles.doneCard}>
+        {request.doctor ? (
+          <View style={styles.doctorRow}>
+            <DoctorAvatar name={request.doctor.name} photoUrl={request.doctor.photoUrl} size={44} />
+            <View style={styles.flex}>
+              <ThemedText type="bodyBold">{request.doctor.name}</ThemedText>
+              <ThemedText type="caption" themeColor="textSecondary">
+                {specialtyLabel(request.specialty)}
+              </ThemedText>
+            </View>
+          </View>
+        ) : null}
+        <View style={styles.doneRow}>
+          <Clock size={16} color={Colors.primary} strokeWidth={2.2} />
+          <ThemedText type="smallBold">{formatSlot(request.requestedAt)}</ThemedText>
+        </View>
+        <View style={styles.doneRow}>
+          <Video size={16} color={Colors.primary} strokeWidth={2.2} />
+          <ThemedText type="small">Waiting for the doctor to confirm</ThemedText>
+        </View>
+        {request.reason ? (
+          <ThemedText type="caption" themeColor="textSecondary">
+            “{request.reason}”
+          </ThemedText>
+        ) : null}
+      </Surface>
+
+      <View style={styles.doneButton}>
+        <Button label="Done" onPress={() => router.dismissTo('/care')} />
+      </View>
+    </View>
+  );
+}
+
 function Shell({
   title,
   onBack,
@@ -518,6 +691,23 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
 }
 
 const styles = StyleSheet.create({
+  modes: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+  },
+  requestNote: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.two,
+  },
+  sendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  requestIcon: {
+    backgroundColor: Colors.primary,
+  },
   container: {
     flex: 1,
     alignItems: 'center',

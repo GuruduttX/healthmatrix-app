@@ -52,7 +52,7 @@ export function FamilySection() {
   const revoke = async (viewer: FamilyViewer) => {
     const ok = await confirmRemove(
       `Stop ${viewer.name} seeing your records?`,
-      `${viewer.name} added you as their ${relationLabel(viewer.relation).toLowerCase()}. They won’t see your prescriptions, reports or vaccines any more, unless you share a new code with them.`,
+      `${viewer.name} added you as their ${relationLabel(viewer.relation, viewer.relationName).toLowerCase()}. They won’t see your prescriptions, reports or vaccines any more, unless you share a new code with them.`,
       'Stop sharing',
     );
     if (!ok) return;
@@ -122,7 +122,8 @@ export function FamilySection() {
                     {viewer.name}
                   </ThemedText>
                   <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1}>
-                    Added you as their {relationLabel(viewer.relation).toLowerCase()}
+                    Added you as their{' '}
+                    {relationLabel(viewer.relation, viewer.relationName).toLowerCase()}
                   </ThemedText>
                 </View>
                 <Pressable

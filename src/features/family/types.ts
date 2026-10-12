@@ -15,6 +15,8 @@ export type FamilyMember = {
   name: string;
   memberId: string;
   relation: Relation;
+  /** How they're related in the member's own words, for "other": "Cousin", "Friend". */
+  relationName?: string;
   /** Relative to the API base URL. */
   photoUrl?: string;
   gender?: Gender;
@@ -31,6 +33,7 @@ export type FamilyViewer = {
   photoUrl?: string;
   /** The member as this person described them: "parent" means their parent. */
   relation: Relation;
+  relationName?: string;
   addedAt?: string;
 };
 

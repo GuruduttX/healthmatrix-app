@@ -13,7 +13,14 @@ type MemberDoc = Pick<
   Member,
   'name' | 'memberId' | 'photoKey' | 'gender' | 'bloodGroup' | 'dateOfBirth'
 > & { _id: Types.ObjectId };
-type LinkDoc = Pick<FamilyLink, 'relation'> & { _id: Types.ObjectId; createdAt?: Date };
+type LinkDoc = Pick<FamilyLink, 'relation' | 'relationName'> & {
+  _id: Types.ObjectId;
+  createdAt?: Date;
+};
+
+/** The relation's own name, kept only for "other". */
+const relationNameOf = (link: LinkDoc) =>
+  link.relation === 'other' ? (link.relationName ?? undefined) : undefined;
 
 /** Whole years since `dateOfBirth`, or undefined when it isn't known. */
 function ageOf(dateOfBirth?: Date | null) {
@@ -33,6 +40,7 @@ export function toFamilyMemberJson(member: MemberDoc, link: LinkDoc) {
     name: member.name,
     memberId: member.memberId,
     relation: link.relation ?? 'other',
+    relationName: relationNameOf(link),
     /** Relative to the API base URL. */
     photoUrl: member.photoKey ? `/photos/${member.photoKey}` : undefined,
     gender: member.gender ?? undefined,
@@ -53,6 +61,7 @@ export function toFamilyViewerJson(owner: MemberDoc, link: LinkDoc) {
     name: owner.name,
     photoUrl: owner.photoKey ? `/photos/${owner.photoKey}` : undefined,
     relation: link.relation ?? 'other',
+    relationName: relationNameOf(link),
     addedAt: link.createdAt?.toISOString(),
   };
 }

@@ -14,6 +14,8 @@ const familyLinkSchema = new mongoose.Schema(
     member: { type: mongoose.Schema.Types.ObjectId, ref: 'Member', required: true },
     /** `member` as `owner` describes them: "parent" means the owner's parent. */
     relation: { type: String, enum: FAMILY_RELATIONS, default: 'other' },
+    /** In their own words when `relation` is "other", e.g. "Cousin" or "Friend". */
+    relationName: { type: String, trim: true, maxlength: 30 },
   },
   { timestamps: true },
 );

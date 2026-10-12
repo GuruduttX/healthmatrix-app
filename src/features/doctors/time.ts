@@ -22,3 +22,8 @@ export function formatSlot(at: string, now = new Date()) {
   const { date, time } = istParts(at);
   return `${formatDay(date, istToday(now))}, ${formatTime(time)}`;
 }
+
+/** An India-time day and "HH:mm" as an instant: ("2026-10-14", "15:25") -> ISO string. */
+export function istInstant(date: string, time: string) {
+  return new Date(`${date}T${time}:00+05:30`).toISOString();
+}

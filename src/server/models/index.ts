@@ -1,6 +1,7 @@
 export * from './access-grant.model';
 export * from './booking.model';
 export * from './consult.model';
+export * from './consult-request.model';
 export * from './doctor.model';
 export * from './emergency-profile.model';
 export * from './family-invite.model';

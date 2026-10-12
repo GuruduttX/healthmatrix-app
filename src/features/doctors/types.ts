@@ -88,3 +88,21 @@ export type PastConsult = Appointment & {
   /** The prescription signed in this consult; opens at `/records/[id]`. */
   prescriptionId?: string;
 };
+
+/**
+ * A request for a custom consult time, waiting for or answered by the doctor. Matches
+ * `toConsultRequestJson` in `src/server/consult-requests.ts`.
+ */
+export type ConsultRequest = {
+  id: string;
+  doctor: Pick<Doctor, 'id' | 'name' | 'qualifications' | 'photoUrl'> | null;
+  specialty: Specialty;
+  requestedAt: string;
+  durationMinutes: number;
+  reason?: string;
+  /** `expired`: still unanswered when the time came. Approved ones show as appointments. */
+  status: 'pending' | 'declined' | 'expired';
+  /** The doctor's note when declining. */
+  declineReason?: string;
+  createdAt?: string;
+};

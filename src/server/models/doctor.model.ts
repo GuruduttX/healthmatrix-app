@@ -59,8 +59,9 @@ const doctorSchema = new mongoose.Schema(
     },
     /**
      * Bumped by every booking, only so two bookings for this doctor at once take turns: each
-     * writes it inside its transaction, so they conflict and Mongo retries the later one. Means
-     * nothing else; the console never writes it.
+     * writes it inside its transaction, so they conflict and Mongo retries the later one. The
+     * console bumps it the same way when the doctor approves a custom-time request. Means
+     * nothing else.
      */
     bookingVersion: Number,
   },

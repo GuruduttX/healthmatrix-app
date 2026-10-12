@@ -79,3 +79,10 @@ export const FAMILY_RELATIONS = [
   'grandparent',
   'other',
 ] as const;
+
+/**
+ * A member's request for a custom consult time. `pending` until the doctor answers in the
+ * console: `approved` creates the consult, `declined` doesn't. `withdrawn`: the member took it
+ * back. A pending request whose time has passed reads as expired in the app.
+ */
+export const CONSULT_REQUEST_STATUSES = ['pending', 'approved', 'declined', 'withdrawn'] as const;

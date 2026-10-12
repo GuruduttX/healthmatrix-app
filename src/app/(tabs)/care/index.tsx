@@ -1,4 +1,5 @@
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/screen';
@@ -11,6 +12,7 @@ import { sampleCare } from '@/features/care/sample-data';
 import { SpecialtyList } from '@/features/care/specialty-list';
 import { ConsultsSection } from '@/features/doctors/consults-section';
 import { refreshAppointments } from '@/features/doctors/use-appointments';
+import { refreshConsultRequests } from '@/features/doctors/use-consult-requests';
 import { useFeaturedDoctor } from '@/features/doctors/use-featured-doctor';
 import { usePastConsults } from '@/features/doctors/use-past-consults';
 import { TodayMedicinesCard } from '@/features/reminders/today-card';
@@ -29,12 +31,22 @@ export default function CareScreen() {
     if (!memberId) return;
     await Promise.allSettled([
       refreshAppointments(memberId),
+      refreshConsultRequests(memberId),
       refreshFeatured(),
       refreshPast(),
       refreshReminders(memberId),
       refreshVaccinations(memberId),
     ]);
   };
+
+  // A doctor's answer to a custom-time request, or a consult they cancelled, can arrive while the
+  // member is elsewhere: check again whenever Care comes into view.
+  useFocusEffect(
+    useCallback(() => {
+      if (!memberId) return;
+      void Promise.allSettled([refreshAppointments(memberId), refreshConsultRequests(memberId)]);
+    }, [memberId]),
+  );
 
   return (
     <Screen title="Care" subtitle="Doctors, pods, medicines and vaccines." onRefresh={refresh}>

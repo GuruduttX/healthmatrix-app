@@ -373,6 +373,8 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 9,
     borderRadius: Radius.pill,
+    borderWidth: 1.5,
+    borderColor: Colors.primaryLight,
     backgroundColor: Colors.primarySoft,
   },
   pressed: {

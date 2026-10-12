@@ -30,6 +30,7 @@ export function toConsultJson(consult: PopulatedConsult) {
     status: consult.status,
     reason: consult.reason ?? undefined,
     startedAt: consult.startedAt?.toISOString(),
+    endedAt: consult.endedAt?.toISOString(),
     cancelledBy: consult.cancelledBy ?? undefined,
     cancelReason: consult.cancelledBy === 'doctor' ? (consult.cancelReason ?? undefined) : undefined,
   };

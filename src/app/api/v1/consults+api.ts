@@ -1,3 +1,4 @@
+import { type Types } from 'mongoose';
 import { z } from 'zod';
 
 import { requireMember } from '@/server/auth';
@@ -6,7 +7,7 @@ import { DOCTOR_FIELDS, toConsultJson, type PopulatedDoctor } from '@/server/con
 import { connectDB } from '@/server/db';
 import { busyTimes, scheduleOf } from '@/server/doctors';
 import { handle, HttpError } from '@/server/http';
-import { ConsultModel, DoctorModel } from '@/server/models';
+import { ConsultModel, DoctorModel, PrescriptionModel } from '@/server/models';
 import { DEFAULT_CONSULT_MINUTES, isBookable } from '@/server/schedule';
 import { JOIN_GRACE_MS } from '@/server/video';
 
@@ -16,6 +17,10 @@ const MAX_UPCOMING = 5;
 const DOCTOR_CANCEL_SHOWN_MS = 2 * 24 * 60 * 60 * 1000;
 /** A consult the doctor started but never ended drops off after this. */
 const RUNNING_SHOWN_MS = 12 * 60 * 60 * 1000;
+/** The most past consults returned; older ones are still in Records via their prescriptions. */
+const PAST_LIMIT = 50;
+/** Prescriptions the member never sees. Matches `HIDDEN_STATUSES` in `server/records.ts`. */
+const HIDDEN_PRESCRIPTIONS = ['draft', 'cancelled', 'void', 'deleted'];
 
 const minutesOf = (consult: { durationMinutes?: number | null }) =>
   consult.durationMinutes ?? DEFAULT_CONSULT_MINUTES;
@@ -28,6 +33,7 @@ const minutesOf = (consult: { durationMinutes?: number | null }) =>
 export const GET = handle(async (request: Request) => {
   await connectDB();
   const member = await requireMember(request);
+  if (new URL(request.url).searchParams.get('when') === 'past') return pastConsults(member._id);
   const now = Date.now();
 
   const consults = await ConsultModel.find({
@@ -52,6 +58,35 @@ export const GET = handle(async (request: Request) => {
   );
   return Response.json({ appointments: shown.map(toConsultJson) });
 });
+
+/**
+ * `?when=past`: the member's completed consults, newest first, each with the prescription the
+ * doctor signed in it (its id opens in Records), if there is one.
+ */
+async function pastConsults(memberId: Types.ObjectId) {
+  const consults = await ConsultModel.find({ member: memberId, status: 'completed' })
+    .sort({ scheduledAt: -1 })
+    .limit(PAST_LIMIT)
+    .populate<PopulatedDoctor>('doctor', DOCTOR_FIELDS);
+  const prescriptions = await PrescriptionModel.find({
+    member: memberId,
+    consult: { $in: consults.map((consult) => consult._id) },
+    status: { $nin: HIDDEN_PRESCRIPTIONS },
+  })
+    .sort({ createdAt: -1 })
+    .select('consult');
+  const prescriptionFor = new Map<string, string>();
+  for (const prescription of prescriptions) {
+    const key = String(prescription.consult);
+    if (!prescriptionFor.has(key)) prescriptionFor.set(key, String(prescription._id));
+  }
+  return Response.json({
+    consults: consults.map((consult) => ({
+      ...toConsultJson(consult),
+      prescriptionId: prescriptionFor.get(String(consult._id)),
+    })),
+  });
+}
 
 const booking = z.object({
   doctorId: z.string().regex(/^[a-f\d]{24}$/i, 'Choose a doctor'),
@@ -100,7 +135,9 @@ export const POST = handle(async (request: Request) => {
     return overlaps(start, end, { start: from, end: from + minutesOf(consult) * 60_000 });
   });
   if (clash) throw new HttpError(409, 'You already have a consult at that time.');
-  if (mine.filter((consult) => consult.scheduledAt.getTime() >= Date.now()).length >= MAX_UPCOMING) {
+  if (
+    mine.filter((consult) => consult.scheduledAt.getTime() >= Date.now()).length >= MAX_UPCOMING
+  ) {
     throw new HttpError(
       400,
       `You can have up to ${MAX_UPCOMING} upcoming consults. Cancel one first.`,

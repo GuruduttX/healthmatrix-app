@@ -1,7 +1,7 @@
 import { CameraView } from 'expo-camera';
 import { Mic, MicOff, ShieldAlert, Video, VideoOff, X } from 'lucide-react-native';
 import { useEffect } from 'react';
-import { Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -18,7 +18,14 @@ import { formatSlot } from '@/features/doctors/time';
 
 import { CallControl } from './call-control';
 
-type WaitingRoomProps = {
+/**
+ * `connecting` until the member is in the Twilio room; `doctorHere` once the doctor has the consult
+ * open in the console (and so sees the member waiting, with an Admit button).
+ */
+export type LobbyStatus = 'connecting' | 'waiting' | 'doctorHere';
+
+export type WaitingRoomProps = {
+  status: LobbyStatus;
   doctorName: string;
   doctorPhotoUrl?: string;
   /** The slot, ISO. Unknown when the screen was opened without the appointment list. */
@@ -60,11 +67,28 @@ function Pulse({ delay }: { delay: number }) {
   return <Animated.View style={[styles.pulse, style]} />;
 }
 
+const STATUS_TEXT: Record<LobbyStatus, { title: string; detail: (doctor: string) => string }> = {
+  connecting: {
+    title: 'Opening the waiting room…',
+    detail: () => 'This takes a few seconds.',
+  },
+  waiting: {
+    title: 'Waiting for the doctor to let you in',
+    detail: (doctor) => `Keep this screen open. Your call starts as soon as ${doctor} admits you.`,
+  },
+  doctorHere: {
+    title: 'The doctor knows you’re here',
+    detail: (doctor) => `${doctor} will let you in shortly. Keep this screen open.`,
+  },
+};
+
 /**
- * Where the member waits until the doctor starts the consult in the console. The call opens by
- * itself when they do; meanwhile the member can check how they look and set mic and camera.
+ * Where the member waits until the doctor admits them from the console. The call opens by itself
+ * when they do; meanwhile the member can check how they look and set mic and camera. Nothing is
+ * sent to the doctor from here: the camera preview stays on the phone.
  */
 export function WaitingRoom({
+  status,
   doctorName,
   doctorPhotoUrl,
   scheduledAt,
@@ -111,13 +135,19 @@ export function WaitingRoom({
           {scheduledAt ? `Video consult · ${formatSlot(scheduledAt)}` : 'Video consult'}
         </ThemedText>
         <View style={styles.statusPill}>
-          <View style={styles.dot} />
+          <View
+            style={[
+              styles.dot,
+              status === 'doctorHere' && styles.dotHere,
+              status === 'connecting' && styles.dotConnecting,
+            ]}
+          />
           <ThemedText type="smallBold" style={styles.onInk}>
-            Waiting for the doctor to let you in
+            {STATUS_TEXT[status].title}
           </ThemedText>
         </View>
         <ThemedText type="caption" style={[styles.muted, styles.center]}>
-          Keep this screen open. Your call starts on its own as soon as {doctorName} is ready.
+          {STATUS_TEXT[status].detail(doctorName)}
         </ThemedText>
         {connectionIssue ? (
           <ThemedText type="caption" style={[styles.issue, styles.center]}>
@@ -147,13 +177,16 @@ export function WaitingRoom({
 
       {missing.length > 0 && !permissionsPending ? (
         <Pressable
-          onPress={() => void Linking.openSettings()}
+          onPress={() => {
+            if (Platform.OS !== 'web') void Linking.openSettings();
+          }}
           accessibilityRole="button"
           style={({ pressed }) => [styles.permission, pressed && styles.pressed]}>
           <ShieldAlert size={18} color={Colors.warning} strokeWidth={2.4} />
           <ThemedText type="caption" style={styles.permissionText}>
-            Allow your {missing.join(' and ')} in Settings so {doctorName} can{' '}
-            {senses.join(' and ')} you. Tap to open Settings.
+            {Platform.OS === 'web'
+              ? `Allow your ${missing.join(' and ')} for this site in your browser so ${doctorName} can ${senses.join(' and ')} you.`
+              : `Allow your ${missing.join(' and ')} in Settings so ${doctorName} can ${senses.join(' and ')} you. Tap to open Settings.`}
           </ThemedText>
         </Pressable>
       ) : null}
@@ -251,6 +284,12 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: Colors.primaryMid,
+  },
+  dotHere: {
+    backgroundColor: '#4ADE80',
+  },
+  dotConnecting: {
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
   },
   preview: {
     flex: 1,

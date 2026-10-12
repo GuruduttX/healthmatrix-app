@@ -4,15 +4,18 @@ import { ApiError } from '@/services/api';
 
 import { consultCallApi } from './consult-call-api';
 
-/** How often the waiting room checks in, which is also how quickly the call opens. */
-const POLL_MS = 4000;
+/** After a network error, wait this long before asking again, doubling up to `MAX_RETRY_MS`. */
+const FIRST_RETRY_MS = 2000;
+const MAX_RETRY_MS = 15_000;
 
 export type CallPhase =
-  /** In the waiting room until the doctor starts the consult in the console. */
-  | { name: 'waiting' }
-  /** Getting a fresh token after the call dropped (`dropped`) or the member chose to rejoin. */
-  | { name: 'connecting'; dropped?: boolean }
-  | { name: 'live'; roomName: string; token: string; startedAt?: string }
+  /** Asking the server for the room; `retry` after the call dropped. */
+  | { name: 'joining'; retry?: boolean }
+  /**
+   * In the Twilio room: in the waiting room until the doctor admits the member, then the call.
+   * `admitted` is true when the doctor had already let them in before they joined.
+   */
+  | { name: 'room'; roomName: string; token: string; admitted: boolean; startedAt?: string }
   /** The member hung up; the consult is still running, so they can rejoin. */
   | { name: 'left' }
   /** The doctor ended the consult. */
@@ -21,34 +24,28 @@ export type CallPhase =
   | { name: 'closed'; message: string };
 
 /**
- * Moves a consult call through its phases. While waiting or connecting it asks the server every
- * few seconds; network blips keep it asking and set `connectionIssue` instead of failing.
+ * Moves a consult call through its phases. The server is asked once on entering and again only
+ * after a dropped call; everything else (the doctor arriving, admitting, ending) comes from the
+ * Twilio room itself. Network errors retry with a growing pause and set `connectionIssue`.
  */
 export function useConsultCall(consultId: string) {
-  const [phase, setPhase] = useState<CallPhase>({ name: 'waiting' });
+  const [phase, setPhase] = useState<CallPhase>({ name: 'joining' });
   const [connectionIssue, setConnectionIssue] = useState<string | null>(null);
-  const polling = phase.name === 'waiting' || phase.name === 'connecting';
-  // After a drop, wait a moment first, so a call that keeps failing doesn't retry in a tight loop.
-  const firstDelay = phase.name === 'connecting' && phase.dropped ? 2000 : 0;
+  const joining = phase.name === 'joining';
+  const retry = phase.name === 'joining' && !!phase.retry;
 
   useEffect(() => {
-    if (!polling) return;
+    if (!joining) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let wait = FIRST_RETRY_MS;
 
-    const check = async () => {
+    const join = async () => {
       try {
         const result = await consultCallApi.join(consultId);
         if (cancelled) return;
         setConnectionIssue(null);
-        if (result.state === 'live') {
-          setPhase({ name: 'live', ...result });
-          return;
-        }
-        if (result.state === 'ended') {
-          setPhase({ name: 'ended' });
-          return;
-        }
+        setPhase(result.state === 'ended' ? { name: 'ended' } : { name: 'room', ...result });
       } catch (error) {
         if (cancelled) return;
         const status = error instanceof ApiError ? error.status : 0;
@@ -58,35 +55,27 @@ export function useConsultCall(consultId: string) {
           return;
         }
         setConnectionIssue(message);
+        timer = setTimeout(join, wait);
+        wait = Math.min(wait * 2, MAX_RETRY_MS);
       }
-      timer = setTimeout(check, POLL_MS);
     };
 
-    timer = setTimeout(check, firstDelay);
+    // After a drop, pause first, so a call that keeps failing doesn't retry in a tight loop.
+    timer = setTimeout(join, retry ? FIRST_RETRY_MS : 0);
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [consultId, polling, firstDelay]);
+  }, [consultId, joining, retry]);
 
-  // Leaving the screen from the waiting room takes the member off the doctor's waiting list.
-  useEffect(
-    () => () => {
-      consultCallApi.leaveLobby(consultId).catch(() => {});
-    },
-    [consultId],
-  );
-
-  /** The call dropped without the member hanging up: the doctor ended it, or the network did. */
+  /** The room dropped without the member leaving: the doctor ended the consult, or the network did. */
   const onDisconnected = useCallback((reason?: string) => {
     if (reason) setConnectionIssue(reason);
-    setPhase((current) =>
-      current.name === 'live' ? { name: 'connecting', dropped: true } : current,
-    );
+    setPhase((current) => (current.name === 'room' ? { name: 'joining', retry: true } : current));
   }, []);
 
   const hangUp = useCallback(() => setPhase({ name: 'left' }), []);
-  const rejoin = useCallback(() => setPhase({ name: 'connecting' }), []);
+  const rejoin = useCallback(() => setPhase({ name: 'joining' }), []);
 
   return { phase, connectionIssue, onDisconnected, hangUp, rejoin };
 }

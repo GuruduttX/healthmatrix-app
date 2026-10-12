@@ -9,9 +9,10 @@ import { DoctorHero } from '@/features/care/doctor-hero';
 import { FindPodCard } from '@/features/care/find-pod-card';
 import { sampleCare } from '@/features/care/sample-data';
 import { SpecialtyList } from '@/features/care/specialty-list';
-import { UpcomingAppointments } from '@/features/doctors/appointments-card';
+import { ConsultsSection } from '@/features/doctors/consults-section';
 import { refreshAppointments } from '@/features/doctors/use-appointments';
 import { useFeaturedDoctor } from '@/features/doctors/use-featured-doctor';
+import { usePastConsults } from '@/features/doctors/use-past-consults';
 import { TodayMedicinesCard } from '@/features/reminders/today-card';
 import { refreshReminders } from '@/features/reminders/use-reminders';
 import { refreshVaccinations } from '@/features/vaccines/use-vaccinations';
@@ -21,6 +22,7 @@ export default function CareScreen() {
   const { pods } = sampleCare;
   const memberId = useAuth().member?.id;
   const { featured, refresh: refreshFeatured } = useFeaturedDoctor();
+  const { consults: pastConsults, refresh: refreshPast } = usePastConsults();
 
   // The cards below read shared stores; refreshing those updates each card.
   const refresh = async () => {
@@ -28,6 +30,7 @@ export default function CareScreen() {
     await Promise.allSettled([
       refreshAppointments(memberId),
       refreshFeatured(),
+      refreshPast(),
       refreshReminders(memberId),
       refreshVaccinations(memberId),
     ]);
@@ -38,7 +41,7 @@ export default function CareScreen() {
       <View style={styles.sections}>
         <DoctorHero featured={featured} />
 
-        <UpcomingAppointments />
+        <ConsultsSection past={pastConsults} />
 
         <View style={styles.section}>
           <SectionHeader title="Find a specialist" />

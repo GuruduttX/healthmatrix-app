@@ -13,9 +13,12 @@ import {
 } from '@/server/video';
 
 /**
- * The consult's waiting room. The app calls this every few seconds while the member waits, which
- * tells the console they are there. Once the doctor starts the consult in the console it answers
- * with the room to join and a token for it. Matches `JoinResult` in `features/consult-call`.
+ * Opens the consult's Twilio room for the member, called once when they enter the waiting room
+ * (and again only if the call drops). The member joins the room without camera or mic, which is
+ * how the doctor's console sees them waiting; the doctor's Admit publishes the doctor's media,
+ * and that is the app's cue to turn its own on. `admitted` is true once the doctor has started
+ * the consult, so a member rejoining goes straight into the call. Matches `JoinResult` in
+ * `features/consult-call/consult-call-api.ts`.
  */
 export const POST = handle(async (request: Request, { id }: Record<string, string>) => {
   await connectDB();
@@ -35,9 +38,9 @@ export const POST = handle(async (request: Request, { id }: Record<string, strin
     return Response.json({ state: 'ended', endedAt: consult.endedAt?.toISOString() });
   }
 
-  const now = Date.now();
-  const start = consult.scheduledAt.getTime();
   if (consult.status === 'scheduled') {
+    const now = Date.now();
+    const start = consult.scheduledAt.getTime();
     if (now < start - JOIN_OPENS_MS) {
       throw new HttpError(400, 'The waiting room opens 5 minutes before your consult');
     }
@@ -47,25 +50,13 @@ export const POST = handle(async (request: Request, { id }: Record<string, strin
     }
   }
 
-  // A targeted update, so it never overwrites the console starting the consult at the same time.
-  await ConsultModel.updateOne({ _id: consult._id }, { $set: { memberLobbyAt: new Date(now) } });
-
-  if (consult.status === 'scheduled') return Response.json({ state: 'waiting' });
-
   const roomName = roomNameFor(String(consult._id));
   await ensureRoom(String(consult._id));
   return Response.json({
-    state: 'live',
+    state: 'ready',
     roomName,
     token: await videoToken(memberIdentity(String(member._id)), roomName),
+    admitted: consult.status === 'in_progress',
     startedAt: consult.startedAt?.toISOString(),
   });
-});
-
-/** The member left the waiting room, so the console stops showing them as waiting. */
-export const DELETE = handle(async (request: Request, { id }: Record<string, string>) => {
-  await connectDB();
-  const member = await requireMember(request);
-  await ConsultModel.updateOne({ _id: id, member: member._id }, { $unset: { memberLobbyAt: 1 } });
-  return new Response(null, { status: 204 });
 });

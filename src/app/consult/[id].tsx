@@ -2,22 +2,45 @@ import { useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
 import { useKeepAwake } from 'expo-keep-awake';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { CalendarX, CircleCheck, PhoneOff } from 'lucide-react-native';
+import { CalendarX, CircleCheck, PhoneOff, Smartphone } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { BackHandler } from 'react-native';
 
 import { CallMessage } from '@/features/consult-call/call-message';
 import { useConsultCall } from '@/features/consult-call/use-consult-call';
-import { VideoCall } from '@/features/consult-call/video-call';
+import { VideoCall, videoUnavailableReason } from '@/features/consult-call/video-call';
 import { WaitingRoom } from '@/features/consult-call/waiting-room';
 import { useAppointments } from '@/features/doctors/use-appointments';
 
 /**
  * A video consult, from the waiting room to the end of the call. Opened from the appointment's
- * "Join" button, which shows from five minutes before the slot.
+ * "Join" button, which shows from five minutes before the slot. The doctor admits the member from
+ * the console; see `features/consult-call/video-call*.tsx`.
  */
 export default function ConsultCallScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  // Without the video SDK the member never enters the waiting room, so the doctor doesn't see
+  // them as waiting.
+  if (videoUnavailableReason) return <CallUnavailable reason={videoUnavailableReason} />;
+  return <ConsultCall id={id} />;
+}
+
+function CallUnavailable({ reason }: { reason: string }) {
+  return (
+    <>
+      <StatusBar style="light" />
+      <CallMessage
+        icon={Smartphone}
+        title="Join from the app"
+        primary={{ label: 'Close', onPress: close }}>
+        {reason}
+      </CallMessage>
+    </>
+  );
+}
+
+const close = () => (router.canGoBack() ? router.back() : router.replace('/care'));
+
+function ConsultCall({ id }: { id: string }) {
   useKeepAwake();
   const { appointments, refresh } = useAppointments();
   const appointment = appointments?.find((item) => item.id === id);
@@ -50,55 +73,42 @@ export default function ConsultCallScreen() {
     if (over) void refresh();
   }, [over, refresh]);
 
-  // During the call Android's back button does nothing; the End button asks first.
-  const live = phase.name === 'live';
-  useEffect(() => {
-    if (!live) return;
-    const subscription = BackHandler.addEventListener('hardwareBackPress', () => true);
-    return () => subscription.remove();
-  }, [live]);
-
-  const close = () => (router.canGoBack() ? router.back() : router.replace('/care'));
+  // The waiting room, and the mic and camera choices made there, which carry into the call.
+  const lobby = {
+    doctorName,
+    doctorPhotoUrl,
+    scheduledAt: appointment?.scheduledAt,
+    micOn: micOn && canUseMic,
+    cameraOn: cameraOn && canUseCamera,
+    onToggleMic: () => setMicOn((on) => !on),
+    onToggleCamera: () => setCameraOn((on) => !on),
+    canUseMic,
+    canUseCamera,
+    permissionsPending,
+    connectionIssue,
+    onClose: close,
+  };
 
   const screen = () => {
     switch (phase.name) {
-      case 'waiting':
-        return (
-          <WaitingRoom
-            doctorName={doctorName}
-            doctorPhotoUrl={doctorPhotoUrl}
-            scheduledAt={appointment?.scheduledAt}
-            micOn={micOn && canUseMic}
-            cameraOn={cameraOn && canUseCamera}
-            onToggleMic={() => setMicOn((on) => !on)}
-            onToggleCamera={() => setCameraOn((on) => !on)}
-            canUseMic={canUseMic}
-            canUseCamera={canUseCamera}
-            permissionsPending={permissionsPending}
-            connectionIssue={connectionIssue}
-            onClose={close}
-          />
-        );
-      case 'connecting':
-        return (
+      case 'joining':
+        return phase.retry ? (
           <CallMessage
-            title={`Joining your consult with ${doctorName}…`}
+            title={`Reconnecting to your consult with ${doctorName}…`}
             secondary={{ label: 'Close', onPress: close }}>
             {connectionIssue ?? 'This takes a few seconds.'}
           </CallMessage>
+        ) : (
+          <WaitingRoom {...lobby} status="connecting" />
         );
-      case 'live':
+      case 'room':
         return (
           <VideoCall
             roomName={phase.roomName}
             token={phase.token}
             startedAt={phase.startedAt}
-            doctorName={doctorName}
-            doctorPhotoUrl={doctorPhotoUrl}
-            initialMicOn={micOn}
-            initialCameraOn={cameraOn}
-            canUseMic={canUseMic}
-            canUseCamera={canUseCamera}
+            admitted={phase.admitted}
+            lobby={lobby}
             onLeave={hangUp}
             onDisconnected={onDisconnected}
           />

@@ -61,6 +61,8 @@ export type Appointment = {
   reason?: string;
   /** When the doctor started the consult in the console. */
   startedAt?: string;
+  /** When the doctor ended it. */
+  endedAt?: string;
   cancelledBy?: 'member' | 'doctor';
   /** The doctor's message when they cancelled. */
   cancelReason?: string;
@@ -79,4 +81,10 @@ export type FeaturedDoctor = {
   /** The slot of the member's last consult with them, ISO. */
   lastConsultAt: string;
   consultCount: number;
+};
+
+/** A completed consult. Matches `?when=past` on `src/app/api/v1/consults+api.ts`. */
+export type PastConsult = Appointment & {
+  /** The prescription signed in this consult; opens at `/records/[id]`. */
+  prescriptionId?: string;
 };

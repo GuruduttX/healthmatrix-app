@@ -4,7 +4,8 @@ import { HttpError } from './http';
 /**
  * Twilio Video for consults. Each consult has its own two-person room, named `consult-<id>`,
  * which both this server and the doctor console create on demand, so whichever side gets there
- * first opens it. The console ends it when the doctor ends the consult.
+ * first opens it. The room doubles as the waiting room: the member joins it without camera or mic
+ * and the console sees them there. The console ends it when the doctor ends the consult.
  */
 
 /** The waiting room opens this long before the slot starts. */

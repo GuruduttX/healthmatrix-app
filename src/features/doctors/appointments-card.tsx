@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { Alert, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { SectionHeader } from '@/components/ui/section-header';
 import { Surface } from '@/components/ui/surface';
 import { Tag } from '@/components/ui/tag';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
@@ -48,16 +47,14 @@ function bookAgain(appointment: Appointment) {
 }
 
 /**
- * "Upcoming appointments" on the Care tab, heading included. Hidden when there are none.
- * Consults the doctor cancelled in the console stay for a while, with their reason.
+ * The Upcoming tab of "Your consults" on the Care tab (`ConsultsSection`). Consults the doctor
+ * cancelled in the console stay for a while, with their reason.
  */
-export function UpcomingAppointments() {
-  const { appointments, cancel } = useAppointments();
+export function UpcomingList({ appointments }: { appointments: Appointment[] }) {
+  const { cancel } = useAppointments();
   const now = useNow();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  if (!appointments?.length) return null;
 
   const cancelOne = async (appointment: Appointment) => {
     if (!(await confirmCancel(appointment))) return;
@@ -73,109 +70,102 @@ export function UpcomingAppointments() {
   };
 
   return (
-    <View style={styles.section}>
-      <SectionHeader title="Upcoming appointments" />
-      <Surface style={styles.card}>
-        {appointments.map((appointment, index) => {
-          const startsIn = new Date(appointment.scheduledAt).getTime() - now.getTime();
-          const running = appointment.status === 'in_progress';
-          const cancelledByDoctor = appointment.status === 'cancelled';
-          const soon = running || startsIn <= SOON_MS;
-          // The waiting room opens five minutes before the slot.
-          const canJoin = running || startsIn <= JOIN_OPENS_MS;
-          return (
-            <View key={appointment.id} style={[styles.row, index > 0 && styles.divider]}>
-              <DoctorAvatar
-                name={appointment.doctor?.name ?? 'Doctor'}
-                photoUrl={appointment.doctor?.photoUrl}
-                size={44}
-              />
-              <View style={styles.flex}>
-                <ThemedText type="smallBold" numberOfLines={1}>
-                  {appointment.doctor?.name ?? 'Doctor'}
-                </ThemedText>
-                <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1}>
-                  {specialtyLabel(appointment.specialty)} · Video consult
-                </ThemedText>
-                <View style={styles.when}>
-                  {cancelledByDoctor ? (
-                    <CalendarX size={13} color={Colors.danger} strokeWidth={2.4} />
-                  ) : (
-                    <CalendarClock size={13} color={Colors.primary} strokeWidth={2.4} />
-                  )}
-                  <ThemedText
-                    type="caption"
-                    themeColor={cancelledByDoctor ? 'danger' : 'primary'}
-                    style={[styles.whenText, cancelledByDoctor && styles.struck]}>
-                    {formatSlot(appointment.scheduledAt)}
-                  </ThemedText>
-                </View>
+    <Surface style={styles.card}>
+      {appointments.map((appointment, index) => {
+        const startsIn = new Date(appointment.scheduledAt).getTime() - now.getTime();
+        const running = appointment.status === 'in_progress';
+        const cancelledByDoctor = appointment.status === 'cancelled';
+        const soon = running || startsIn <= SOON_MS;
+        // The waiting room opens five minutes before the slot.
+        const canJoin = running || startsIn <= JOIN_OPENS_MS;
+        return (
+          <View key={appointment.id} style={[styles.row, index > 0 && styles.divider]}>
+            <DoctorAvatar
+              name={appointment.doctor?.name ?? 'Doctor'}
+              photoUrl={appointment.doctor?.photoUrl}
+              size={44}
+            />
+            <View style={styles.flex}>
+              <ThemedText type="smallBold" numberOfLines={1}>
+                {appointment.doctor?.name ?? 'Doctor'}
+              </ThemedText>
+              <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1}>
+                {specialtyLabel(appointment.specialty)} · Video consult
+              </ThemedText>
+              <View style={styles.when}>
                 {cancelledByDoctor ? (
-                  <ThemedText type="caption" themeColor="textSecondary">
-                    Cancelled by doctor.{' '}
-                    {appointment.cancelReason ?? 'Please book another slot.'}
-                  </ThemedText>
-                ) : running ? (
-                  <ThemedText type="caption" themeColor="success" style={styles.cancelText}>
-                    The doctor is ready for you
-                  </ThemedText>
-                ) : null}
+                  <CalendarX size={13} color={Colors.danger} strokeWidth={2.4} />
+                ) : (
+                  <CalendarClock size={13} color={Colors.primary} strokeWidth={2.4} />
+                )}
+                <ThemedText
+                  type="caption"
+                  themeColor={cancelledByDoctor ? 'danger' : 'primary'}
+                  style={[styles.whenText, cancelledByDoctor && styles.struck]}>
+                  {formatSlot(appointment.scheduledAt)}
+                </ThemedText>
               </View>
               {cancelledByDoctor ? (
-                <Pressable
-                  onPress={() => bookAgain(appointment)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Book again with ${appointment.doctor?.name ?? 'a doctor'}`}
-                  hitSlop={8}
-                  style={({ pressed }) => [styles.rebook, pressed && styles.pressed]}>
-                  <ThemedText type="caption" themeColor="primary" style={styles.cancelText}>
-                    Book again
-                  </ThemedText>
-                </Pressable>
-              ) : canJoin ? (
-                <Pressable
-                  onPress={() => join(appointment)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Join video consult with ${appointment.doctor?.name ?? 'the doctor'}`}
-                  hitSlop={8}
-                  style={({ pressed }) => [styles.join, pressed && styles.pressed]}>
-                  <Video size={14} color={Colors.onInk} strokeWidth={2.4} />
-                  <ThemedText type="caption" style={styles.joinText}>
-                    {running ? 'Join now' : 'Join call'}
-                  </ThemedText>
-                </Pressable>
-              ) : soon ? (
-                <Tag label="Starting soon" tone="success" icon={Video} />
-              ) : (
-                <Pressable
-                  onPress={() => cancelOne(appointment)}
-                  disabled={busyId === appointment.id}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Cancel appointment with ${appointment.doctor?.name ?? 'the doctor'}`}
-                  hitSlop={8}
-                  style={({ pressed }) => [styles.cancel, pressed && styles.pressed]}>
-                  <ThemedText type="caption" themeColor="danger" style={styles.cancelText}>
-                    {busyId === appointment.id ? 'Cancelling…' : 'Cancel'}
-                  </ThemedText>
-                </Pressable>
-              )}
+                <ThemedText type="caption" themeColor="textSecondary">
+                  Cancelled by doctor. {appointment.cancelReason ?? 'Please book another slot.'}
+                </ThemedText>
+              ) : running ? (
+                <ThemedText type="caption" themeColor="success" style={styles.cancelText}>
+                  The doctor is ready for you
+                </ThemedText>
+              ) : null}
             </View>
-          );
-        })}
-        {error ? (
-          <ThemedText type="caption" themeColor="danger">
-            {error}
-          </ThemedText>
-        ) : null}
-      </Surface>
-    </View>
+            {cancelledByDoctor ? (
+              <Pressable
+                onPress={() => bookAgain(appointment)}
+                accessibilityRole="button"
+                accessibilityLabel={`Book again with ${appointment.doctor?.name ?? 'a doctor'}`}
+                hitSlop={8}
+                style={({ pressed }) => [styles.rebook, pressed && styles.pressed]}>
+                <ThemedText type="caption" themeColor="primary" style={styles.cancelText}>
+                  Book again
+                </ThemedText>
+              </Pressable>
+            ) : canJoin ? (
+              <Pressable
+                onPress={() => join(appointment)}
+                accessibilityRole="button"
+                accessibilityLabel={`Join video consult with ${appointment.doctor?.name ?? 'the doctor'}`}
+                hitSlop={8}
+                style={({ pressed }) => [styles.join, pressed && styles.pressed]}>
+                <Video size={14} color={Colors.onInk} strokeWidth={2.4} />
+                <ThemedText type="caption" style={styles.joinText}>
+                  {running ? 'Join now' : 'Join call'}
+                </ThemedText>
+              </Pressable>
+            ) : soon ? (
+              <Tag label="Starting soon" tone="success" icon={Video} />
+            ) : (
+              <Pressable
+                onPress={() => cancelOne(appointment)}
+                disabled={busyId === appointment.id}
+                accessibilityRole="button"
+                accessibilityLabel={`Cancel appointment with ${appointment.doctor?.name ?? 'the doctor'}`}
+                hitSlop={8}
+                style={({ pressed }) => [styles.cancel, pressed && styles.pressed]}>
+                <ThemedText type="caption" themeColor="danger" style={styles.cancelText}>
+                  {busyId === appointment.id ? 'Cancelling…' : 'Cancel'}
+                </ThemedText>
+              </Pressable>
+            )}
+          </View>
+        );
+      })}
+      {error ? (
+        <ThemedText type="caption" themeColor="danger">
+          {error}
+        </ThemedText>
+      ) : null}
+    </Surface>
   );
 }
 
 const styles = StyleSheet.create({
-  section: {
-    gap: Spacing.two + 2,
-  },
   card: {
     paddingVertical: Spacing.one,
   },

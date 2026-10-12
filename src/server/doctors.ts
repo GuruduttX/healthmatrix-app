@@ -1,8 +1,8 @@
-import { type Types } from 'mongoose';
+import { type ClientSession, type Types } from 'mongoose';
 
 import { ConsultModel, type Doctor } from './models';
 import {
-  DEFAULT_CONSULT_MINUTES,
+  consultBusy,
   resolveSchedule,
   slotDays,
   type Busy,
@@ -24,37 +24,52 @@ const HOLDS_SLOT = ['scheduled', 'in_progress'] as const;
 /** The longest a consult runs; anything that started earlier than this ago is over. */
 const LONGEST_MS = 2 * 60 * 60 * 1000;
 
-/** Times already taken by a booked or running consult, per doctor. */
-export async function busyTimes(doctorIds: Types.ObjectId[]) {
+/**
+ * Times already taken by a booked or running consult, per doctor, as `consultBusy` in the shared
+ * schedule works them out: a booked consult holds its slot, a running one holds from its start
+ * and keeps the next few minutes while it runs over, and an ended one holds nothing. Pass
+ * `session` to read inside a booking's transaction.
+ */
+export async function busyTimes(
+  doctorIds: Types.ObjectId[],
+  { session, now = new Date() }: { session?: ClientSession; now?: Date } = {},
+) {
   const consults = await ConsultModel.find({
     doctor: { $in: doctorIds },
     status: { $in: HOLDS_SLOT },
-    scheduledAt: { $gte: new Date(Date.now() - LONGEST_MS) },
-  }).select('doctor scheduledAt durationMinutes');
+    scheduledAt: { $gte: new Date(now.getTime() - LONGEST_MS) },
+  })
+    .select('doctor status scheduledAt durationMinutes startedAt')
+    .session(session ?? null);
 
   const busy = new Map<string, Busy[]>();
   for (const consult of consults) {
+    const held = consultBusy(consult, now);
+    if (!held) continue;
     const key = String(consult.doctor);
-    const start = consult.scheduledAt.getTime();
-    const minutes = consult.durationMinutes ?? DEFAULT_CONSULT_MINUTES;
     if (!busy.has(key)) busy.set(key, []);
-    busy.get(key)!.push({ start, end: start + minutes * 60_000 });
+    busy.get(key)!.push(held);
   }
   return busy;
 }
 
 /** A doctor's bookable days. Past slots today are left out; booked ones are marked taken. */
 export async function doctorSlots(doctor: DoctorDoc) {
-  const busy = await busyTimes([doctor._id]);
-  return slotDays(scheduleOf(doctor), busy.get(String(doctor._id)));
+  const now = new Date();
+  const busy = await busyTimes([doctor._id], { now });
+  return slotDays(scheduleOf(doctor), busy.get(String(doctor._id)), now);
 }
 
 /** The first free slot for each doctor in their booking window. */
 export async function nextFreeSlots(doctors: DoctorDoc[]) {
-  const busy = await busyTimes(doctors.map((doctor) => doctor._id));
+  const now = new Date();
+  const busy = await busyTimes(
+    doctors.map((doctor) => doctor._id),
+    { now },
+  );
   const next = new Map<string, string>();
   for (const doctor of doctors) {
-    const first = slotDays(scheduleOf(doctor), busy.get(String(doctor._id)))
+    const first = slotDays(scheduleOf(doctor), busy.get(String(doctor._id)), now)
       .flatMap((day) => day.slots)
       .find((slot) => slot.available);
     if (first) next.set(String(doctor._id), first.at);

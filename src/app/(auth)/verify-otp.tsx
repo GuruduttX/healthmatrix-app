@@ -58,6 +58,7 @@ export default function VerifyOtpScreen() {
       subtitle={`Sent to +91 ${params.phone}`}
       fields={[
         {
+          label: 'One-time code',
           value: otp,
           onChangeText: (text) => setOtp(text.replace(/\D/g, '')),
           placeholder: '6-digit OTP',

@@ -7,8 +7,9 @@ import { DOCTOR_FIELDS, toConsultJson, type PopulatedDoctor } from '@/server/con
 import { connectDB } from '@/server/db';
 import { busyTimes, scheduleOf } from '@/server/doctors';
 import { handle, HttpError } from '@/server/http';
+import { mongoose } from '@/server/mongoose';
 import { ConsultModel, DoctorModel, PrescriptionModel } from '@/server/models';
-import { DEFAULT_CONSULT_MINUTES, isBookable } from '@/server/schedule';
+import { consultBusy, DEFAULT_CONSULT_MINUTES, isBookable } from '@/server/schedule';
 import { JOIN_GRACE_MS } from '@/server/video';
 
 /** How many upcoming consults a member can hold at once. */
@@ -120,7 +121,7 @@ export const POST = handle(async (request: Request) => {
   const schedule = scheduleOf(doctor);
   const at = new Date(scheduledAt);
   if (!isBookable(schedule, at)) {
-    throw new HttpError(400, 'That time is not available any more. Pick another slot.');
+    throw new HttpError(400, 'That time isn’t available any more. Pick another time.');
   }
   const start = at.getTime();
   const end = start + schedule.slotMinutes * 60_000;
@@ -129,10 +130,11 @@ export const POST = handle(async (request: Request) => {
     member: member._id,
     status: { $in: ['scheduled', 'in_progress'] },
     scheduledAt: { $gte: new Date(Date.now() - 2 * 60 * 60 * 1000) },
-  }).select('scheduledAt durationMinutes');
+  }).select('status scheduledAt durationMinutes startedAt');
+  // The same rule as the doctor's busy times, so a consult of theirs that runs over counts too.
   const clash = mine.some((consult) => {
-    const from = consult.scheduledAt.getTime();
-    return overlaps(start, end, { start: from, end: from + minutesOf(consult) * 60_000 });
+    const held = consultBusy(consult);
+    return !!held && overlaps(start, end, held);
   });
   if (clash) throw new HttpError(409, 'You already have a consult at that time.');
   if (
@@ -144,27 +146,42 @@ export const POST = handle(async (request: Request) => {
     );
   }
 
-  const slotTaken = () =>
-    new HttpError(409, 'Someone has just booked that slot. Pick another time.');
-  const busy = (await busyTimes([doctor._id])).get(String(doctor._id)) ?? [];
-  if (busy.some((taken) => overlaps(start, end, taken))) throw slotTaken();
+  const slotTaken = () => new HttpError(409, 'Someone has just booked that time. Pick another.');
 
-  let consult;
+  let consult: InstanceType<typeof ConsultModel> | undefined;
   try {
-    consult = await ConsultModel.create({
-      member: member._id,
-      doctor: doctor._id,
-      specialty,
-      scheduledAt: at,
-      durationMinutes: schedule.slotMinutes,
-      mode: 'video',
-      reason,
+    await mongoose.connection.transaction(async (session) => {
+      // Two bookings for this doctor at once now conflict on this write. Mongo retries the
+      // later one, which then sees the first one's consult and gets the 409. The unique index
+      // only catches the same start time, and starts no longer all fall on the same marks.
+      await DoctorModel.updateOne(
+        { _id: doctor._id },
+        { $inc: { bookingVersion: 1 } },
+        { session },
+      );
+      const busy = (await busyTimes([doctor._id], { session })).get(String(doctor._id)) ?? [];
+      if (busy.some((taken) => overlaps(start, end, taken))) throw slotTaken();
+      [consult] = await ConsultModel.create(
+        [
+          {
+            member: member._id,
+            doctor: doctor._id,
+            specialty,
+            scheduledAt: at,
+            durationMinutes: schedule.slotMinutes,
+            mode: 'video',
+            reason,
+          },
+        ],
+        { session },
+      );
     });
   } catch (error) {
-    // Two bookings for the same slot at once: the unique index lets only one through.
+    // A second guard: the unique index still lets only one booking per exact start through.
     if ((error as { code?: number }).code === 11000) throw slotTaken();
     throw error;
   }
+  if (!consult) throw slotTaken();
 
   const populated = await consult.populate<PopulatedDoctor>('doctor', DOCTOR_FIELDS);
   return Response.json({ appointment: toConsultJson(populated) }, { status: 201 });

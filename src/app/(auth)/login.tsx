@@ -1,9 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { type TextInputProps } from 'react-native';
-
 import { authApi, type AuthIntent } from '@/features/auth/auth-api';
-import { AuthForm } from '@/features/auth/auth-form';
+import { AuthForm, type AuthField } from '@/features/auth/auth-form';
 import { AuthModeSwitch } from '@/features/auth/auth-mode-switch';
 
 const COPY: Record<AuthIntent, { title: string; subtitle: string }> = {
@@ -56,7 +54,8 @@ export default function LoginScreen() {
     }
   };
 
-  const nameField: TextInputProps = {
+  const nameField: AuthField = {
+    label: 'Full name',
     nativeID: 'name',
     value: name,
     onChangeText: setName,
@@ -67,7 +66,9 @@ export default function LoginScreen() {
     textContentType: 'name',
     maxLength: 60,
   };
-  const phoneField: TextInputProps = {
+  const phoneField: AuthField = {
+    label: 'Mobile number',
+    prefix: '+91',
     nativeID: 'phone',
     value: phone,
     onChangeText: (text) => setPhone(text.replace(/\D/g, '')),

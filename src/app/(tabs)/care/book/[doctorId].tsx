@@ -1,6 +1,6 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { CalendarCheck, Check, ChevronLeft, Lock, Video } from 'lucide-react-native';
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -71,6 +71,9 @@ function emptyDayText(day: SlotDay | undefined) {
   return 'No slots left on this day. Pick another day.';
 }
 
+/** How often the open screen reloads the doctor's free times. */
+const SLOTS_REFRESH_MS = 60_000;
+
 /** Book a video consult with one doctor: pick a day, a time, and say what it's about. */
 export default function BookDoctorScreen() {
   const { doctorId, specialty: wanted } = useLocalSearchParams<{
@@ -111,6 +114,13 @@ export default function BookDoctorScreen() {
               null
             );
           });
+          // Keep the chosen time while it is still free; a freed-up list can also take it away.
+          setSlotAt((current) =>
+            current &&
+            next.days.some((day) => day.slots.some((s) => s.at === current && s.available))
+              ? current
+              : null,
+          );
           setSpecialty((current) => {
             if (current) return current;
             const bookable = next.doctor.specialties.filter(isSpecialty);
@@ -125,13 +135,19 @@ export default function BookDoctorScreen() {
     [doctorId, wanted],
   );
 
-  useEffect(() => {
-    let active = true;
-    void load(() => active);
-    return () => {
-      active = false;
-    };
-  }, [load]);
+  // Free time changes as consults end early or run over, so load again whenever the screen comes
+  // back into view and every minute while it stays open.
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      void load(() => active);
+      const timer = setInterval(() => void load(() => active), SLOTS_REFRESH_MS);
+      return () => {
+        active = false;
+        clearInterval(timer);
+      };
+    }, [load]),
+  );
 
   const reload = () => load(() => true);
   const refreshControl = useRefreshControl(reload);

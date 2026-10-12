@@ -40,8 +40,12 @@ export class ApiError extends Error {
 
 type ApiOptions = Omit<RequestInit, 'body'> & { body?: unknown };
 
-/** Without this a request to an unreachable server spins for a minute before the OS gives up. */
-const TIMEOUT_MS = 30_000;
+/**
+ * Without this a request to an unreachable server spins for a minute before the OS gives up.
+ * In development the dev server compiles each API route on its first call, one after another
+ * and alongside the app bundle, so right after a restart a request can wait longer than that.
+ */
+const TIMEOUT_MS = __DEV__ ? 90_000 : 30_000;
 
 export async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
   const { body, headers, ...rest } = options;

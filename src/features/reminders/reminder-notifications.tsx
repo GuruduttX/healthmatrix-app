@@ -1,4 +1,4 @@
-import * as Notifications from 'expo-notifications';
+import type * as NotificationsApi from 'expo-notifications';
 import { router, type Href } from 'expo-router';
 import { useEffect } from 'react';
 import { AppState } from 'react-native';
@@ -10,6 +10,7 @@ import { refreshVaccinations, useVaccinations } from '@/features/vaccines/use-va
 import {
   clearNotifications,
   configureNotifications,
+  Notifications,
   notificationsSupported,
   syncNotifications,
 } from './notifications';
@@ -18,7 +19,7 @@ import { refreshReminders, useReminders } from './use-reminders';
 // The handler has to be in place before the first notification arrives.
 configureNotifications();
 
-function openFrom(response: Notifications.NotificationResponse | null) {
+function openFrom(response: NotificationsApi.NotificationResponse | null) {
   const url = response?.notification.request.content.data?.url;
   // With the Care page beneath it, so Back from the medicines screen lands there.
   if (typeof url === 'string') router.push(url as Href, { withAnchor: true });

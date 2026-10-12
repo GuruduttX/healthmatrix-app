@@ -1,4 +1,5 @@
-import * as Notifications from 'expo-notifications';
+import { isRunningInExpoGo } from 'expo';
+import type * as NotificationsApi from 'expo-notifications';
 import { Linking, Platform } from 'react-native';
 
 import { type VaccinationRecord } from '@/features/vaccines/types';
@@ -6,8 +7,22 @@ import { type VaccinationRecord } from '@/features/vaccines/types';
 import { addDays, describeDose, doseTime, upcomingDoses, type Dose } from './schedule';
 import { type MedicineReminder } from './types';
 
-/** Notifications are phone-only; on web the reminders still show in the app. */
-export const notificationsSupported = Platform.OS !== 'web';
+/**
+ * Notifications are phone-only; on web the reminders still show in the app. Android's Expo Go
+ * dropped expo-notifications in SDK 53 and throws as soon as the module loads, so there they are
+ * off too; a development build has them.
+ */
+export const notificationsSupported =
+  Platform.OS !== 'web' && !(Platform.OS === 'android' && isRunningInExpoGo());
+
+/**
+ * expo-notifications, loaded only where it works. Everything that reaches it checks
+ * `notificationsSupported` first.
+ */
+export const Notifications: typeof NotificationsApi = notificationsSupported
+  ? // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require('expo-notifications')
+  : ({} as typeof NotificationsApi);
 
 const CHANNEL_ID = 'medicine-reminders';
 /** Every notification the app schedules starts with one of these, so it clears only its own. */
@@ -76,7 +91,7 @@ export async function requestPermission(): Promise<PermissionState> {
   return getPermission();
 }
 
-function contentFor(doses: Dose[]): Notifications.NotificationContentInput {
+function contentFor(doses: Dose[]): NotificationsApi.NotificationContentInput {
   const [first] = doses;
   const names = doses.map((dose) => dose.reminder.name);
   const single = doses.length === 1 && first;
@@ -107,7 +122,7 @@ const vaccineTitle = (name: string) => (/vaccin/i.test(name) ? name : `${name} v
  * Due days are India-time dates, used here as the phone's local days.
  */
 function vaccineMoments(vaccinations: VaccinationRecord[], now: Date) {
-  const moments: { id: string; at: Date; content: Notifications.NotificationContentInput }[] = [];
+  const moments: { id: string; at: Date; content: NotificationsApi.NotificationContentInput }[] = [];
   for (const vaccination of vaccinations) {
     const title = vaccineTitle(vaccination.name);
     const where = [vaccination.doseText, vaccination.site?.toLowerCase()]

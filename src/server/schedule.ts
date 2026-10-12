@@ -150,60 +150,110 @@ export type SlotDay = {
   slots: { at: string; time: string; available: boolean }[];
 };
 
+/** Consults start on a 5-minute mark, so a slot that opens early reads 10:20, not 10:17. */
+export const START_STEP_MINUTES = 5;
+/**
+ * While a consult runs past its slot, this much time from now stays taken, so nobody is booked
+ * into a doctor who is still talking. It moves on until the doctor ends the consult.
+ */
+export const RUNNING_HOLD_MINUTES = 10;
+
+const STEP_MS = START_STEP_MINUTES * MINUTE_MS;
+const ceilToStep = (ms: number) => Math.ceil(ms / STEP_MS) * STEP_MS;
+
 const overlaps = (aStart: number, aEnd: number, bStart: number, bEnd: number) => aStart < bEnd && bStart < aEnd;
 
-/** Every slot the weekly hours give on one day, before time off and notice are applied. */
-function daySlots(schedule: Schedule, date: string) {
-  const step = schedule.slotMinutes;
+/**
+ * The time a consult keeps the doctor from other bookings. Booked: its slot. Running: from when
+ * it started (or its slot, if later) to its slot's end, or longer while it runs over. Ended or
+ * cancelled: none, so a consult that ends early frees the doctor at once.
+ */
+export function consultBusy(
+  consult: { status?: Maybe<string>; scheduledAt: Date; durationMinutes?: Maybe<number>; startedAt?: Maybe<Date> },
+  now: Date = new Date(),
+): Busy | null {
+  const start = consult.scheduledAt.getTime();
+  const end = start + (consult.durationMinutes ?? DEFAULT_CONSULT_MINUTES) * MINUTE_MS;
+  if (consult.status === "scheduled") return { start, end };
+  if (consult.status !== "in_progress") return null;
+  return {
+    start: Math.min(start, consult.startedAt?.getTime() ?? start),
+    end: Math.max(end, now.getTime() + RUNNING_HOLD_MINUTES * MINUTE_MS),
+  };
+}
+
+/** The weekly sessions that fall on one day, as instants. */
+function daySessions(schedule: Schedule, date: string) {
   return schedule.weekly
     .filter((s) => s.weekday === weekdayOf(date))
-    .flatMap(({ from, to }) => {
-      const times: string[] = [];
-      for (let t = toMinutes(from); t + step <= toMinutes(to); t += step) times.push(fromMinutes(t));
-      return times;
-    })
-    .map((time) => {
-      const at = istInstant(date, time);
-      return { time, at, end: at.getTime() + step * MINUTE_MS };
-    });
+    .map((s) => ({ start: istInstant(date, s.from).getTime(), end: istInstant(date, s.to).getTime() }));
+}
+
+const inTimeOff = (schedule: Schedule, start: number, end: number) =>
+  schedule.timeOff.some((t) => overlaps(start, end, t.start.getTime(), t.end.getTime()));
+
+/** Whether a consult from `start` fits inside one session and clear of time off. */
+function fitsHours(schedule: Schedule, sessions: { start: number; end: number }[], start: number) {
+  const end = start + schedule.slotMinutes * MINUTE_MS;
+  return sessions.some((s) => s.start <= start && end <= s.end) && !inTimeOff(schedule, start, end);
 }
 
 /**
- * The bookable days from today through the booking window. Slots inside time off or within
- * the minimum notice are left out; slots overlapping a booking are marked unavailable.
+ * The bookable days from today through the booking window. Each day offers its usual slots,
+ * cut from each session in steps of the consult length, plus a slot wherever the doctor comes
+ * free off that grid: right now (after the notice), and when a booking or time off ends. So a
+ * consult that ends early opens the doctor's time straight away instead of at the next slot.
+ * Usual slots overlapping a booking are listed as unavailable; off-grid ones only when free.
  */
 export function slotDays(schedule: Schedule, busy: Busy[] = [], now: Date = new Date()): SlotDay[] {
+  const length = schedule.slotMinutes * MINUTE_MS;
   const earliest = now.getTime() + schedule.minNoticeMinutes * MINUTE_MS;
+  const free = (start: number) => !busy.some((b) => overlaps(start, start + length, b.start, b.end));
+  const openings = [earliest, ...busy.map((b) => b.end), ...schedule.timeOff.map((t) => t.end.getTime())].map(ceilToStep);
+
   return Array.from({ length: schedule.bookingWindowDays }, (_, day): SlotDay => {
     const date = istDateKey(now, day);
     if (!schedule.acceptingBookings) return { date, off: "paused", slots: [] };
 
-    const all = daySlots(schedule, date);
-    if (all.length === 0) return { date, off: "weekly", slots: [] };
+    const sessions = daySessions(schedule, date);
+    const grid = sessions.flatMap((s) => {
+      const starts: number[] = [];
+      for (let t = s.start; t + length <= s.end; t += length) starts.push(t);
+      return starts;
+    });
+    if (grid.length === 0) return { date, off: "weekly", slots: [] };
 
-    const working = all.filter(
-      (slot) => !schedule.timeOff.some((t) => overlaps(slot.at.getTime(), slot.end, t.start.getTime(), t.end.getTime())),
-    );
+    const working = grid.filter((t) => !inTimeOff(schedule, t, t + length));
     if (working.length === 0) return { date, off: "time_off", slots: [] };
 
+    const starts = new Map(working.map((t) => [t, free(t)]));
+    for (const t of openings) {
+      if (!starts.has(t) && fitsHours(schedule, sessions, t) && free(t)) starts.set(t, true);
+    }
     return {
       date,
       off: null,
-      slots: working
-        .filter((slot) => slot.at.getTime() >= earliest)
-        .map((slot) => ({
-          at: slot.at.toISOString(),
-          time: slot.time,
-          available: !busy.some((b) => overlaps(slot.at.getTime(), slot.end, b.start, b.end)),
-        })),
+      slots: [...starts]
+        .filter(([t]) => t >= earliest)
+        .sort(([a], [b]) => a - b)
+        .map(([t, available]) => ({ at: new Date(t).toISOString(), time: fromMinutes(istParts(new Date(t)).minutes), available })),
     };
   });
 }
 
-/** True when `at` is one of the doctor's bookable slot starts right now (free or not). */
+/**
+ * True when a consult may start at `at` under the doctor's rules right now, free or not: on a
+ * 5-minute mark, after the notice, inside the booking window, and within one session clear of
+ * time off. Any such time, not only the offered slots, so a doctor who frees up early can be
+ * booked from then. Whether it clashes with another booking is checked against `consultBusy`.
+ */
 export function isBookable(schedule: Schedule, at: Date, now: Date = new Date()) {
-  const iso = at.toISOString();
-  return slotDays(schedule, [], now).some((day) => day.slots.some((slot) => slot.at === iso));
+  const start = at.getTime();
+  if (!schedule.acceptingBookings || start % STEP_MS !== 0) return false;
+  if (start < now.getTime() + schedule.minNoticeMinutes * MINUTE_MS) return false;
+  const { date } = istParts(at);
+  if (date > istDateKey(now, schedule.bookingWindowDays - 1)) return false;
+  return fitsHours(schedule, daySessions(schedule, date), start);
 }
 
 /**
@@ -214,7 +264,7 @@ export function consultFits(schedule: Schedule, consult: { scheduledAt: Date; du
   const minutes = consult.durationMinutes ?? DEFAULT_CONSULT_MINUTES;
   const start = consult.scheduledAt.getTime();
   const end = start + minutes * MINUTE_MS;
-  if (schedule.timeOff.some((t) => overlaps(start, end, t.start.getTime(), t.end.getTime()))) return false;
+  if (inTimeOff(schedule, start, end)) return false;
 
   const { date, minutes: from } = istParts(consult.scheduledAt);
   return schedule.weekly.some(

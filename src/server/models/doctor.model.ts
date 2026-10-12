@@ -57,6 +57,12 @@ const doctorSchema = new mongoose.Schema(
       timeOff: { type: [timeOffSchema], default: undefined },
       updatedAt: Date,
     },
+    /**
+     * Bumped by every booking, only so two bookings for this doctor at once take turns: each
+     * writes it inside its transaction, so they conflict and Mongo retries the later one. Means
+     * nothing else; the console never writes it.
+     */
+    bookingVersion: Number,
   },
   { timestamps: true },
 );

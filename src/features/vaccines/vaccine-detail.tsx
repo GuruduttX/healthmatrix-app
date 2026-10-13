@@ -1,23 +1,23 @@
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import {
+  AlertCircle,
   CalendarPlus,
-  Droplet,
+  Check,
+  Clock,
   FileText,
   Info,
-  MapPin,
-  MoveDown,
-  Syringe,
   type LucideIcon,
 } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Button } from '@/components/ui/button';
-import { IconTile } from '@/components/ui/icon-tile';
-import { SectionHeader } from '@/components/ui/section-header';
-import { Surface } from '@/components/ui/surface';
+import { IconTile, type Tone } from '@/components/ui/icon-tile';
+import { Chevron, Divided, LIST_LEAD, ListCard, ListRow } from '@/components/ui/list';
+import { Section } from '@/components/ui/section';
 import { Tag } from '@/components/ui/tag';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Gradients, Radius, Shadows, Spacing } from '@/constants/theme';
 import { DoctorAvatar } from '@/features/doctors/doctor-avatar';
 import { istParts } from '@/features/doctors/time';
 import { formatShortDate } from '@/features/reminders/schedule';
@@ -25,6 +25,16 @@ import { formatShortDate } from '@/features/reminders/schedule';
 import { DoseTimeline } from './dose-timeline';
 import { type VaccinationRecord } from './types';
 import { useVaccinations } from './use-vaccinations';
+
+/** Microsoft Fluent Emoji (MIT), as on Home's Today card; see assets/images/home/3d/LICENSE. */
+const SYRINGE = require('@/assets/images/home/3d/syringe.png');
+
+/** A status tag carries an icon as well as its word. */
+const TAG_ICONS: Partial<Record<Tone, LucideIcon>> = {
+  success: Check,
+  warning: Clock,
+  danger: AlertCircle,
+};
 
 type VaccineDetailProps = {
   vaccination: VaccinationRecord;
@@ -35,218 +45,275 @@ type VaccineDetailProps = {
   readOnly?: boolean;
 };
 
-/** A vaccine opened up: how it is given, every dose and its status, and who prescribed it. */
+/**
+ * A vaccine opened up: its doses on one card (how far along, then every dose and its status),
+ * how it is given, and who prescribed it.
+ */
 export function VaccineDetail({ vaccination, onChange, readOnly }: VaccineDetailProps) {
   const { markDose } = useVaccinations();
-  const done = vaccination.givenDoses === vaccination.totalDoses;
-  const progress = vaccination.totalDoses ? vaccination.givenDoses / vaccination.totalDoses : 0;
+  const TagIcon = TAG_ICONS[vaccination.tag.tone];
 
-  const howGiven: { icon: LucideIcon; label: string; value?: string }[] = [
-    { icon: Droplet, label: 'Dose', value: vaccination.doseText },
-    { icon: MoveDown, label: 'Route', value: vaccination.route },
-    { icon: MapPin, label: 'Where', value: vaccination.site },
-  ];
+  const howGiven = [
+    { label: 'Dose', value: vaccination.doseText },
+    { label: 'Route', value: vaccination.route },
+    { label: 'Where', value: vaccination.site },
+  ].filter((row): row is { label: string; value: string } => !!row.value);
+
+  const doctor = vaccination.doctor;
+  const prescriptionId = vaccination.prescriptionId;
 
   return (
     <>
-      <Surface style={styles.hero}>
-        <View style={styles.heroTop}>
-          <IconTile icon={Syringe} tone={done ? 'success' : 'primary'} size={48} />
-          <View style={styles.flex}>
-            <ThemedText type="caption" themeColor="textSecondary">
-              {vaccination.schedule}
-            </ThemedText>
-            <ThemedText type="bodyBold">
-              {vaccination.givenDoses} of {vaccination.totalDoses}{' '}
-              {vaccination.totalDoses === 1 ? 'dose' : 'doses'} given
-            </ThemedText>
-          </View>
-          <Tag label={vaccination.tag.label} tone={vaccination.tag.tone} />
-        </View>
-        <View style={styles.bar}>
-          <View style={[styles.barFill, { width: `${progress * 100}%` }]} />
-        </View>
-      </Surface>
-
-      {howGiven.some((row) => row.value) ? (
-        <Surface style={styles.facts}>
-          {howGiven
-            .filter((row) => row.value)
-            .map(({ icon: Icon, label, value }) => (
-              <View key={label} style={styles.fact}>
-                <IconTile icon={Icon} tone="neutral" size={34} />
-                <View style={styles.flex}>
-                  <ThemedText type="caption" themeColor="textMuted">
-                    {label}
-                  </ThemedText>
-                  <ThemedText type="smallBold">{value}</ThemedText>
+      <View style={styles.dosesBlock}>
+        {/* The shadow sits outside the card, which clips the corner light. */}
+        <View style={styles.shadow}>
+          <View style={styles.card}>
+            <LinearGradient
+              colors={['rgba(250, 190, 160, 0.26)', 'rgba(250, 190, 160, 0)']}
+              locations={[0, 0.5]}
+              start={{ x: 1, y: 0 }}
+              end={{ x: 0.3, y: 0.7 }}
+              style={[StyleSheet.absoluteFill, styles.noTouch]}
+            />
+            <View style={styles.header}>
+              {/* A plain View rounds and clips; the tint is a layer, the art one more above it. */}
+              <View style={styles.dish}>
+                <LinearGradient
+                  colors={Gradients.dish}
+                  start={{ x: 0.2, y: 0 }}
+                  end={{ x: 0.8, y: 1 }}
+                  style={StyleSheet.absoluteFill}
+                />
+                <View style={[StyleSheet.absoluteFill, styles.center]}>
+                  <Image source={SYRINGE} style={styles.art} contentFit="contain" aria-hidden />
                 </View>
               </View>
-            ))}
-        </Surface>
-      ) : null}
-
-      {vaccination.instructions ? (
-        <View style={styles.instructions}>
-          <ThemedText type="caption" themeColor="primary" style={styles.bold}>
-            Doctor’s instructions
-          </ThemedText>
-          <ThemedText style={styles.instructionsText}>{vaccination.instructions}</ThemedText>
-        </View>
-      ) : null}
-
-      <View style={styles.section}>
-        <SectionHeader
-          title="Doses"
-          meta={`${vaccination.givenDoses} of ${vaccination.totalDoses} given`}
-        />
-        <Surface style={styles.doses}>
-          <DoseTimeline
-            vaccination={vaccination}
-            onMark={
-              readOnly
-                ? undefined
-                : async (dose, given, givenOn) =>
-                    onChange?.(await markDose(vaccination.id, dose.number, given, givenOn))
-            }
-          />
-        </Surface>
-      </View>
-
-      <View style={styles.note}>
-        <Info size={16} color={Colors.inkMid} strokeWidth={2.2} />
-        <ThemedText type="caption" themeColor="textSecondary" style={styles.flex}>
-          {readOnly
-            ? 'Doses are marked given by the person themselves, from their own HealthMatrix app.'
-            : 'Get each dose at a clinic or hospital, then mark it given here so your reminders stop.'}
-        </ThemedText>
-      </View>
-
-      {vaccination.doctor ? (
-        <Surface style={styles.doctor}>
-          <DoctorAvatar name={vaccination.doctor.name} size={44} />
-          <View style={styles.flex}>
-            <ThemedText type="caption" themeColor="textSecondary">
-              Prescribed on {formatShortDate(istParts(vaccination.prescribedAt).date)} by
-            </ThemedText>
-            <ThemedText type="smallBold">{vaccination.doctor.name}</ThemedText>
-            <ThemedText type="caption" themeColor="textMuted">
-              Reg.{' '}
-              {[vaccination.doctor.registrationNumber, vaccination.doctor.council]
-                .filter(Boolean)
-                .join(' · ')}
-            </ThemedText>
-          </View>
-        </Surface>
-      ) : null}
-
-      <View style={styles.actions}>
-        {vaccination.prescriptionId ? (
-          <View style={styles.flex}>
-            <Button
-              label="Prescription"
-              variant="secondary"
-              icon={FileText}
-              accessibilityLabel="View prescription"
-              onPress={() =>
-                router.push({
-                  pathname: '/records/[id]',
-                  params: { id: vaccination.prescriptionId! },
-                })
+              <View style={styles.flex}>
+                <ThemedText style={styles.title} numberOfLines={1}>
+                  {vaccination.givenDoses} of {vaccination.totalDoses}{' '}
+                  {vaccination.totalDoses === 1 ? 'dose' : 'doses'} given
+                </ThemedText>
+                <ThemedText style={styles.subtitle} numberOfLines={1}>
+                  {vaccination.schedule}
+                </ThemedText>
+              </View>
+              <Tag label={vaccination.tag.label} tone={vaccination.tag.tone} icon={TagIcon} />
+            </View>
+            <View style={styles.rule} />
+            <DoseTimeline
+              vaccination={vaccination}
+              onMark={
+                readOnly
+                  ? undefined
+                  : async (dose, given, givenOn) =>
+                      onChange?.(await markDose(vaccination.id, dose.number, given, givenOn))
               }
             />
           </View>
-        ) : null}
-        {vaccination.doctor ? (
-          <View style={styles.flex}>
-            <Button
-              label="Follow-up"
-              variant="soft"
-              icon={CalendarPlus}
+        </View>
+
+        <View style={styles.note}>
+          <Info size={14} color={Colors.textFaint} strokeWidth={2.2} style={styles.noteIcon} />
+          <ThemedText style={styles.noteText}>
+            {readOnly
+              ? 'Doses are marked given by the person themselves, from their own HealthMatrix app.'
+              : 'Get each dose at a clinic or hospital, then mark it given here so your reminders stop.'}
+          </ThemedText>
+        </View>
+      </View>
+
+      {howGiven.length || vaccination.instructions ? (
+        <Section title="How it’s given" index={1}>
+          <View style={styles.facts}>
+            <Divided inset={0}>
+              {howGiven.map(({ label, value }) => (
+                <View key={label} style={styles.fact}>
+                  <ThemedText style={styles.factLabel}>{label}</ThemedText>
+                  <ThemedText style={styles.factValue}>{value}</ThemedText>
+                </View>
+              ))}
+              {vaccination.instructions ? (
+                <View style={styles.instructions}>
+                  <ThemedText style={styles.factLabel}>Doctor’s instructions</ThemedText>
+                  <ThemedText style={styles.instructionsText}>
+                    {vaccination.instructions}
+                  </ThemedText>
+                </View>
+              ) : null}
+            </Divided>
+          </View>
+        </Section>
+      ) : null}
+
+      {doctor || prescriptionId ? (
+        <ListCard>
+          {doctor ? (
+            <ListRow
+              leading={<DoctorAvatar name={doctor.name} size={LIST_LEAD} />}
+              title={doctor.name}
+              subtitle={`Prescribed on ${formatShortDate(istParts(vaccination.prescribedAt).date)} · Reg. ${[
+                doctor.registrationNumber,
+                doctor.council,
+              ]
+                .filter(Boolean)
+                .join(' · ')}`}
+            />
+          ) : null}
+          {prescriptionId ? (
+            <ListRow
+              leading={<IconTile icon={FileText} size={LIST_LEAD} />}
+              title="View prescription"
+              trailing={<Chevron />}
+              accessibilityLabel="View prescription"
+              onPress={() =>
+                router.push({ pathname: '/records/[id]', params: { id: prescriptionId } })
+              }
+            />
+          ) : null}
+          {doctor ? (
+            <ListRow
+              leading={<IconTile icon={CalendarPlus} size={LIST_LEAD} />}
+              title="Book a follow-up"
+              trailing={<Chevron />}
               accessibilityLabel="Book a follow-up"
               onPress={() =>
                 router.push({
                   pathname: '/care/book/[doctorId]',
-                  params: { doctorId: vaccination.doctor!.id },
+                  params: { doctorId: doctor.id },
                 })
               }
             />
-          </View>
-        ) : null}
-      </View>
+          ) : null}
+        </ListCard>
+      ) : null}
     </>
   );
 }
 
+const DISH = LIST_LEAD;
+
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
+    minWidth: 0,
   },
-  bold: {
-    fontFamily: Fonts.bold,
-  },
-  hero: {
-    gap: Spacing.three - 4,
-  },
-  heroTop: {
-    flexDirection: 'row',
+  center: {
     alignItems: 'center',
-    gap: Spacing.two + 4,
+    justifyContent: 'center',
   },
-  bar: {
-    height: 8,
-    borderRadius: 4,
-    overflow: 'hidden',
-    backgroundColor: Colors.backgroundSelected,
+  noTouch: {
+    pointerEvents: 'none',
   },
-  barFill: {
-    height: '100%',
-    borderRadius: 4,
-    backgroundColor: Colors.success,
-  },
-  facts: {
+  dosesBlock: {
     gap: Spacing.three - 4,
   },
-  fact: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three - 4,
+  shadow: {
+    borderRadius: Radius.xl,
+    boxShadow: Shadows.soft,
   },
-  instructions: {
-    gap: 4,
-    padding: Spacing.three,
-    borderRadius: Radius.lg,
+  card: {
+    paddingHorizontal: Spacing.three - 2,
+    paddingTop: Spacing.three - 2,
+    paddingBottom: Spacing.three,
+    borderRadius: Radius.xl,
     borderWidth: 1,
-    borderColor: Colors.primaryLight,
-    backgroundColor: Colors.primarySoft,
+    borderColor: Colors.hairline,
+    overflow: 'hidden',
+    backgroundColor: Colors.backgroundElement,
   },
-  instructionsText: {
-    fontFamily: Fonts.medium,
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  section: {
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: Spacing.three - 4,
-    marginTop: Spacing.one,
   },
-  doses: {
-    padding: Spacing.three,
+  dish: {
+    width: DISH,
+    height: DISH,
+    borderRadius: DISH / 2,
+    overflow: 'hidden',
+  },
+  art: {
+    width: 23,
+    height: 23,
+  },
+  title: {
+    fontFamily: Fonts.displaySemibold,
+    fontSize: 17,
+    lineHeight: 22,
+    letterSpacing: -0.3,
+    color: Colors.text,
+  },
+  subtitle: {
+    marginTop: 1,
+    fontFamily: Fonts.medium,
+    fontSize: 13,
+    lineHeight: 17,
+    color: Colors.textSoft,
+  },
+  // A hairline across the whole card, between how far along and the doses.
+  rule: {
+    height: StyleSheet.hairlineWidth,
+    marginTop: Spacing.three - 4,
+    marginBottom: Spacing.three - 2,
+    marginHorizontal: -(Spacing.three - 2),
+    backgroundColor: Colors.hairline,
   },
   note: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two + 2,
-    padding: 14,
-    borderRadius: Radius.lg,
-    backgroundColor: Colors.backgroundSelected,
+    alignItems: 'flex-start',
+    gap: 6,
+    paddingHorizontal: Spacing.one,
   },
-  doctor: {
+  noteIcon: {
+    marginTop: 2,
+  },
+  noteText: {
+    flex: 1,
+    fontFamily: Fonts.medium,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: Colors.textFaint,
+  },
+  facts: {
+    paddingHorizontal: Spacing.three - 2,
+    paddingVertical: Spacing.one,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    borderColor: Colors.hairline,
+    backgroundColor: Colors.backgroundElement,
+    boxShadow: Shadows.soft,
+  },
+  // A label on the left, its value on the right, like a spec sheet.
+  fact: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two + 4,
+    justifyContent: 'space-between',
+    gap: Spacing.three,
+    minHeight: 48,
+    paddingVertical: Spacing.two + 2,
   },
-  actions: {
-    flexDirection: 'row',
-    gap: Spacing.two,
+  factLabel: {
+    fontFamily: Fonts.medium,
+    fontSize: 13.5,
+    lineHeight: 18,
+    color: Colors.textSoft,
+  },
+  factValue: {
+    flexShrink: 1,
+    textAlign: 'right',
+    fontFamily: Fonts.bold,
+    fontSize: 14.5,
+    lineHeight: 19,
+    color: Colors.text,
+  },
+  instructions: {
+    gap: 3,
+    paddingVertical: Spacing.three - 4,
+  },
+  instructionsText: {
+    fontFamily: Fonts.medium,
+    fontSize: 14.5,
+    lineHeight: 21,
+    color: Colors.text,
   },
 });

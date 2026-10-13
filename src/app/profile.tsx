@@ -1,8 +1,16 @@
-import { router, useIsFocused } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { BadgeCheck, Camera, CircleCheck, Lock, LogOut, ShieldCheck } from 'lucide-react-native';
+import { router } from 'expo-router';
+import {
+  AlertCircle,
+  BadgeCheck,
+  Camera,
+  CircleCheck,
+  Lock,
+  LogOut,
+  ShieldCheck,
+} from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -11,17 +19,18 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
-import { HeroBackground } from '@/components/ui/hero-background';
+import { PageBackground } from '@/components/ui/morning-light';
 import { StackHeader } from '@/components/ui/stack-header';
 import { Surface } from '@/components/ui/surface';
+import { Tag } from '@/components/ui/tag';
 import { TextField } from '@/components/ui/text-field';
 import { Plans } from '@/constants/plans';
-import { Colors, Fonts, MaxContentWidth, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Gutter, MaxContentWidth, Shadows, Spacing } from '@/constants/theme';
 import { authApi } from '@/features/auth/auth-api';
 import { useAuth } from '@/features/auth/auth-context';
 import { MemberAvatar } from '@/features/profile/member-avatar';
@@ -36,8 +45,7 @@ const GENDERS: { id: Gender; label: string }[] = [
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** Brand green, lifted so it reads on ink. */
-const ABHA_GREEN = '#7FD6C2';
+const PHOTO = 104;
 
 /** "HM 4829 1057 3316" */
 function formatMemberId(id: string) {
@@ -66,8 +74,6 @@ function confirmSignOut() {
 export default function ProfileScreen() {
   const { member, updateMember, signOut } = useAuth();
   const insets = useSafeAreaInsets();
-  // Light status bar text over the dark header, only while this screen is showing.
-  const focused = useIsFocused();
 
   const [name, setName] = useState(member?.name ?? '');
   const [email, setEmail] = useState(member?.email ?? '');
@@ -144,69 +150,58 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.screen}>
-      {focused ? <StatusBar style="light" /> : null}
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.scroll}>
-          {/* Who you are, on the same dark header as the tabs. */}
-          <View style={styles.hero}>
-            <HeroBackground />
-            <View style={[styles.heroInner, { paddingTop: insets.top }]}>
-              <StackHeader
-                onBack={() => (router.canGoBack() ? router.back() : router.replace('/'))}
-                title="Profile"
-                tone="dark"
-              />
-              <View style={styles.identity}>
-                <Pressable
-                  onPress={choosePhoto}
-                  disabled={busy}
-                  accessibilityRole="button"
-                  accessibilityLabel="Change profile photo"
-                  style={({ pressed }) => pressed && styles.pressed}>
-                  <View style={styles.photoRing}>
-                    <MemberAvatar
-                      name={trimmedName || member.name}
-                      photoUrl={member.photoUrl}
-                      localUri={photo?.uri}
-                      size={104}
-                    />
-                  </View>
-                  <View style={styles.cameraBadge}>
-                    <Camera size={16} color={Colors.onInk} strokeWidth={2.2} />
-                  </View>
-                </Pressable>
+      <PageBackground />
+      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+        <StackHeader
+          onBack={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+          title="Profile"
+        />
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={[
+              styles.content,
+              { paddingBottom: insets.bottom + Spacing.four },
+            ]}>
+            {/* Who you are: the photo (tap to change it), name, member ID and plan. */}
+            <View style={styles.identity}>
+              <Pressable
+                onPress={choosePhoto}
+                disabled={busy}
+                accessibilityRole="button"
+                accessibilityLabel="Change profile photo"
+                style={({ pressed }) => pressed && styles.pressed}>
+                <View style={styles.photoRing}>
+                  <MemberAvatar
+                    name={trimmedName || member.name}
+                    photoUrl={member.photoUrl}
+                    localUri={photo?.uri}
+                    size={PHOTO}
+                  />
+                </View>
+                <View style={styles.cameraBadge}>
+                  <Camera size={15} color={Colors.onInk} strokeWidth={2.4} />
+                </View>
+              </Pressable>
+              <View style={styles.names}>
                 <ThemedText style={styles.name} numberOfLines={1}>
                   {trimmedName || member.name}
                 </ThemedText>
-                <ThemedText type="caption" style={styles.memberId}>
+                <ThemedText style={styles.memberId} numberOfLines={1}>
                   Member ID {formatMemberId(member.memberId)}
                 </ThemedText>
-                <View style={styles.badges}>
-                  <View style={styles.badge}>
-                    <BadgeCheck size={13} color={Colors.primaryLight} strokeWidth={2.4} />
-                    <ThemedText style={[styles.badgeText, { color: Colors.primaryLight }]}>
-                      {Plans[member.plan].name} plan
-                    </ThemedText>
-                  </View>
-                  {member.abhaLinked ? (
-                    <View style={styles.badge}>
-                      <ShieldCheck size={13} color={ABHA_GREEN} strokeWidth={2.4} />
-                      <ThemedText style={[styles.badgeText, { color: ABHA_GREEN }]}>
-                        ABHA linked
-                      </ThemedText>
-                    </View>
-                  ) : null}
-                </View>
+              </View>
+              <View style={styles.badges}>
+                <Tag label={`${Plans[member.plan].name} plan`} icon={BadgeCheck} />
+                {member.abhaLinked ? (
+                  <Tag label="ABHA linked" icon={ShieldCheck} tone="success" />
+                ) : null}
               </View>
             </View>
-          </View>
 
-          <View style={styles.content}>
             <Surface style={styles.card}>
               <TextField
                 label="Full name"
@@ -260,14 +255,15 @@ export default function ProfileScreen() {
             </Surface>
 
             {error ? (
-              <ThemedText type="small" themeColor="danger" accessibilityLiveRegion="polite">
-                {error}
-              </ThemedText>
+              <View style={styles.message} accessibilityLiveRegion="polite">
+                <AlertCircle size={16} color={Colors.high} strokeWidth={2.4} />
+                <ThemedText style={[styles.messageText, styles.errorText]}>{error}</ThemedText>
+              </View>
             ) : null}
             {saved && !changed ? (
-              <View style={styles.saved} accessibilityLiveRegion="polite">
-                <CircleCheck size={16} color={Colors.success} strokeWidth={2.4} />
-                <ThemedText type="smallBold" themeColor="success">
+              <View style={[styles.message, styles.center]} accessibilityLiveRegion="polite">
+                <CircleCheck size={16} color={Colors.good} strokeWidth={2.4} />
+                <ThemedText style={[styles.messageText, styles.savedText]}>
                   Your profile is updated.
                 </ThemedText>
               </View>
@@ -275,17 +271,27 @@ export default function ProfileScreen() {
 
             <Button label="Save changes" loading={busy} disabled={!canSave} onPress={save} />
 
-            <Button
-              label="Sign out"
-              variant="danger"
-              icon={LogOut}
-              loading={signingOut}
-              disabled={busy}
+            {/* Quiet, away from Save: crimson words, no box. */}
+            <Pressable
               onPress={signOutNow}
-            />
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+              disabled={busy || signingOut}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: busy || signingOut, busy: signingOut }}
+              style={({ pressed }) => [
+                styles.signOut,
+                busy && styles.disabled,
+                pressed && styles.pressed,
+              ]}>
+              {signingOut ? (
+                <ActivityIndicator size="small" color={Colors.high} />
+              ) : (
+                <LogOut size={16} color={Colors.high} strokeWidth={2.4} />
+              )}
+              <ThemedText style={styles.signOutText}>Sign out</ThemedText>
+            </Pressable>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     </View>
   );
 }
@@ -303,18 +309,12 @@ function Field({
 }) {
   return (
     <View style={styles.field}>
-      <ThemedText type="caption" themeColor="textSecondary" style={styles.label}>
-        {label}
-      </ThemedText>
+      <ThemedText style={styles.label}>{label}</ThemedText>
       {children}
       {error ? (
-        <ThemedText type="caption" themeColor="danger">
-          {error}
-        </ThemedText>
+        <ThemedText style={[styles.note, styles.errorText]}>{error}</ThemedText>
       ) : hint ? (
-        <ThemedText type="caption" themeColor="textMuted">
-          {hint}
-        </ThemedText>
+        <ThemedText style={styles.note}>{hint}</ThemedText>
       ) : null}
     </View>
   );
@@ -323,34 +323,41 @@ function Field({
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.canvas,
+  },
+  safeArea: {
+    flex: 1,
   },
   flex: {
     flex: 1,
   },
-  scroll: {
-    paddingBottom: Spacing.five,
+  content: {
+    width: '100%',
+    maxWidth: MaxContentWidth / 1.5,
+    alignSelf: 'center',
+    gap: Spacing.four - 4,
+    paddingHorizontal: Gutter,
+    paddingTop: Spacing.one,
   },
   pressed: {
     opacity: 0.75,
   },
-  hero: {
-    paddingBottom: Spacing.five + Spacing.three,
+  disabled: {
+    opacity: 0.45,
   },
-  heroInner: {
-    width: '100%',
-    maxWidth: MaxContentWidth / 1.5,
-    alignSelf: 'center',
+  center: {
+    justifyContent: 'center',
   },
   identity: {
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: Spacing.three,
+    gap: Spacing.three - 4,
   },
+  // A white ring and a soft lift, so the photo sits on the page like Home's round buttons.
   photoRing: {
     padding: 4,
-    borderRadius: 58,
-    backgroundColor: 'rgba(255, 255, 255, 0.14)',
+    borderRadius: PHOTO / 2 + 4,
+    backgroundColor: Colors.backgroundElement,
+    boxShadow: Shadows.raised,
   },
   cameraBadge: {
     position: 'absolute',
@@ -362,60 +369,57 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: Colors.ink,
-    backgroundColor: Colors.primary,
+    borderColor: Colors.backgroundElement,
+    backgroundColor: Colors.primaryBright,
+    boxShadow: Shadows.soft,
+  },
+  names: {
+    alignItems: 'center',
+    gap: 2,
   },
   name: {
-    marginTop: Spacing.two + 2,
-    fontFamily: Fonts.display,
-    fontSize: 24,
-    lineHeight: 30,
-    color: Colors.onInk,
+    fontFamily: Fonts.displaySemibold,
+    fontSize: 26,
+    lineHeight: 32,
+    letterSpacing: -0.5,
+    color: Colors.text,
     textAlign: 'center',
   },
   memberId: {
-    color: Colors.onInkMuted,
+    fontFamily: Fonts.medium,
+    fontSize: 13,
+    lineHeight: 18,
+    color: Colors.textFaint,
+    fontVariant: ['tabular-nums'],
   },
   badges: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
     gap: Spacing.two,
-    marginTop: Spacing.two,
-  },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    backgroundColor: Colors.glass,
-  },
-  badgeText: {
-    fontFamily: Fonts.semibold,
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  content: {
-    width: '100%',
-    maxWidth: MaxContentWidth / 1.5,
-    alignSelf: 'center',
-    gap: Spacing.three,
-    marginTop: -Spacing.five,
-    paddingHorizontal: Spacing.three,
   },
   card: {
     gap: Spacing.three,
-    boxShadow: Shadows.lifted,
   },
   field: {
     gap: 6,
   },
+  // Same as a TextField's label and note.
   label: {
     fontFamily: Fonts.semibold,
+    fontSize: 13,
+    lineHeight: 17,
+    color: Colors.textSoft,
+  },
+  note: {
+    fontFamily: Fonts.medium,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: Colors.textFaint,
+  },
+  errorText: {
+    fontFamily: Fonts.semibold,
+    color: Colors.high,
   },
   genders: {
     flexDirection: 'row',
@@ -424,10 +428,34 @@ const styles = StyleSheet.create({
   gender: {
     flex: 1,
   },
-  saved: {
+  message: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  messageText: {
+    flexShrink: 1,
+    fontSize: 13.5,
+    lineHeight: 19,
+  },
+  savedText: {
+    fontFamily: Fonts.bold,
+    color: Colors.good,
+  },
+  signOut: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    alignSelf: 'center',
+    gap: 7,
+    minHeight: 44,
+    marginTop: -Spacing.one,
+    paddingHorizontal: Spacing.three,
+  },
+  signOutText: {
+    fontFamily: Fonts.bold,
+    fontSize: 15,
+    lineHeight: 20,
+    color: Colors.high,
   },
 });

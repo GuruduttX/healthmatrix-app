@@ -5,41 +5,53 @@
 
 export const Colors = {
   text: '#0E2A33',
-  textSecondary: '#4D6368',
-  textMuted: '#8A9A9E',
+  // The names below came with the first, cool grey-teal look. Since the whole app moved to Home's
+  // warm light design (Oct 2026) they hold the warm values, so older code reads right; new code
+  // uses the light names further down (`textSoft`, `hairline`, `good`, `high`, ...).
+  /** Same as `textSoft`. */
+  textSecondary: '#5E5751',
+  /** Placeholders, chevrons and disabled icons; text that must be read uses `textFaint`. */
+  textMuted: '#8C837C',
 
-  background: '#F3F7F7',
+  /** Same as `canvas`. */
+  background: '#F8F5F0',
   backgroundElement: '#FFFFFF',
-  backgroundSelected: '#E1EBEC',
-  border: '#D3DFE0',
+  /** A warm grey for tracks (segmented controls) and pressed rows. */
+  backgroundSelected: '#F2ECE4',
+  /** Field outlines: a step stronger than `hairline`, so an empty input still shows its edge. */
+  border: '#E3D9CE',
 
   primary: '#DD4301',
   primaryMid: '#E67748',
   primaryLight: '#F6AF91',
-  primarySoft: '#FEF1EA',
+  /** Same as `primaryTint`. */
+  primarySoft: '#FDF1EA',
 
   ink: '#0E2A33',
   inkDeep: '#08191F',
   inkMid: '#244C56',
   onInk: '#FFFFFF',
-  /** Secondary text and hairlines on ink backgrounds. */
+  /** Secondary text and hairlines on ink backgrounds: the video call. */
   onInkMuted: 'rgba(255, 255, 255, 0.7)',
   glass: 'rgba(255, 255, 255, 0.08)',
   glassBorder: 'rgba(255, 255, 255, 0.14)',
-  /** Between ink and brand green; the middle of the consult card's gradient. */
+  /** Between ink and brand green; the video call's backdrop. */
   teal: '#155A57',
-  /** Grey of a loading placeholder. */
-  skeleton: '#E3ECED',
+  /** Grey of a loading placeholder, warm like the page. */
+  skeleton: '#EEE7DE',
 
-  success: '#10806D',
-  successSoft: '#DAF0EA',
-  warning: '#B5780A',
-  warningSoft: '#FBEFD2',
-  danger: '#C23A00',
-  dangerSoft: '#FCE3D6',
+  /** Same as `good`: done, on, signed. */
+  success: '#0B6E99',
+  successSoft: '#E8F2F7',
+  /** Same as `watch`. */
+  warning: '#8F6200',
+  warningSoft: '#FDF3D8',
+  /** Same as `high`: errors and removing things. Never orange, which is the brand. */
+  danger: '#A3123A',
+  dangerSoft: '#FBEAEE',
 
-  // The light redesign (Oct 2026): a warm page, white cards with hairlines, one orange accent.
-  // Home uses these first; the other screens move over once Home is signed off.
+  // The light design (Oct 2026), on every screen: a warm page, white cards with hairlines, one
+  // orange accent.
   /** Warm ivory page colour. */
   canvas: '#F8F5F0',
   /** Wells inside a white card: chart backgrounds, quiet rows. */
@@ -76,14 +88,16 @@ export const Colors = {
 
 export type ThemeColor = keyof typeof Colors;
 
-/** Gradient stops shared across screens, so every dark header and brand badge matches Home. */
+/** Gradient stops shared across screens. */
 export const Gradients = {
-  /** Dark headers: Home's hero, each tab's header, the emergency card. */
-  hero: [Colors.inkDeep, Colors.ink, Colors.inkMid],
-  /** Orange badges and icons: Ekaay's sparkle, avatars without a photo. */
+  /** Orange badges and icons: Ekaay's mark, avatars without a photo, the health card. */
   brand: [Colors.primaryMid, Colors.primary],
-  /** Live and time-sensitive cards: the next consult. */
-  teal: [Colors.ink, Colors.teal, Colors.success],
+  /** The warm light at the top of every page, fading into `canvas`. */
+  morning: ['#F9EBE1', 'rgba(250, 239, 231, 0.7)', 'rgba(248, 245, 240, 0)'],
+  /** One tint for every round dish behind 3D art or an icon: white warming to apricot. */
+  dish: ['#FFFFFF', '#FBE3D4'],
+  /** A quieter dish for small leads in a list. */
+  dishQuiet: ['#FFF9F5', '#F6E9DF'],
 } as const;
 
 /** Keys match the font names loaded in `src/app/_layout.tsx`. */
@@ -118,11 +132,18 @@ export const Radius = {
 } as const;
 
 export const Shadows = {
-  card: '0 1px 2px rgba(14, 42, 51, 0.04), 0 6px 20px rgba(14, 42, 51, 0.05)',
-  floating: '0 10px 30px rgba(14, 42, 51, 0.14)',
-  glow: '0 8px 20px rgba(221, 67, 1, 0.35)',
-  /** Cards that sit over the dark Home hero. */
-  lifted: '0 2px 6px rgba(14, 42, 51, 0.06), 0 18px 40px rgba(14, 42, 51, 0.12)',
+  /** Same as `soft`. */
+  card: '0 1px 2px rgba(58, 36, 22, 0.04), 0 4px 14px rgba(58, 36, 22, 0.05)',
+  floating: '0 10px 30px rgba(58, 36, 22, 0.14)',
+  /**
+   * Under a filled orange button: close and warm, never an orange glow (the brand sits near
+   * Swiggy's hue, and a glow makes it shout).
+   */
+  button: '0 1px 2px rgba(110, 30, 0, 0.12), 0 6px 14px rgba(110, 30, 0, 0.14)',
+  /** Same as `raised`. */
+  lifted: '0 2px 6px rgba(58, 36, 22, 0.05), 0 14px 34px rgba(58, 36, 22, 0.09)',
+  /** Round dishes behind 3D art: close and soft, then wide and faint. */
+  dish: '0 1px 2px rgba(58, 36, 22, 0.06), 0 8px 18px rgba(58, 36, 22, 0.09)',
   /** White cards on the warm page, with a hairline border: barely lifted, tinted warm. */
   soft: '0 1px 2px rgba(58, 36, 22, 0.04), 0 4px 14px rgba(58, 36, 22, 0.05)',
   /** The one raised card per screen, and floating controls. */
@@ -140,3 +161,6 @@ export const TabBar = {
 } as const;
 
 export const MaxContentWidth = 800;
+
+/** Side margins on every page; rows that scroll sideways bleed by this much to reach the edges. */
+export const Gutter = Spacing.four - 4;

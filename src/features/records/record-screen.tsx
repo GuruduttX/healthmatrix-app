@@ -1,15 +1,11 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import {
   BadgeCheck,
   BellPlus,
-  CalendarDays,
   CalendarPlus,
-  ChevronRight,
   Info,
-  Sparkles,
-  Stethoscope,
-  Syringe,
+  ListChecks,
+  MessageSquareText,
   Video,
 } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
@@ -17,26 +13,65 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
-import { Button } from '@/components/ui/button';
+import { ArtDish } from '@/components/ui/dish';
+import { EkaayMark } from '@/components/ui/ekaay-mark';
 import { ErrorState } from '@/components/ui/empty-state';
-import { IconTile, TONES } from '@/components/ui/icon-tile';
-import { SectionHeader } from '@/components/ui/section-header';
-import { Skeleton, SkeletonCircle, SkeletonGroup, SkeletonList } from '@/components/ui/skeleton';
-import { Surface } from '@/components/ui/surface';
-import { Tag } from '@/components/ui/tag';
-import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
+import { IconTile } from '@/components/ui/icon-tile';
+import { Chevron, LIST_LEAD, ListCard, ListRow, listText } from '@/components/ui/list';
+import { Section } from '@/components/ui/section';
+import { Skeleton, SkeletonGroup, SkeletonList } from '@/components/ui/skeleton';
+import { HeaderIconButton } from '@/components/ui/stack-header';
+import { Colors, Fonts, Shadows, Spacing } from '@/constants/theme';
 import { DoctorAvatar } from '@/features/doctors/doctor-avatar';
 import { specialtyLabel } from '@/features/doctors/specialties';
 import { formatSlot } from '@/features/doctors/time';
-import { iconFor, MONTHS_SHORT } from '@/features/records/record-row';
-import { type OpenRecord, type PrescriptionRecord } from '@/features/records/types';
+import { iconFor, MONTHS_SHORT, RecordTag } from '@/features/records/record-row';
+import {
+  type OpenRecord,
+  type PrescriptionRecord,
+  type RecordSummary,
+} from '@/features/records/types';
 import { VaccineDetail } from '@/features/vaccines/vaccine-detail';
 import { api } from '@/services/api';
+
+/** Microsoft Fluent Emoji (MIT), as on Home's Today card; see assets/images/home/3d/LICENSE. */
+const PILL = require('@/assets/images/home/3d/medicine.png');
+const SYRINGE = require('@/assets/images/home/3d/syringe.png');
 
 /** "2026-10-06" -> "6 Oct 2026" */
 function formatDate(date: string) {
   const [year, month, day] = date.split('-').map(Number);
   return `${day} ${MONTHS_SHORT[(month ?? 1) - 1]} ${year}`;
+}
+
+/**
+ * A line that starts with a medicine and its strength ("Metformin 500 mg, twice daily…") reads as
+ * the medicine, then how to take it. Anything else (advice, "Walk 30 minutes daily") stays whole.
+ */
+const STRENGTH = /\d[\d,.]*\s?(mg|mcg|µg|g|ml|iu|units?|%)\b/i;
+function splitLine(item: string) {
+  const comma = item.indexOf(', ');
+  const head = comma > 0 ? item.slice(0, comma) : item;
+  if (comma < 0 || !STRENGTH.test(head)) return { medicine: false, title: item };
+  const rest = item.slice(comma + 2);
+  return {
+    medicine: true,
+    title: head,
+    how: rest ? rest[0]!.toUpperCase() + rest.slice(1) : undefined,
+  };
+}
+
+/**
+ * A vaccine's quiet line on this prescription: its subtitle without the doctor, who is named
+ * above, or the word its flag already says: "Dr Ananya Iyer · 1 dose, every year" -> "1 dose,
+ * every year".
+ */
+function vaccineLine(vaccine: RecordSummary, doctor?: string) {
+  const flag = vaccine.tag?.label.toLowerCase();
+  const parts = vaccine.subtitle
+    .split(' · ')
+    .filter((part) => part !== doctor && part.toLowerCase() !== flag);
+  return parts.join(' · ') || vaccine.subtitle;
 }
 
 type RecordScreenProps = {
@@ -54,30 +89,51 @@ type RecordScreenProps = {
   readOnly?: boolean;
 };
 
-/** The record's shape while it loads: header card, doctor and the list of lines. */
+/** The record's shape while it loads: the title, the lines, then the consult. */
 function RecordSkeleton() {
   return (
     <SkeletonGroup label="Opening this record" style={styles.stack}>
-      <View style={[styles.headerCard, styles.skeletonHeader]}>
-        <Skeleton width={52} height={52} radius={Radius.md + 2} />
-        <Skeleton width={90} height={11} />
-        <Skeleton width="85%" height={24} />
-        <Skeleton width="55%" height={24} />
-        <View style={styles.metaRow}>
-          <Skeleton width={96} height={26} radius={Radius.pill} />
-          <Skeleton width={120} height={26} radius={Radius.pill} />
-        </View>
+      <View style={styles.header}>
+        <Skeleton width="60%" height={28} />
+        <Skeleton width="75%" height={13} />
       </View>
-      <Surface style={styles.doctor}>
-        <SkeletonCircle size={48} />
-        <View style={styles.flex}>
-          <Skeleton width="55%" height={14} />
-          <Skeleton width="35%" height={11} style={styles.skeletonGap} />
-        </View>
-      </Surface>
-      <Skeleton width={170} height={18} />
-      <SkeletonList rows={3} leading="circle" />
+      <View style={styles.skeletonSection}>
+        <Skeleton width={190} height={20} />
+        <SkeletonList rows={3} leading="circle" trailing={false} />
+      </View>
+      <View style={styles.skeletonSection}>
+        <Skeleton width={90} height={20} />
+        <SkeletonList rows={2} leading="circle" trailing={false} />
+      </View>
     </SkeletonGroup>
+  );
+}
+
+/**
+ * Who stands behind a prescription, and when: "Signed by Dr Ananya Iyer · 28 Sep 2026". A vaccine
+ * names its doctor on its own card below, so it has no line here.
+ */
+function Provenance({ record }: { record: PrescriptionRecord }) {
+  const date = formatDate(record.date);
+  const doctor = record.doctor?.name;
+
+  if (record.prescription.status !== 'signed') {
+    return (
+      <ThemedText style={styles.provenance} numberOfLines={2}>
+        {doctor ? `${doctor} · ${date}` : date}
+      </ThemedText>
+    );
+  }
+
+  // Signed is a flag: its icon and word in the flag's colour, the rest quiet.
+  return (
+    <View style={styles.signedRow}>
+      <BadgeCheck size={15} color={Colors.good} strokeWidth={2.4} />
+      <ThemedText style={[styles.provenance, styles.flex]} numberOfLines={2}>
+        <ThemedText style={styles.signed}>Signed</ThemedText>
+        {doctor ? ` by ${doctor}` : ''} · {date}
+      </ThemedText>
+    </View>
   );
 }
 
@@ -119,14 +175,24 @@ export function RecordScreen({
   }, [load]);
 
   const look = record ? iconFor(record.type) : null;
-  const doctorName =
-    record?.type === 'vaccination' ? record.vaccination.doctor?.name : record?.doctor?.name;
 
   return (
+    // As on the Care tab's vaccine page: the kind in the bar, the record's own title big below
+    // (and the bar left empty when the title is the kind itself, a plain "Prescription").
     <Screen
       onBack={onBack}
       backLabel={backLabel}
-      barTitle={look?.kind ?? 'Record'}
+      barTitle={look && record?.title !== look.kind ? look.kind : undefined}
+      barRight={
+        record?.type === 'prescription' && !readOnly ? (
+          <HeaderIconButton
+            icon={<EkaayMark size={20} />}
+            label="Ask Ekaay"
+            text="Ask Ekaay"
+            onPress={() => router.navigate('/ekaay')}
+          />
+        ) : undefined
+      }
       onRefresh={() => load(() => true)}>
       {!record ? (
         error ? (
@@ -139,50 +205,12 @@ export function RecordScreen({
           <RecordSkeleton />
         )
       ) : (
-        <View style={styles.stack}>
-          {/* A tinted header card in the record type's colour. */}
-          <View style={styles.headerCard}>
-            <LinearGradient
-              colors={[TONES[look!.tone].soft, Colors.backgroundElement]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0.9, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
-            <IconTile icon={look!.icon} tone={look!.tone} size={52} />
-            <View style={styles.titleBlock}>
-              <ThemedText style={[styles.kicker, { color: TONES[look!.tone].color }]}>
-                {look!.kind}
-              </ThemedText>
-              <ThemedText style={styles.title} accessibilityRole="header">
-                {record.title}
-              </ThemedText>
-            </View>
-            <View style={styles.metaRow}>
-              <View style={styles.meta}>
-                <CalendarDays size={13} color={Colors.textSecondary} strokeWidth={2.3} />
-                <ThemedText type="caption" style={styles.metaText}>
-                  {record.type === 'vaccination' ? 'Prescribed ' : ''}
-                  {formatDate(record.date)}
-                </ThemedText>
-              </View>
-              {doctorName ? (
-                <View style={styles.meta}>
-                  <Stethoscope size={13} color={Colors.textSecondary} strokeWidth={2.3} />
-                  <ThemedText type="caption" style={styles.metaText} numberOfLines={1}>
-                    {doctorName}
-                  </ThemedText>
-                </View>
-              ) : null}
-            </View>
-            {record.type === 'prescription' && record.prescription.status === 'signed' ? (
-              <Tag
-                label={
-                  readOnly ? 'Digitally signed by the doctor' : 'Digitally signed by your doctor'
-                }
-                tone="success"
-                icon={BadgeCheck}
-              />
-            ) : null}
+        <>
+          <View style={styles.header}>
+            <ThemedText style={styles.title} accessibilityRole="header">
+              {record.title}
+            </ThemedText>
+            {record.type === 'prescription' ? <Provenance record={record} /> : null}
           </View>
 
           {record.type === 'vaccination' ? (
@@ -196,13 +224,16 @@ export function RecordScreen({
           ) : (
             <PrescriptionBody record={record} openRecord={openRecord} readOnly={readOnly} />
           )}
-        </View>
+        </>
       )}
     </Screen>
   );
 }
 
-/** The prescription itself: doctor, consult, every line, and any vaccines prescribed with it. */
+/**
+ * The prescription itself: every line first, then any vaccines prescribed with it, then the doctor
+ * and the consult it came from, with the way to book them again.
+ */
 function PrescriptionBody({
   record,
   openRecord,
@@ -214,323 +245,246 @@ function PrescriptionBody({
 }) {
   const remind = (item: string) =>
     router.push({ pathname: '/care/medicine/[id]', params: { id: 'new', name: item } });
+  const { doctor, consult } = record;
+  const items = record.prescription.items;
 
   return (
     <>
-      {record.doctor ? (
-        <Surface style={styles.doctor}>
-          <DoctorAvatar name={record.doctor.name} size={48} />
-          <View style={styles.flex}>
-            <ThemedText type="bodyBold" numberOfLines={1}>
-              {record.doctor.name}
-            </ThemedText>
-            {record.doctor.qualifications ? (
-              <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1}>
-                {record.doctor.qualifications}
-              </ThemedText>
-            ) : null}
-            <ThemedText type="caption" themeColor="textMuted" numberOfLines={1}>
-              Reg.{' '}
-              {[record.doctor.registrationNumber, record.doctor.council]
-                .filter(Boolean)
-                .join(' · ')}
-            </ThemedText>
-          </View>
-          <BadgeCheck size={20} color={Colors.success} strokeWidth={2.2} />
-        </Surface>
-      ) : null}
-
-      {record.consult ? (
-        <Surface style={styles.consult}>
-          <View style={styles.consultTop}>
-            <IconTile icon={Video} tone="neutral" size={40} />
-            <View style={styles.flex}>
-              <ThemedText type="smallBold" numberOfLines={1}>
-                {record.consult.specialty ? specialtyLabel(record.consult.specialty) : 'Consult'}
-              </ThemedText>
-              <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1}>
-                Video consult · {formatSlot(record.consult.scheduledAt)}
-              </ThemedText>
-            </View>
-          </View>
-          {record.consult.reason ? (
-            <View style={styles.reason}>
-              <ThemedText type="caption" themeColor="textMuted" style={styles.reasonLabel}>
-                {readOnly ? 'Reason for the consult' : 'You asked about'}
-              </ThemedText>
-              <ThemedText type="small">{record.consult.reason}</ThemedText>
-            </View>
-          ) : null}
-        </Surface>
-      ) : null}
-
-      <View style={styles.section}>
-        <SectionHeader
-          title="Medicines and advice"
-          meta={
-            record.prescription.items.length
-              ? `${record.prescription.items.length} ${record.prescription.items.length === 1 ? 'line' : 'lines'}`
-              : undefined
-          }
-        />
-        <Surface style={styles.items}>
-          {record.prescription.items.length ? (
-            record.prescription.items.map((item, index) => (
-              <View key={`${index}-${item}`} style={[styles.item, index > 0 && styles.divider]}>
-                <View style={styles.number}>
-                  <ThemedText style={styles.numberText}>{index + 1}</ThemedText>
-                </View>
-                <ThemedText style={styles.itemText}>{item}</ThemedText>
-                {readOnly ? null : (
-                  <Pressable
-                    onPress={() => remind(item)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Set a reminder for ${item}`}
-                    hitSlop={6}
-                    style={({ pressed }) => [styles.remind, pressed && styles.pressed]}>
-                    <BellPlus size={14} color={Colors.primary} strokeWidth={2.4} />
-                    <ThemedText type="caption" themeColor="primary" style={styles.remindText}>
-                      Remind
-                    </ThemedText>
-                  </Pressable>
-                )}
-              </View>
-            ))
+      <Section
+        title="Medicines and advice"
+        meta={items.length ? `${items.length} ${items.length === 1 ? 'line' : 'lines'}` : undefined}
+        index={1}>
+        <ListCard>
+          {items.length ? (
+            items.map((item, index) => {
+              const line = splitLine(item);
+              return (
+                <ListRow
+                  key={`${index}-${item}`}
+                  leading={
+                    line.medicine ? (
+                      <ArtDish art={PILL} />
+                    ) : (
+                      <IconTile icon={ListChecks} size={LIST_LEAD} />
+                    )
+                  }
+                  title={<ThemedText style={listText.title}>{line.title}</ThemedText>}
+                  subtitle={
+                    line.how ? (
+                      <ThemedText style={listText.subtitle}>{line.how}</ThemedText>
+                    ) : undefined
+                  }
+                  trailing={
+                    readOnly ? null : (
+                      <Pressable
+                        onPress={() => remind(item)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Set a reminder for ${item}`}
+                        hitSlop={6}
+                        style={({ pressed }) => [styles.remind, pressed && styles.remindPressed]}>
+                        <BellPlus size={16} color={Colors.primaryDeep} strokeWidth={2.4} />
+                      </Pressable>
+                    )
+                  }
+                />
+              );
+            })
           ) : (
-            <ThemedText type="small" themeColor="textSecondary" style={styles.noItems}>
-              The doctor did not add any lines to this prescription.
-            </ThemedText>
+            <ListRow
+              leading={<IconTile icon={ListChecks} size={LIST_LEAD} tone="neutral" />}
+              title={
+                <ThemedText style={listText.subtitle}>
+                  The doctor did not add any lines to this prescription.
+                </ThemedText>
+              }
+            />
           )}
-        </Surface>
-      </View>
+        </ListCard>
+      </Section>
 
       {record.vaccines.length ? (
-        <View style={styles.section}>
-          <SectionHeader title="Vaccines on this prescription" />
-          <Surface style={styles.items}>
-            {record.vaccines.map((vaccine, index) => (
-              <Pressable
+        <Section title="Vaccines on this prescription" index={2}>
+          <ListCard>
+            {record.vaccines.map((vaccine) => (
+              <ListRow
                 key={vaccine.id}
+                leading={<ArtDish art={SYRINGE} artSize={21} />}
+                title={vaccine.title}
+                subtitle={
+                  <ThemedText style={listText.subtitle} numberOfLines={1}>
+                    {vaccineLine(vaccine, doctor?.name)}
+                  </ThemedText>
+                }
+                meta={vaccine.tag ? <RecordTag tag={vaccine.tag} /> : undefined}
+                trailing={<Chevron />}
                 onPress={() => openRecord(vaccine.id)}
-                accessibilityRole="button"
-                accessibilityLabel={`${vaccine.title}. Opens the vaccine record`}
-                style={({ pressed }) => [
-                  styles.vaccine,
-                  index > 0 && styles.divider,
-                  pressed && styles.pressed,
-                ]}>
-                <IconTile icon={Syringe} tone="primary" size={40} />
-                <View style={styles.flex}>
-                  <ThemedText type="smallBold" numberOfLines={1}>
-                    {vaccine.title}
-                  </ThemedText>
-                  <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1}>
-                    {vaccine.subtitle.split(' · ').slice(1).join(' · ') || vaccine.subtitle}
-                  </ThemedText>
-                </View>
-                {vaccine.tag ? <Tag label={vaccine.tag.label} tone={vaccine.tag.tone} /> : null}
-                <ChevronRight size={18} color={Colors.textMuted} strokeWidth={2.2} />
-              </Pressable>
+                accessibilityLabel={`${vaccine.title}${vaccine.tag ? `, ${vaccine.tag.label}` : ''}. Opens the vaccine record`}
+              />
             ))}
-          </Surface>
-        </View>
+          </ListCard>
+        </Section>
       ) : null}
 
-      <View style={styles.note}>
-        <Info size={16} color={Colors.inkMid} strokeWidth={2.2} />
-        <ThemedText type="caption" themeColor="textSecondary" style={styles.flex}>
-          Take medicines exactly as written. Ask your doctor before changing or stopping one.
-        </ThemedText>
-      </View>
-
-      {readOnly ? null : (
-        <View style={styles.actions}>
-          {record.doctor ? (
-            <View style={styles.flex}>
-              <Button
-                label="Book follow-up"
-                icon={CalendarPlus}
+      {/* Who wrote it and why, as on the vaccine page: hairline-divided lines on one card. */}
+      {doctor || consult ? (
+        <Section title={consult ? 'Consult' : 'Doctor'} index={3}>
+          <ListCard>
+            {doctor ? (
+              <ListRow
+                leading={<DoctorAvatar name={doctor.name} size={LIST_LEAD} />}
+                title={doctor.name}
+                subtitle={
+                  <View>
+                    <ThemedText style={listText.subtitle} numberOfLines={1}>
+                      {[doctor.qualifications, `Reg. ${doctor.registrationNumber}`]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </ThemedText>
+                    {doctor.council ? (
+                      <ThemedText style={styles.faint} numberOfLines={1}>
+                        {doctor.council}
+                      </ThemedText>
+                    ) : null}
+                  </View>
+                }
+              />
+            ) : null}
+            {consult ? (
+              <ListRow
+                leading={<IconTile icon={Video} size={LIST_LEAD} />}
+                title={consult.specialty ? specialtyLabel(consult.specialty) : 'Consult'}
+                subtitle={
+                  <ThemedText style={listText.subtitle} numberOfLines={1}>
+                    Video consult · {formatSlot(consult.scheduledAt)}
+                  </ThemedText>
+                }
+              />
+            ) : null}
+            {consult?.reason ? (
+              <ListRow
+                leading={<IconTile icon={MessageSquareText} size={LIST_LEAD} />}
+                title={
+                  <ThemedText style={styles.faint} numberOfLines={1}>
+                    {readOnly ? 'Reason for the consult' : 'You asked about'}
+                  </ThemedText>
+                }
+                subtitle={<ThemedText style={styles.reason}>{consult.reason}</ThemedText>}
+              />
+            ) : null}
+            {doctor && !readOnly ? (
+              <ListRow
+                leading={<IconTile icon={CalendarPlus} size={LIST_LEAD} />}
+                title="Book a follow-up"
+                trailing={<Chevron />}
                 onPress={() =>
                   router.push({
                     pathname: '/care/book/[doctorId]',
                     params: {
-                      doctorId: record.doctor!.id,
-                      ...(record.consult?.specialty && { specialty: record.consult.specialty }),
+                      doctorId: doctor.id,
+                      ...(consult?.specialty && { specialty: consult.specialty }),
                     },
                   })
                 }
+                accessibilityLabel={`Book a follow-up with ${doctor.name}`}
               />
-            </View>
-          ) : null}
-          <View style={styles.flex}>
-            <Button
-              label="Ask Ekaay"
-              variant="soft"
-              icon={Sparkles}
-              onPress={() => router.navigate('/ekaay')}
-            />
-          </View>
+            ) : null}
+          </ListCard>
+        </Section>
+      ) : null}
+
+      <View style={styles.note}>
+        <View style={styles.noteIcon}>
+          <Info size={14} color={Colors.textFaint} strokeWidth={2.2} />
         </View>
-      )}
+        <ThemedText style={[styles.noteText, styles.flex]}>
+          Take medicines exactly as written. Ask your doctor before changing or stopping one.
+        </ThemedText>
+      </View>
     </>
   );
 }
 
 const styles = StyleSheet.create({
   stack: {
-    gap: Spacing.three,
-  },
-  pressed: {
-    opacity: 0.7,
+    gap: Spacing.four - 4,
   },
   flex: {
     flex: 1,
   },
-  headerCard: {
-    gap: Spacing.three - 4,
-    padding: Spacing.three + 2,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.backgroundElement,
-    overflow: 'hidden',
+  header: {
+    gap: 3,
   },
-  skeletonHeader: {
-    boxShadow: Shadows.card,
-  },
-  titleBlock: {
-    gap: 4,
-  },
-  kicker: {
-    fontFamily: Fonts.bold,
-    fontSize: 11,
-    lineHeight: 14,
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
+  skeletonSection: {
+    gap: Spacing.three - 2,
   },
   title: {
-    fontFamily: Fonts.display,
-    fontSize: 25,
-    lineHeight: 31,
+    fontFamily: Fonts.displaySemibold,
+    fontSize: 26,
+    lineHeight: 32,
+    letterSpacing: -0.5,
+    color: Colors.text,
   },
-  metaRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.two,
+  provenance: {
+    fontFamily: Fonts.medium,
+    fontSize: 13.5,
+    lineHeight: 18,
+    color: Colors.textSoft,
   },
-  meta: {
+  signedRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    maxWidth: '100%',
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: Radius.pill,
-    backgroundColor: 'rgba(255, 255, 255, 0.85)',
-    borderWidth: 1,
-    borderColor: Colors.border,
   },
-  metaText: {
-    flexShrink: 1,
-    fontFamily: Fonts.semibold,
-    color: Colors.textSecondary,
+  // Nested in the provenance line, so it sets its own line height.
+  signed: {
+    fontFamily: Fonts.bold,
+    fontSize: 13.5,
+    lineHeight: 18,
+    color: Colors.good,
   },
-  skeletonGap: {
-    marginTop: 8,
-  },
-  doctor: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three - 4,
-  },
-  consult: {
-    gap: Spacing.three - 4,
-  },
-  consultTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three - 4,
+  faint: {
+    fontFamily: Fonts.medium,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: Colors.textFaint,
   },
   reason: {
-    gap: 2,
-    padding: 12,
-    borderRadius: Radius.md,
-    borderLeftWidth: 3,
-    borderLeftColor: Colors.primaryLight,
-    backgroundColor: Colors.background,
-  },
-  reasonLabel: {
     fontFamily: Fonts.semibold,
+    fontSize: 14.5,
+    lineHeight: 20,
+    color: Colors.text,
   },
-  section: {
-    gap: Spacing.three - 4,
-    marginTop: Spacing.one,
-  },
-  items: {
-    paddingVertical: Spacing.one,
-  },
-  item: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three - 4,
-    paddingVertical: 14,
-  },
-  divider: {
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-  },
-  number: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+  // A white button with a peach edge and an orange bell, like Home's add button.
+  remind: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.successSoft,
+    borderWidth: 1,
+    borderColor: Colors.primaryTintStrong,
+    backgroundColor: Colors.backgroundElement,
+    boxShadow: Shadows.soft,
   },
-  numberText: {
-    fontFamily: Fonts.bold,
-    fontSize: 13,
-    lineHeight: 16,
-    color: Colors.success,
+  remindPressed: {
+    backgroundColor: Colors.primaryTint,
+    transform: [{ scale: 0.95 }],
   },
-  itemText: {
-    flex: 1,
-    fontFamily: Fonts.medium,
-    fontSize: 15,
-    lineHeight: 21,
-  },
-  noItems: {
-    paddingVertical: 12,
-  },
-  remind: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 7,
-    paddingHorizontal: 10,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.primarySoft,
-  },
-  remindText: {
-    fontFamily: Fonts.bold,
-  },
-  vaccine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three - 4,
-    paddingVertical: 12,
-  },
+  // A quiet line on the page, like Home's privacy note: no box around it.
   note: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two + 2,
-    padding: 14,
-    borderRadius: Radius.lg,
-    backgroundColor: Colors.backgroundSelected,
+    alignItems: 'flex-start',
+    gap: 7,
+    paddingHorizontal: Spacing.one,
   },
-  actions: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-    marginTop: Spacing.one,
+  // Centred on the text's first line.
+  noteIcon: {
+    paddingTop: 1.5,
+  },
+  noteText: {
+    fontFamily: Fonts.medium,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: Colors.textFaint,
   },
 });

@@ -1,13 +1,15 @@
 import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 import { Mic, MicOff, PhoneOff, SwitchCamera, Video, VideoOff, WifiLow } from 'lucide-react-native';
 import { type ReactNode } from 'react';
 import { ActivityIndicator, Alert, Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Gutter, Radius, Spacing } from '@/constants/theme';
 import { DoctorAvatar } from '@/features/doctors/doctor-avatar';
 
+import { CallBackdrop } from './call-backdrop';
 import { CallControl } from './call-control';
 import { CallTimer } from './call-timer';
 
@@ -57,7 +59,7 @@ type CallLayoutProps = {
  * What the call looks like on every platform: the doctor's video fills the screen, the member's
  * own camera sits in a corner, and mic, camera, flip and end controls run along the bottom. The
  * platform files (`video-call.native.tsx`, `video-call.tsx`) supply the video and the controls'
- * effects.
+ * effects. The one dark screen in the app, as video calls are: light status bar text while it shows.
  */
 export function CallLayout({
   doctorName,
@@ -88,29 +90,29 @@ export function CallLayout({
 
   return (
     <View style={styles.root}>
+      <StatusBar style="light" />
       {remoteVideo ? (
         <View style={styles.cover}>{remoteVideo}</View>
       ) : (
         <View style={[styles.cover, styles.placeholder]}>
+          <CallBackdrop />
           <DoctorAvatar name={doctorName} photoUrl={doctorPhotoUrl} size={112} />
-          <ThemedText type="subtitle" style={styles.onInk}>
+          <ThemedText style={styles.placeholderName} numberOfLines={1}>
             {doctorName}
           </ThemedText>
           <View style={styles.placeholderStatus}>
             {status === 'connecting' ? <ActivityIndicator color={Colors.onInk} /> : null}
-            <ThemedText type="small" style={styles.muted}>
-              {placeholder}
-            </ThemedText>
+            <ThemedText style={[styles.muted, styles.placeholderText]}>{placeholder}</ThemedText>
           </View>
         </View>
       )}
 
+      {/* Ink fading into the video, so the name and timer read on any picture. */}
       <LinearGradient
         colors={['rgba(14, 42, 51, 0.85)', 'rgba(14, 42, 51, 0)']}
-        style={[styles.topBar, { paddingTop: insets.top + Spacing.two }]}
-        pointerEvents="none">
+        style={[styles.topBar, { paddingTop: insets.top + Spacing.two }]}>
         <View style={styles.titleRow}>
-          <ThemedText type="bodyBold" style={styles.onInk} numberOfLines={1}>
+          <ThemedText style={[styles.onInk, styles.name]} numberOfLines={1}>
             {doctorName}
           </ThemedText>
           {doctorHere && !doctorMicOn ? (
@@ -123,7 +125,7 @@ export function CallLayout({
         <View style={styles.titleRow}>
           {status === 'reconnecting' ? (
             <View style={[styles.badge, styles.warning]}>
-              <ActivityIndicator size="small" color={Colors.ink} />
+              <ActivityIndicator size="small" color={Colors.watch} />
               <ThemedText style={[styles.badgeText, styles.onWarning]}>Reconnecting…</ThemedText>
             </View>
           ) : (
@@ -141,7 +143,7 @@ export function CallLayout({
       <View style={[styles.selfView, { top: insets.top + 76 }]}>
         {selfVideo ?? (
           <View style={styles.selfOff}>
-            <VideoOff size={20} color="rgba(255, 255, 255, 0.7)" strokeWidth={2.2} />
+            <VideoOff size={20} color={Colors.onInkMuted} strokeWidth={2.2} />
             <ThemedText style={styles.selfOffText}>
               {canUseCamera ? 'Camera off' : 'No camera'}
             </ThemedText>
@@ -199,10 +201,29 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     padding: Spacing.four,
   },
+  placeholderName: {
+    marginTop: Spacing.two,
+    fontFamily: Fonts.displaySemibold,
+    fontSize: 22,
+    lineHeight: 28,
+    letterSpacing: -0.3,
+    color: Colors.onInk,
+  },
   placeholderStatus: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
+  },
+  placeholderText: {
+    fontFamily: Fonts.medium,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  name: {
+    flexShrink: 1,
+    fontFamily: Fonts.bold,
+    fontSize: 16,
+    lineHeight: 22,
   },
   onInk: {
     color: Colors.onInk,
@@ -212,11 +233,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   topBar: {
+    pointerEvents: 'none',
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: Gutter,
     paddingBottom: Spacing.five,
     gap: 2,
   },
@@ -241,10 +263,10 @@ const styles = StyleSheet.create({
     color: Colors.onInk,
   },
   warning: {
-    backgroundColor: Colors.warningSoft,
+    backgroundColor: Colors.watchSoft,
   },
   onWarning: {
-    color: Colors.ink,
+    color: Colors.watch,
   },
   selfView: {
     position: 'absolute',
@@ -267,7 +289,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.semibold,
     fontSize: 11,
     lineHeight: 14,
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: Colors.onInkMuted,
   },
   controls: {
     position: 'absolute',

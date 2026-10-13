@@ -2,10 +2,10 @@ import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { TONES } from '@/components/ui/icon-tile';
-import { Tag } from '@/components/ui/tag';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 
 import { type RecordValue } from './record-details';
+import { RecordTag } from './record-row';
 
 /** Softer than the text tones so the bar reads as a scale, not an alert. */
 const BAND_OPACITY = 0.6;
@@ -29,15 +29,12 @@ export function ValueRow({ item, divided }: ValueRowProps) {
       accessible
       accessibilityLabel={`${item.name}, ${item.value} ${item.unit}, ${item.status.label}. ${item.range}`}>
       <View style={styles.line}>
-        <ThemedText type="smallBold" style={styles.name} numberOfLines={1}>
+        <ThemedText style={[styles.name, styles.title]} numberOfLines={1}>
           {item.name}
         </ThemedText>
         <ThemedText style={styles.value}>
           {item.value}
-          <ThemedText type="caption" themeColor="textSecondary">
-            {' '}
-            {item.unit}
-          </ThemedText>
+          <ThemedText style={styles.unit}> {item.unit}</ThemedText>
         </ThemedText>
       </View>
 
@@ -64,10 +61,8 @@ export function ValueRow({ item, divided }: ValueRowProps) {
       </View>
 
       <View style={styles.line}>
-        <ThemedText type="caption" themeColor="textSecondary" style={styles.name}>
-          {item.range}
-        </ThemedText>
-        <Tag label={item.status.label} tone={item.status.tone} />
+        <ThemedText style={[styles.name, styles.range]}>{item.range}</ThemedText>
+        <RecordTag tag={item.status} />
       </View>
     </View>
   );
@@ -79,8 +74,8 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two + 4,
   },
   divided: {
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.hairline,
   },
   line: {
     flexDirection: 'row',
@@ -89,12 +84,33 @@ const styles = StyleSheet.create({
   },
   name: {
     flex: 1,
+  },
+  title: {
+    fontFamily: Fonts.bold,
     fontSize: 15,
+    lineHeight: 20,
+    color: Colors.text,
+  },
+  range: {
+    fontFamily: Fonts.medium,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: Colors.textSoft,
   },
   value: {
-    fontFamily: Fonts.bold,
-    fontSize: 17,
+    fontFamily: Fonts.displaySemibold,
+    fontSize: 18,
     lineHeight: 22,
+    letterSpacing: -0.3,
+    color: Colors.text,
+    fontVariant: ['tabular-nums'],
+  },
+  // Nested in the value, so it sets its own line height.
+  unit: {
+    fontFamily: Fonts.medium,
+    fontSize: 12,
+    lineHeight: 22,
+    color: Colors.textFaint,
   },
   barWrap: {
     height: MARKER,
@@ -120,7 +136,7 @@ const styles = StyleSheet.create({
     marginLeft: -MARKER / 2,
     borderRadius: MARKER / 2,
     borderWidth: 3,
-    borderColor: Colors.ink,
+    borderColor: Colors.text,
     backgroundColor: Colors.backgroundElement,
   },
 });

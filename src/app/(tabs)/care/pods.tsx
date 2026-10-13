@@ -5,8 +5,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Colors, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Gutter, Radius, Shadows, Spacing } from '@/constants/theme';
 import { PodBooking } from '@/features/care/pod-booking';
 import { PodMap } from '@/features/care/pod-map';
 import { sampleCare } from '@/features/care/sample-data';
@@ -30,7 +29,7 @@ export default function PodsScreen() {
   const mapHeight = barTop + BAR_HEIGHT + MAP_HEIGHT;
 
   return (
-    <ThemedView style={styles.container}>
+    <View style={styles.container}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: clearance + Spacing.three }}>
@@ -53,11 +52,11 @@ export default function PodsScreen() {
               accessibilityLabel="Back to Care"
               hitSlop={6}
               style={({ pressed }) => [styles.back, pressed && styles.pressed]}>
-              <ChevronLeft size={20} color={Colors.text} strokeWidth={2.2} />
+              <ChevronLeft size={21} color={Colors.text} strokeWidth={2.2} />
             </Pressable>
             <View style={styles.search}>
               <Search size={16} color={Colors.textMuted} strokeWidth={2.2} />
-              <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+              <ThemedText style={styles.searchText} numberOfLines={1}>
                 Pods near {area}
               </ThemedText>
             </View>
@@ -75,30 +74,34 @@ export default function PodsScreen() {
           />
         </View>
       </ScrollView>
-    </ThemedView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: Colors.canvas,
   },
   bar: {
     position: 'absolute',
-    left: Spacing.three,
-    right: Spacing.three,
+    left: Gutter,
+    right: Gutter,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
   },
+  // White and round with a hairline, like the back button on every other screen.
   back: {
     width: BAR_HEIGHT,
     height: BAR_HEIGHT,
     borderRadius: BAR_HEIGHT / 2,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.hairline,
     backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.card,
+    boxShadow: Shadows.soft,
   },
   search: {
     flex: 1,
@@ -108,17 +111,27 @@ const styles = StyleSheet.create({
     height: BAR_HEIGHT,
     paddingHorizontal: Spacing.three,
     borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Colors.hairline,
     backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.card,
+    boxShadow: Shadows.soft,
+  },
+  searchText: {
+    flexShrink: 1,
+    fontFamily: Fonts.medium,
+    fontSize: 14.5,
+    lineHeight: 19,
+    color: Colors.textSoft,
   },
   pressed: {
-    opacity: 0.75,
+    opacity: 0.7,
+    transform: [{ scale: 0.96 }],
   },
   sheet: {
     width: '100%',
     maxWidth: 560,
     alignSelf: 'center',
     marginTop: -CARD_OVERLAP,
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: Gutter,
   },
 });

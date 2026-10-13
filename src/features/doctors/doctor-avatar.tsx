@@ -3,7 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Fonts } from '@/constants/theme';
+import { Colors, Fonts, Gradients } from '@/constants/theme';
 
 /** "Dr Atul Mishra" -> "AM" */
 function initials(name: string) {
@@ -36,7 +36,7 @@ export function DoctorAvatar({ name, photoUrl, size = 56 }: DoctorAvatarProps) {
 
   return (
     <LinearGradient
-      colors={[Colors.inkMid, Colors.ink]}
+      colors={Gradients.dish}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={[round, styles.center]}>
@@ -54,6 +54,6 @@ const styles = StyleSheet.create({
   },
   initials: {
     fontFamily: Fonts.bold,
-    color: Colors.onInk,
+    color: Colors.primaryInk,
   },
 });

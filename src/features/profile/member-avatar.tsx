@@ -1,9 +1,9 @@
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Fonts } from '@/constants/theme';
+import { Colors, Fonts, Gradients } from '@/constants/theme';
 import { apiUrl } from '@/services/api';
 
 /** First letters of the first and last words: "Rohan Sharma" -> "RS". */
@@ -41,23 +41,31 @@ export function MemberAvatar({ name, photoUrl, localUri, size = 48 }: MemberAvat
   }
 
   return (
-    <LinearGradient
-      colors={[Colors.primaryMid, Colors.primary]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={[round, styles.initialsWrap]}>
-      <ThemedText style={[styles.initials, { fontSize: size * 0.34, lineHeight: size * 0.42 }]}>
-        {initialsOf(name)}
-      </ThemedText>
-    </LinearGradient>
+    // A plain View rounds and clips; the gradient is a layer, the initials one more above it.
+    <View style={[round, styles.clip]}>
+      <LinearGradient
+        colors={Gradients.brand}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={[StyleSheet.absoluteFill, styles.center]}>
+        <ThemedText style={[styles.initials, { fontSize: size * 0.34, lineHeight: size * 0.42 }]}>
+          {initialsOf(name)}
+        </ThemedText>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   photo: {
-    backgroundColor: Colors.backgroundSelected,
+    backgroundColor: Colors.well,
   },
-  initialsWrap: {
+  clip: {
+    overflow: 'hidden',
+  },
+  center: {
     alignItems: 'center',
     justifyContent: 'center',
   },

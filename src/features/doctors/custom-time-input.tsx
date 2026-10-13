@@ -3,7 +3,7 @@ import { StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Chip } from '@/components/ui/chip';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -35,6 +35,8 @@ export function CustomTimeInput({ initial, onChange, error }: CustomTimeInputPro
   const [minute, setMinute] = useState(pad(m));
   const [pm, setPm] = useState(h >= 12);
   const minuteInput = useRef<TextInput>(null);
+  // Ringed in orange while typing, like a `TextField`.
+  const [focused, setFocused] = useState<'hour' | 'minute' | null>(null);
 
   const update = (next: { hour?: string; minute?: string; pm?: boolean }) => {
     const nextHour = next.hour ?? hour;
@@ -63,14 +65,23 @@ export function CustomTimeInput({ initial, onChange, error }: CustomTimeInputPro
           accessibilityLabel="Hour"
           placeholder="hh"
           placeholderTextColor={Colors.textMuted}
-          style={[styles.field, !!error && styles.fieldError]}
+          selectionColor={Colors.primary}
+          onFocus={() => setFocused('hour')}
+          onBlur={() => setFocused(null)}
+          style={[
+            styles.field,
+            focused === 'hour' && styles.fieldFocused,
+            !!error && styles.fieldError,
+          ]}
         />
         <ThemedText style={styles.colon}>:</ThemedText>
         <TextInput
           ref={minuteInput}
           value={minute}
           onChangeText={(text) => update({ minute: text.replace(/\D/g, '').slice(0, 2) })}
+          onFocus={() => setFocused('minute')}
           onBlur={() => {
+            setFocused(null);
             // "5" means :05.
             if (/^\d$/.test(minute)) update({ minute: pad(Number(minute)) });
           }}
@@ -80,7 +91,12 @@ export function CustomTimeInput({ initial, onChange, error }: CustomTimeInputPro
           accessibilityLabel="Minutes"
           placeholder="mm"
           placeholderTextColor={Colors.textMuted}
-          style={[styles.field, !!error && styles.fieldError]}
+          selectionColor={Colors.primary}
+          style={[
+            styles.field,
+            focused === 'minute' && styles.fieldFocused,
+            !!error && styles.fieldError,
+          ]}
         />
         <View style={styles.meridiem}>
           <Chip label="AM" selected={!pm} onPress={() => update({ pm: false })} />
@@ -88,7 +104,7 @@ export function CustomTimeInput({ initial, onChange, error }: CustomTimeInputPro
         </View>
       </View>
       {error ? (
-        <ThemedText type="caption" themeColor="danger" accessibilityLiveRegion="polite">
+        <ThemedText style={styles.error} accessibilityLiveRegion="polite">
           {error}
         </ThemedText>
       ) : null}
@@ -105,30 +121,48 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.two,
   },
+  // White on the warm page, like the time slots: a hairline edge, barely lifted.
   field: {
-    width: 64,
-    minHeight: 54,
+    width: 66,
+    minHeight: 56,
     paddingHorizontal: Spacing.two,
-    borderRadius: Radius.md,
-    borderWidth: 1,
+    borderRadius: Radius.lg,
+    borderWidth: 1.5,
     borderColor: Colors.border,
     backgroundColor: Colors.backgroundElement,
+    boxShadow: Shadows.soft,
     color: Colors.text,
-    fontFamily: Fonts.bold,
-    fontSize: 22,
+    fontFamily: Fonts.displaySemibold,
+    fontSize: 24,
+    letterSpacing: -0.4,
+    fontVariant: ['tabular-nums'],
     textAlign: 'center',
+    // The border draws the focus ring; no second outline from the browser on web.
+    outlineStyle: 'solid',
+    outlineWidth: 0,
+  },
+  fieldFocused: {
+    borderColor: Colors.primary,
+    boxShadow: '0 0 0 4px rgba(221, 67, 1, 0.12)',
   },
   fieldError: {
-    borderColor: Colors.danger,
+    borderColor: Colors.high,
   },
   colon: {
-    fontFamily: Fonts.bold,
-    fontSize: 22,
-    lineHeight: 28,
+    fontFamily: Fonts.displaySemibold,
+    fontSize: 24,
+    lineHeight: 30,
+    color: Colors.textFaint,
   },
   meridiem: {
     flexDirection: 'row',
     gap: Spacing.one + 2,
     marginLeft: Spacing.two,
+  },
+  error: {
+    fontFamily: Fonts.semibold,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: Colors.high,
   },
 });

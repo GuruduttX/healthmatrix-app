@@ -8,7 +8,7 @@ import QRCode from 'react-native-qrcode-svg';
 import { ThemedText } from '@/components/themed-text';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Plans } from '@/constants/plans';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
 import { type BloodGroup, type PlanId } from '@/types';
 
 import { formatMemberId } from './sample-data';
@@ -98,8 +98,8 @@ export function MemberCard({ member, emergencyUrl, emergencyError }: MemberCardP
       </Pressable>
 
       <View style={styles.hint}>
-        <RotateCw size={13} color={Colors.textMuted} strokeWidth={2.2} />
-        <ThemedText type="caption" themeColor="textMuted">
+        <RotateCw size={13} color={Colors.textFaint} strokeWidth={2.2} />
+        <ThemedText style={styles.hintText}>
           {flipped ? 'Tap the card to see the front' : 'Tap the card to see your emergency QR'}
         </ThemedText>
       </View>
@@ -108,7 +108,7 @@ export function MemberCard({ member, emergencyUrl, emergencyError }: MemberCardP
 }
 
 /** The front's gradient: light brand orange to a deep burnt orange. */
-const FRONT = [Colors.primaryMid, Colors.primary, '#A93200'] as const;
+const FRONT = [Colors.primaryMid, Colors.primary, Colors.primaryInk] as const;
 
 /** The card is designed at this width; the member number scales with the real width. */
 const DESIGN_WIDTH = 358;
@@ -118,7 +118,7 @@ function CardFront({ member, cardWidth }: { member: MemberCardProps['member']; c
 
   return (
     <View style={styles.front}>
-      {/* Brand orange, so the card stands out on the dark header behind it. */}
+      {/* The brand card: the one big orange thing on the warm page. */}
       <LinearGradient
         colors={FRONT}
         locations={[0, 0.5, 1]}
@@ -176,7 +176,7 @@ function CardFront({ member, cardWidth }: { member: MemberCardProps['member']; c
         </ThemedText>
         <ThemedText style={[styles.dates, styles.besideBadge]} numberOfLines={1}>
           Member since {member.memberSince}
-          {member.validThru ? `   Valid thru ${member.validThru}` : ''}
+          {member.validThru ? `  ·  Valid thru ${member.validThru}` : ''}
         </ThemedText>
       </View>
 
@@ -203,7 +203,7 @@ function CardBack({ firstName, emergencyUrl, emergencyError, cardWidth }: CardBa
   return (
     <View style={styles.back}>
       <LinearGradient
-        colors={[Colors.backgroundElement, Colors.primarySoft]}
+        colors={[Colors.backgroundElement, Colors.primaryTint]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -218,7 +218,12 @@ function CardBack({ firstName, emergencyUrl, emergencyError, cardWidth }: CardBa
       <View style={styles.backBody}>
         <View style={[styles.qr, { width: qrSize + 12, height: qrSize + 12 }]}>
           {cardWidth > 0 && emergencyUrl ? (
-            <QRCode value={emergencyUrl} size={qrSize} color={Colors.ink} backgroundColor="#FFFFFF" />
+            <QRCode
+              value={emergencyUrl}
+              size={qrSize}
+              color={Colors.text}
+              backgroundColor={Colors.backgroundElement}
+            />
           ) : emergencyError ? (
             <ThemedText style={styles.qrError}>QR unavailable. Check your connection.</ThemedText>
           ) : (
@@ -244,13 +249,14 @@ function CardBack({ firstName, emergencyUrl, emergencyError, cardWidth }: CardBa
 
 const styles = StyleSheet.create({
   wrap: {
-    gap: Spacing.two,
+    gap: Spacing.three - 4,
   },
-  // Same proportions as a bank card: 85.6 x 54 mm.
+  // Same proportions as a bank card: 85.6 x 54 mm. The shadow sits here, outside the faces that
+  // clip their corners and gradients.
   card: {
     aspectRatio: 85.6 / 54,
     borderRadius: Radius.xl - 4,
-    boxShadow: '0 18px 40px rgba(8, 25, 31, 0.35)',
+    boxShadow: Shadows.raised,
   },
   // No border: a solid colour under each face keeps its rounded edge clean when clipped.
   face: {
@@ -273,6 +279,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
   },
+  hintText: {
+    fontFamily: Fonts.medium,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: Colors.textFaint,
+  },
 
   front: {
     flex: 1,
@@ -285,7 +297,7 @@ const styles = StyleSheet.create({
     top: '24%',
     width: '44%',
     aspectRatio: 1024 / 917,
-    opacity: 0.16,
+    opacity: 0.14,
   },
   topRow: {
     flexDirection: 'row',
@@ -319,6 +331,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.display,
     fontSize: 20,
     lineHeight: 24,
+    letterSpacing: -0.2,
     color: Colors.onInk,
   },
   details: {
@@ -335,9 +348,10 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   abhaText: {
-    fontFamily: Fonts.semibold,
+    fontFamily: Fonts.bold,
     fontSize: 11,
     lineHeight: 14,
+    letterSpacing: 0.2,
     color: Colors.onInk,
   },
   memberId: {
@@ -346,19 +360,22 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     letterSpacing: 1.5,
     color: Colors.onInk,
+    fontVariant: ['tabular-nums'],
   },
   name: {
     fontFamily: Fonts.bold,
-    fontSize: 14,
-    lineHeight: 18,
+    fontSize: 14.5,
+    lineHeight: 19,
     color: Colors.onInk,
   },
   dates: {
-    fontFamily: Fonts.regular,
-    fontSize: 10,
-    lineHeight: 13,
-    color: 'rgba(255, 255, 255, 0.72)',
+    fontFamily: Fonts.medium,
+    fontSize: 10.5,
+    lineHeight: 14,
+    color: 'rgba(255, 255, 255, 0.82)',
+    fontVariant: ['tabular-nums'],
   },
+  // A white label on the card, lifted by a close, warm shadow.
   bloodGroup: {
     position: 'absolute',
     right: 16,
@@ -368,32 +385,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: Radius.md,
     backgroundColor: Colors.backgroundElement,
-    boxShadow: '0 4px 12px rgba(120, 30, 0, 0.25)',
+    boxShadow: Shadows.button,
   },
   bloodGroupLabel: {
     fontFamily: Fonts.semibold,
     fontSize: 9,
     lineHeight: 12,
-    color: Colors.textSecondary,
+    color: Colors.textSoft,
   },
   bloodGroupValue: {
     fontFamily: Fonts.display,
     fontSize: 22,
     lineHeight: 26,
-    color: Colors.danger,
+    color: Colors.high,
   },
 
   back: {
     flex: 1,
     backgroundColor: Colors.backgroundElement,
   },
+  // White on the brighter orange reads at 4.8:1.
   backBand: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingVertical: 8,
     paddingHorizontal: 14,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryBright,
   },
   backBandText: {
     flex: 1,
@@ -415,38 +433,39 @@ const styles = StyleSheet.create({
     padding: 6,
     borderRadius: Radius.sm,
     borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: '#FFFFFF',
+    borderColor: Colors.hairline,
+    backgroundColor: Colors.backgroundElement,
   },
   qrError: {
     fontFamily: Fonts.semibold,
     fontSize: 10,
     lineHeight: 13,
     textAlign: 'center',
-    color: Colors.ink,
+    color: Colors.text,
   },
   backText: {
     flex: 1,
     gap: 3,
   },
   backTitle: {
-    fontFamily: Fonts.bold,
-    fontSize: 13,
-    lineHeight: 16,
+    fontFamily: Fonts.displaySemibold,
+    fontSize: 14,
+    lineHeight: 17,
+    letterSpacing: -0.2,
     color: Colors.text,
   },
   backCopy: {
-    fontFamily: Fonts.regular,
+    fontFamily: Fonts.medium,
     fontSize: 10.5,
     lineHeight: 14,
-    color: Colors.textSecondary,
+    color: Colors.textSoft,
   },
   backHelplines: {
     marginTop: 2,
     fontFamily: Fonts.bold,
     fontSize: 10.5,
     lineHeight: 14,
-    color: Colors.primary,
+    color: Colors.primaryDeep,
   },
   backFooter: {
     flexDirection: 'row',
@@ -455,9 +474,9 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   backFootnote: {
-    fontFamily: Fonts.regular,
+    fontFamily: Fonts.medium,
     fontSize: 8.5,
     lineHeight: 11,
-    color: Colors.textMuted,
+    color: Colors.textFaint,
   },
 });

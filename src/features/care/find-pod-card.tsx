@@ -1,9 +1,11 @@
 import { Image } from 'expo-image';
-import { ChevronRight, MapPin } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { MapPin } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Chevron, listText } from '@/components/ui/list';
+import { Colors, Fonts, Gradients, Radius, Shadows, Spacing } from '@/constants/theme';
 
 import { type Pod } from './sample-data';
 
@@ -11,6 +13,10 @@ type FindPodCardProps = {
   pods: Pod[];
   onPress?: () => void;
 };
+
+const DISH = 52;
+/** The Arc pod's width over its height. */
+const POD_ASPECT = 274 / 420;
 
 /** Entry point on the Care tab: opens the pod finder with the map, slots and booking. */
 export function FindPodCard({ pods, onPress }: FindPodCardProps) {
@@ -26,35 +32,43 @@ export function FindPodCard({ pods, onPress }: FindPodCardProps) {
           : 'Find a pod near you'
       }
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
-      {/* Photo: Pexels (free to use), assets/images/home. */}
-      <Image
-        source={require('@/assets/images/home/book-pod.jpg')}
-        style={styles.photo}
-        contentFit="cover"
-        accessibilityIgnoresInvertColors
-      />
+      {/* Cloudspital's Arc pod, as on Home's Book pod button (assets/images/home/3d/LICENSE). */}
+      <View style={styles.dish}>
+        <LinearGradient
+          colors={Gradients.dish}
+          start={{ x: 0.2, y: 0 }}
+          end={{ x: 0.8, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+        {/* A layer of its own, so it paints above the gradient on web too. */}
+        <View style={[StyleSheet.absoluteFill, styles.center]}>
+          <Image
+            source={require('@/assets/images/home/3d/pod.png')}
+            style={styles.pod}
+            contentFit="contain"
+            accessibilityIgnoresInvertColors
+            aria-hidden
+          />
+        </View>
+      </View>
+
       <View style={styles.text}>
-        <ThemedText type="bodyBold" numberOfLines={1}>
+        <ThemedText style={listText.title} numberOfLines={1}>
           Screening pods near you
         </ThemedText>
-        <ThemedText type="caption" themeColor="textSecondary" numberOfLines={2}>
-          {nearest
-            ? `${nearest.name} · ${nearest.hours}`
-            : 'See pods on the map and book a slot'}
+        <ThemedText style={listText.subtitle} numberOfLines={1}>
+          {nearest ? `${nearest.name} · ${nearest.hours}` : 'See pods on the map and book a slot'}
         </ThemedText>
         {nearest ? (
-          <View style={styles.pills}>
-            <View style={styles.pill}>
-              <MapPin size={11} color={Colors.success} strokeWidth={2.6} />
-              <ThemedText style={styles.pillText}>{nearest.distanceKm} km</ThemedText>
-            </View>
-            <ThemedText type="caption" themeColor="textMuted">
-              {pods.length} {pods.length === 1 ? 'pod' : 'pods'} nearby
+          <View style={styles.distance}>
+            <MapPin size={12} color={Colors.textFaint} strokeWidth={2.4} />
+            <ThemedText style={styles.distanceText} numberOfLines={1}>
+              {nearest.distanceKm} km · {pods.length} {pods.length === 1 ? 'pod' : 'pods'} nearby
             </ThemedText>
           </View>
         ) : null}
       </View>
-      <ChevronRight size={18} color={Colors.textMuted} strokeWidth={2.2} />
+      <Chevron />
     </Pressable>
   );
 }
@@ -64,47 +78,52 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three - 4,
-    padding: 10,
-    paddingRight: Spacing.three,
-    borderRadius: Radius.xl - 2,
+    paddingVertical: Spacing.three - 4,
+    paddingLeft: Spacing.three - 2,
+    paddingRight: Spacing.three - 4,
+    borderRadius: Radius.xl,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.hairline,
     backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.card,
+    boxShadow: Shadows.soft,
   },
   pressed: {
     opacity: 0.85,
     transform: [{ scale: 0.99 }],
   },
-  photo: {
-    width: 76,
-    height: 76,
-    borderRadius: Radius.lg,
-    backgroundColor: Colors.backgroundSelected,
+  dish: {
+    width: DISH,
+    height: DISH,
+    borderRadius: DISH / 2,
+    overflow: 'hidden',
+  },
+  center: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Framed like Home's: large, cut at the floor, so the arch, screen and seat fill the dish.
+  pod: {
+    width: DISH * 1.16 * POD_ASPECT,
+    height: DISH * 1.16,
+    transform: [{ translateY: DISH * 0.15 }],
   },
   text: {
     flex: 1,
-    gap: 2,
+    minWidth: 0,
+    gap: 1,
   },
-  pills: {
+  distance: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
-    marginTop: 4,
+    gap: 4,
+    marginTop: 3,
   },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingVertical: 2,
-    paddingHorizontal: 7,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.successSoft,
-  },
-  pillText: {
-    fontFamily: Fonts.bold,
-    fontSize: 11,
-    lineHeight: 14,
-    color: Colors.success,
+  distanceText: {
+    flexShrink: 1,
+    fontFamily: Fonts.semibold,
+    fontSize: 12.5,
+    lineHeight: 16,
+    color: Colors.textFaint,
+    fontVariant: ['tabular-nums'],
   },
 });

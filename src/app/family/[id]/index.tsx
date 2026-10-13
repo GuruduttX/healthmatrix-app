@@ -1,8 +1,7 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import {
-  CalendarCheck,
   CalendarClock,
-  ChevronRight,
+  FileText,
   HeartPulse,
   Pill,
   Syringe,
@@ -10,20 +9,21 @@ import {
   UserMinus,
   type LucideIcon,
 } from 'lucide-react-native';
-import { useCallback, useState, type ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
-import { Button } from '@/components/ui/button';
+import { ArtDish } from '@/components/ui/dish';
 import { Chip } from '@/components/ui/chip';
 import { ErrorState } from '@/components/ui/empty-state';
-import { HeroBackground } from '@/components/ui/hero-background';
 import { IconTile } from '@/components/ui/icon-tile';
-import { Skeleton, SkeletonGroup, SkeletonList } from '@/components/ui/skeleton';
+import { Chevron, LIST_LEAD, ListCard, ListRow, listText } from '@/components/ui/list';
+import { Section } from '@/components/ui/section';
+import { Skeleton, SkeletonCircle, SkeletonGroup, SkeletonList } from '@/components/ui/skeleton';
 import { Surface } from '@/components/ui/surface';
 import { Tag } from '@/components/ui/tag';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Gutter, Radius, Spacing } from '@/constants/theme';
 import { formatMemberId } from '@/features/card/sample-data';
 import { DoctorAvatar } from '@/features/doctors/doctor-avatar';
 import { specialtyLabel } from '@/features/doctors/specialties';
@@ -34,11 +34,17 @@ import { aboutLine } from '@/features/family/relations';
 import { type FamilyOverview } from '@/features/family/types';
 import { useFamily } from '@/features/family/use-family';
 import { MemberAvatar } from '@/features/profile/member-avatar';
-import { RecordRow } from '@/features/records/record-row';
+import { RecordRow, RecordTag } from '@/features/records/record-row';
 import { describeDose, describeRepeat, formatTime } from '@/features/reminders/schedule';
 import { api } from '@/services/api';
 
 type Tab = 'records' | 'vaccines' | 'medicines' | 'consults';
+
+/** Microsoft Fluent Emoji (MIT), as on Home's Today card; see assets/images/home/3d/LICENSE. */
+const PILL = require('@/assets/images/home/3d/medicine.png');
+const SYRINGE = require('@/assets/images/home/3d/syringe.png');
+
+const PHOTO = 60;
 
 const vaccineTitle = (name: string) => (/vaccin/i.test(name) ? name : `${name} vaccine`);
 
@@ -46,37 +52,13 @@ const vaccineTitle = (name: string) => (/vaccin/i.test(name) ? name : `${name} v
 function Empty({ icon, text }: { icon: LucideIcon; text: string }) {
   return (
     <Surface style={styles.empty}>
-      <IconTile icon={icon} tone="neutral" />
-      <ThemedText type="small" themeColor="textSecondary" style={styles.flex}>
-        {text}
-      </ThemedText>
+      <IconTile icon={icon} tone="neutral" size={LIST_LEAD} />
+      <ThemedText style={[listText.subtitle, styles.flex]}>{text}</ThemedText>
     </Surface>
   );
 }
 
-/** A tappable row inside a list card. */
-function Row({
-  first,
-  onPress,
-  children,
-}: {
-  first: boolean;
-  onPress?: () => void;
-  children: ReactNode;
-}) {
-  const body = <View style={[styles.row, !first && styles.divider]}>{children}</View>;
-  if (!onPress) return body;
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      style={({ pressed }) => pressed && styles.pressed}>
-      {body}
-    </Pressable>
-  );
-}
-
-function ConsultRow({ consult, first }: { consult: Appointment; first: boolean }) {
+function ConsultRow({ consult }: { consult: Appointment }) {
   const doctor = consult.doctor?.name ?? 'Doctor';
   const ran =
     consult.startedAt && consult.endedAt
@@ -85,23 +67,46 @@ function ConsultRow({ consult, first }: { consult: Appointment; first: boolean }
           Math.round((Date.parse(consult.endedAt) - Date.parse(consult.startedAt)) / 60_000),
         )
       : null;
+  const about = [specialtyLabel(consult.specialty), consult.reason].filter(Boolean).join(' · ');
+  const when = `${formatSlot(consult.scheduledAt)}${ran ? ` · ${ran} min` : ''}`;
+
   return (
-    <Row first={first}>
-      <DoctorAvatar name={doctor} photoUrl={consult.doctor?.photoUrl} size={40} />
-      <View style={styles.flex}>
-        <ThemedText type="smallBold" numberOfLines={1}>
-          {doctor}
-        </ThemedText>
-        <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1}>
-          {specialtyLabel(consult.specialty)}
-          {consult.reason ? ` · ${consult.reason}` : ''}
-        </ThemedText>
-        <ThemedText type="caption" themeColor="textMuted">
-          {formatSlot(consult.scheduledAt)}
-          {ran ? ` · ${ran} min` : ''}
-        </ThemedText>
+    <ListRow
+      leading={<DoctorAvatar name={doctor} photoUrl={consult.doctor?.photoUrl} size={LIST_LEAD} />}
+      title={doctor}
+      subtitle={
+        <View>
+          <ThemedText style={listText.subtitle} numberOfLines={1}>
+            {about}
+          </ThemedText>
+          <ThemedText style={styles.faint} numberOfLines={1}>
+            {when}
+          </ThemedText>
+        </View>
+      }
+    />
+  );
+}
+
+/** The page's shape while it loads: the member card, the tabs and a list. */
+function MemberSkeleton() {
+  return (
+    <SkeletonGroup label="Loading their records" style={styles.skeleton}>
+      <Surface style={styles.skeletonHeader}>
+        <SkeletonCircle size={PHOTO} />
+        <View style={[styles.flex, styles.skeletonText]}>
+          <Skeleton width="65%" height={20} />
+          <Skeleton width="45%" height={12} />
+          <Skeleton width="50%" height={11} />
+        </View>
+      </Surface>
+      <View style={styles.skeletonTabs}>
+        {[0, 1, 2].map((i) => (
+          <Skeleton key={i} width={i ? 112 : 96} height={38} radius={Radius.pill} />
+        ))}
       </View>
-    </Row>
+      <SkeletonList rows={3} leading="tile" trailing={false} />
+    </SkeletonGroup>
   );
 }
 
@@ -155,15 +160,7 @@ export default function FamilyMemberScreen() {
             onRetry={() => void load(() => true)}
           />
         ) : (
-          <SkeletonGroup label="Loading their records" style={styles.stack}>
-            <Skeleton height={190} radius={Radius.xl} />
-            <View style={styles.skeletonTabs}>
-              {[0, 1, 2].map((i) => (
-                <Skeleton key={i} width={104} height={38} radius={Radius.pill} />
-              ))}
-            </View>
-            <SkeletonList rows={3} leading="tile" />
-          </SkeletonGroup>
+          <MemberSkeleton />
         )}
       </Screen>
     );
@@ -172,12 +169,17 @@ export default function FamilyMemberScreen() {
   const { member, health, records, vaccinations, medicines, consults } = overview;
   const firstName = member.name.split(/\s+/)[0] ?? member.name;
   const consultCount = consults.upcoming.length + consults.past.length;
+  // The counts live on the tabs only, so no number shows twice.
   const tabs: { id: Tab; label: string; count: number }[] = [
     { id: 'records', label: 'Records', count: records.length },
     { id: 'vaccines', label: 'Vaccines', count: vaccinations.length },
     { id: 'medicines', label: 'Medicines', count: medicines.length },
     { id: 'consults', label: 'Consults', count: consultCount },
   ];
+  const flags = [
+    { label: 'Allergies', items: health.allergies, tone: 'danger', icon: TriangleAlert },
+    { label: 'Conditions', items: health.conditions, tone: 'warning', icon: HeartPulse },
+  ] as const;
 
   const remove = async () => {
     const ok = await confirmRemove(
@@ -197,213 +199,161 @@ export default function FamilyMemberScreen() {
   };
 
   return (
-    <Screen
-      onRefresh={() => load(() => true)}
-      onBack={back}
-      backLabel="My card"
-      barTitle={firstName}>
-      <View style={styles.stack}>
-        {/* The same dark card as the tabs' headers: a View clips, the gradient is a layer. */}
-        <View style={styles.hero}>
-          <HeroBackground />
-          <View style={styles.heroTop}>
-            <View style={styles.avatarRing}>
-              <MemberAvatar name={member.name} photoUrl={member.photoUrl} size={68} />
-            </View>
-            <View style={styles.flex}>
-              <ThemedText style={styles.heroName} numberOfLines={2}>
-                {member.name}
-              </ThemedText>
-              <ThemedText type="small" style={styles.heroMuted}>
-                {aboutLine(member)}
-              </ThemedText>
-              <ThemedText type="caption" style={styles.heroFaint}>
-                {formatMemberId(member.memberId)}
-              </ThemedText>
-            </View>
+    <Screen onRefresh={() => load(() => true)} onBack={back} backLabel="My card" barTitle="Family">
+      {/* Who they are, and what anyone treating them should know first. */}
+      <Surface style={styles.member}>
+        <View style={styles.who}>
+          <View style={styles.photoRing}>
+            <MemberAvatar name={member.name} photoUrl={member.photoUrl} size={PHOTO} />
           </View>
-
-          <View style={styles.stats}>
-            {tabs.map((item) => (
-              <View key={item.id} style={styles.stat}>
-                <ThemedText style={styles.statValue}>{item.count}</ThemedText>
-                <ThemedText style={styles.statLabel}>{item.label}</ThemedText>
-              </View>
-            ))}
+          <View style={styles.flex}>
+            <ThemedText style={styles.name} accessibilityRole="header" numberOfLines={2}>
+              {member.name}
+            </ThemedText>
+            <ThemedText style={styles.about} numberOfLines={1}>
+              {aboutLine(member)}
+            </ThemedText>
+            <ThemedText style={styles.memberId} numberOfLines={1}>
+              {formatMemberId(member.memberId)}
+            </ThemedText>
           </View>
         </View>
 
-        {health.allergies.length || health.conditions.length ? (
-          <Surface style={styles.health}>
-            {health.allergies.length ? (
-              <View style={styles.healthRow}>
-                <TriangleAlert size={15} color={Colors.danger} strokeWidth={2.4} />
-                <ThemedText type="smallBold" style={styles.healthLabel}>
-                  Allergies
-                </ThemedText>
-                <View style={styles.tags}>
-                  {health.allergies.map((allergy) => (
-                    <Tag key={allergy} label={allergy} tone="danger" />
+        {flags.map(({ label, items, tone, icon }) =>
+          items.length ? (
+            <View key={label}>
+              <View style={styles.rule} />
+              <View style={styles.flagRow}>
+                <ThemedText style={styles.flagLabel}>{label}</ThemedText>
+                <View style={styles.flags}>
+                  {items.map((item) => (
+                    <Tag key={item} label={item} tone={tone} icon={icon} />
                   ))}
                 </View>
               </View>
-            ) : null}
-            {health.conditions.length ? (
-              <View style={styles.healthRow}>
-                <HeartPulse size={15} color={Colors.warning} strokeWidth={2.4} />
-                <ThemedText type="smallBold" style={styles.healthLabel}>
-                  Conditions
-                </ThemedText>
-                <View style={styles.tags}>
-                  {health.conditions.map((condition) => (
-                    <Tag key={condition} label={condition} tone="warning" />
-                  ))}
-                </View>
-              </View>
-            ) : null}
-          </Surface>
-        ) : null}
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.tabs}
-          accessibilityRole="tablist">
-          {tabs.map((item) => (
-            <Chip
-              key={item.id}
-              label={item.count ? `${item.label} · ${item.count}` : item.label}
-              selected={tab === item.id}
-              onPress={() => setTab(item.id)}
-            />
-          ))}
-        </ScrollView>
-
-        {tab === 'records' ? (
-          records.length ? (
-            <View>
-              {records.map((record, index) => (
-                <RecordRow
-                  key={record.id}
-                  record={record}
-                  isLast={index === records.length - 1}
-                  onPress={() => openRecord(record.id)}
-                />
-              ))}
             </View>
-          ) : (
-            <Empty
-              icon={Pill}
-              text={`No prescriptions or reports yet. They show up here when a doctor writes one for ${firstName}.`}
-            />
-          )
-        ) : tab === 'vaccines' ? (
-          vaccinations.length ? (
-            <Surface style={styles.list}>
-              {vaccinations.map((vaccination, index) => {
-                const next = vaccination.doses.find((dose) => dose.status !== 'given');
-                return (
-                  <Row
-                    key={vaccination.id}
-                    first={index === 0}
-                    onPress={() => openRecord(vaccination.id)}>
-                    <IconTile
-                      icon={Syringe}
-                      tone={next?.status === 'overdue' ? 'danger' : next ? 'primary' : 'success'}
-                      size={40}
-                    />
-                    <View style={styles.flex}>
-                      <ThemedText type="smallBold" numberOfLines={1}>
-                        {vaccineTitle(vaccination.name)}
-                      </ThemedText>
-                      <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1}>
-                        {vaccination.givenDoses} of {vaccination.totalDoses} given
-                      </ThemedText>
-                      <View style={styles.rowTag}>
-                        <Tag label={vaccination.tag.label} tone={vaccination.tag.tone} />
-                      </View>
-                    </View>
-                    <ChevronRight size={18} color={Colors.textMuted} strokeWidth={2.2} />
-                  </Row>
-                );
-              })}
-            </Surface>
-          ) : (
-            <Empty icon={Syringe} text={`No vaccines prescribed for ${firstName} yet.`} />
-          )
-        ) : tab === 'medicines' ? (
-          medicines.length ? (
-            <Surface style={styles.list}>
-              {medicines.map((medicine, index) => (
-                <Row key={medicine.id} first={index === 0}>
-                  <IconTile icon={Pill} tone="success" size={40} />
-                  <View style={styles.flex}>
-                    <ThemedText type="smallBold" numberOfLines={1}>
-                      {medicine.name}
-                    </ThemedText>
+          ) : null,
+        )}
+      </Surface>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.tabs}
+        contentContainerStyle={styles.tabsContent}
+        accessibilityRole="tablist">
+        {tabs.map((item) => (
+          <Chip
+            key={item.id}
+            label={item.label}
+            count={item.count}
+            selected={tab === item.id}
+            onPress={() => setTab(item.id)}
+          />
+        ))}
+      </ScrollView>
+
+      {tab === 'records' ? (
+        records.length ? (
+          <ListCard>
+            {records.map((record) => (
+              <RecordRow key={record.id} record={record} onPress={() => openRecord(record.id)} />
+            ))}
+          </ListCard>
+        ) : (
+          <Empty
+            icon={FileText}
+            text={`No prescriptions or reports yet. They show up here when a doctor writes one for ${firstName}.`}
+          />
+        )
+      ) : tab === 'vaccines' ? (
+        vaccinations.length ? (
+          <ListCard>
+            {vaccinations.map((vaccination) => (
+              <ListRow
+                key={vaccination.id}
+                leading={<ArtDish art={SYRINGE} artSize={21} />}
+                title={vaccineTitle(vaccination.name)}
+                subtitle={`${vaccination.givenDoses} of ${vaccination.totalDoses} given`}
+                meta={<RecordTag tag={vaccination.tag} />}
+                trailing={<Chevron />}
+                onPress={() => openRecord(vaccination.id)}
+                accessibilityLabel={`${vaccineTitle(vaccination.name)}, ${vaccination.givenDoses} of ${vaccination.totalDoses} given. ${vaccination.tag.label}. Opens the vaccine record.`}
+              />
+            ))}
+          </ListCard>
+        ) : (
+          <Empty icon={Syringe} text={`No vaccines prescribed for ${firstName} yet.`} />
+        )
+      ) : tab === 'medicines' ? (
+        medicines.length ? (
+          <ListCard>
+            {medicines.map((medicine) => (
+              <ListRow
+                key={medicine.id}
+                leading={<ArtDish art={PILL} />}
+                title={medicine.name}
+                subtitle={
+                  <View>
                     {describeDose(medicine) ? (
-                      <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1}>
+                      <ThemedText style={listText.subtitle} numberOfLines={1}>
                         {describeDose(medicine)}
                       </ThemedText>
                     ) : null}
-                    <ThemedText type="caption" themeColor="textMuted" numberOfLines={2}>
+                    <ThemedText style={styles.faint} numberOfLines={1}>
                       {describeRepeat(medicine)} · {medicine.times.map(formatTime).join(', ')}
                     </ThemedText>
                   </View>
-                </Row>
-              ))}
-            </Surface>
-          ) : (
-            <Empty icon={Pill} text={`${firstName} has no medicine reminders set.`} />
-          )
-        ) : consultCount ? (
-          <View style={styles.consults}>
-            {consults.upcoming.length ? (
-              <View style={styles.group}>
-                <View style={styles.groupTitle}>
-                  <CalendarClock size={14} color={Colors.primary} strokeWidth={2.4} />
-                  <ThemedText type="smallBold" themeColor="textSecondary">
-                    Upcoming
-                  </ThemedText>
-                </View>
-                <Surface style={styles.list}>
-                  {consults.upcoming.map((consult, index) => (
-                    <ConsultRow key={consult.id} consult={consult} first={index === 0} />
-                  ))}
-                </Surface>
-              </View>
-            ) : null}
-            {consults.past.length ? (
-              <View style={styles.group}>
-                <View style={styles.groupTitle}>
-                  <CalendarCheck size={14} color={Colors.success} strokeWidth={2.4} />
-                  <ThemedText type="smallBold" themeColor="textSecondary">
-                    Past
-                  </ThemedText>
-                </View>
-                <Surface style={styles.list}>
-                  {consults.past.map((consult, index) => (
-                    <ConsultRow key={consult.id} consult={consult} first={index === 0} />
-                  ))}
-                </Surface>
-              </View>
-            ) : null}
-          </View>
+                }
+              />
+            ))}
+          </ListCard>
         ) : (
-          <Empty icon={CalendarClock} text={`${firstName} hasn’t had a video consult yet.`} />
-        )}
+          <Empty icon={Pill} text={`${firstName} has no medicine reminders set.`} />
+        )
+      ) : consultCount ? (
+        <>
+          {consults.upcoming.length ? (
+            <Section title="Upcoming">
+              <ListCard>
+                {consults.upcoming.map((consult) => (
+                  <ConsultRow key={consult.id} consult={consult} />
+                ))}
+              </ListCard>
+            </Section>
+          ) : null}
+          {consults.past.length ? (
+            <Section title="Past" index={1}>
+              <ListCard>
+                {consults.past.map((consult) => (
+                  <ConsultRow key={consult.id} consult={consult} />
+                ))}
+              </ListCard>
+            </Section>
+          ) : null}
+        </>
+      ) : (
+        <Empty icon={CalendarClock} text={`${firstName} hasn’t had a video consult yet.`} />
+      )}
 
-        <View style={styles.removeWrap}>
-          <Button
-            label={`Remove ${firstName} from your family`}
-            variant="danger"
-            icon={UserMinus}
-            loading={removing}
-            onPress={remove}
-          />
-        </View>
+      {/* Quiet, at the very end: removing someone is rare and never the page's point. */}
+      <View style={styles.removeWrap}>
+        <Pressable
+          onPress={remove}
+          disabled={removing}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: removing, busy: removing }}
+          hitSlop={6}
+          style={({ pressed }) => [styles.remove, pressed && styles.removePressed]}>
+          {removing ? (
+            <ActivityIndicator size="small" color={Colors.high} />
+          ) : (
+            <UserMinus size={16} color={Colors.high} strokeWidth={2.3} />
+          )}
+          <ThemedText style={styles.removeText}>Remove {firstName} from your family</ThemedText>
+        </Pressable>
         {error ? (
-          <ThemedText type="caption" themeColor="danger" style={styles.center}>
+          <ThemedText style={styles.error} accessibilityLiveRegion="polite">
             {error}
           </ThemedText>
         ) : null}
@@ -416,125 +366,139 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
-  center: {
-    textAlign: 'center',
+  member: {
+    paddingVertical: Spacing.three - 2,
+    paddingHorizontal: Spacing.three - 2,
   },
-  pressed: {
-    opacity: 0.7,
-  },
-  stack: {
-    gap: Spacing.three,
-  },
-  skeletonTabs: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-  },
-  hero: {
-    gap: Spacing.three,
-    padding: Spacing.three + 2,
-    borderRadius: Radius.xl,
-    overflow: 'hidden',
-    backgroundColor: Colors.ink,
-  },
-  removeWrap: {
-    marginTop: Spacing.three,
-  },
-  heroTop: {
+  who: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.three,
+    gap: Spacing.three - 2,
   },
-  avatarRing: {
-    padding: 3,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+  // A hairline ring around the photo, as on Home's family strip.
+  photoRing: {
+    padding: 2,
+    borderRadius: PHOTO / 2 + 3,
+    borderWidth: 1,
+    borderColor: Colors.hairline,
   },
-  heroName: {
-    fontFamily: Fonts.display,
+  name: {
+    fontFamily: Fonts.displaySemibold,
     fontSize: 22,
     lineHeight: 27,
-    color: Colors.onInk,
+    letterSpacing: -0.4,
+    color: Colors.text,
   },
-  heroMuted: {
-    color: 'rgba(255, 255, 255, 0.8)',
+  about: {
+    marginTop: 1,
+    fontFamily: Fonts.medium,
+    fontSize: 13.5,
+    lineHeight: 18,
+    color: Colors.textSoft,
   },
-  heroFaint: {
-    color: 'rgba(255, 255, 255, 0.55)',
+  memberId: {
     marginTop: 2,
-  },
-  stats: {
-    flexDirection: 'row',
-    borderRadius: Radius.lg,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    paddingVertical: Spacing.two + 2,
-  },
-  stat: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statValue: {
-    fontFamily: Fonts.display,
-    fontSize: 20,
-    lineHeight: 24,
-    color: Colors.onInk,
-  },
-  statLabel: {
     fontFamily: Fonts.semibold,
-    fontSize: 11,
-    lineHeight: 14,
-    color: 'rgba(255, 255, 255, 0.65)',
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 0.3,
+    color: Colors.textFaint,
+    fontVariant: ['tabular-nums'],
   },
-  health: {
-    gap: Spacing.two + 2,
+  // Runs edge to edge across the card, like the rule under Home's Today header.
+  rule: {
+    height: StyleSheet.hairlineWidth,
+    marginTop: Spacing.three - 4,
+    marginHorizontal: -(Spacing.three - 2),
+    backgroundColor: Colors.hairline,
   },
-  healthRow: {
+  flagRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: Spacing.two,
+    paddingTop: Spacing.three - 4,
   },
-  healthLabel: {
-    width: 76,
+  flagLabel: {
+    width: 84,
+    paddingTop: 1,
+    fontFamily: Fonts.semibold,
+    fontSize: 13,
+    lineHeight: 17,
+    color: Colors.textSoft,
   },
-  tags: {
+  flags: {
     flex: 1,
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
   },
+  // Bleeds to the screen edges so the chips scroll under the page's gutters; the vertical padding
+  // leaves room for the chips' shadows, which the scroll view would otherwise clip.
   tabs: {
+    flexGrow: 0,
+    marginHorizontal: -Gutter,
+    marginVertical: -Spacing.one - 2,
+  },
+  tabsContent: {
     gap: Spacing.two,
-    paddingVertical: Spacing.one,
+    paddingHorizontal: Gutter,
+    paddingVertical: Spacing.one + 2,
   },
-  list: {
-    paddingVertical: Spacing.one,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two + 4,
-    paddingVertical: 12,
-  },
-  rowTag: {
-    marginTop: 4,
-  },
-  divider: {
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
+  faint: {
+    fontFamily: Fonts.medium,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: Colors.textFaint,
   },
   empty: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two + 4,
+    gap: Spacing.three - 4,
+    paddingVertical: Spacing.three - 2,
+    paddingHorizontal: Spacing.three - 2,
   },
-  consults: {
-    gap: Spacing.three,
+  removeWrap: {
+    alignItems: 'center',
+    gap: Spacing.one,
+    marginTop: Spacing.two,
   },
-  group: {
-    gap: Spacing.two,
-  },
-  groupTitle: {
+  remove: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 7,
+    minHeight: 44,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Radius.pill,
+  },
+  removePressed: {
+    backgroundColor: Colors.highSoft,
+  },
+  removeText: {
+    fontFamily: Fonts.semibold,
+    fontSize: 14,
+    lineHeight: 18,
+    color: Colors.high,
+  },
+  error: {
+    textAlign: 'center',
+    fontFamily: Fonts.semibold,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: Colors.high,
+  },
+  skeleton: {
+    gap: Spacing.four - 4,
+  },
+  skeletonHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three - 2,
+  },
+  skeletonText: {
+    gap: 8,
+  },
+  skeletonTabs: {
+    flexDirection: 'row',
+    gap: Spacing.two,
   },
 });

@@ -28,14 +28,14 @@
     "web": {
       "output": "server",
       "favicon": "./assets/images/favicon.png",
-      "backgroundColor": "#F3F7F7"
+      "backgroundColor": "#F8F5F0"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#F3F7F7",
+          "backgroundColor": "#F8F5F0",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200
         }
@@ -64,7 +64,7 @@
       "typedRoutes": true,
       "reactCompiler": true
     },
-    "backgroundColor": "#F3F7F7",
+    "backgroundColor": "#F8F5F0",
     "extra": {
       "eas": {
         "projectId": "798aaf34-6b6d-4412-9b7f-eae462bc2e0c"

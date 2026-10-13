@@ -1,12 +1,14 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { type LucideIcon } from 'lucide-react-native';
 import { type ReactNode } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Radius, Spacing } from '@/constants/theme';
-
-import { CallBackdrop } from './call-backdrop';
+import { Button } from '@/components/ui/button';
+import { IconTile } from '@/components/ui/icon-tile';
+import { PageBackground } from '@/components/ui/morning-light';
+import { Colors, Fonts, Gradients, Gutter, Shadows, Spacing } from '@/constants/theme';
 
 type Action = { label: string; onPress: () => void };
 
@@ -20,9 +22,14 @@ type CallMessageProps = {
   secondary?: Action;
 };
 
-/** A full-screen note on the call's dark background: joining, left, ended, or can't join. */
+const DISH = 72;
+
+/**
+ * A full-screen note on the warm page, around the call: joining, left, ended, or can't join. The
+ * call itself is dark; everything before and after it looks like the rest of the app.
+ */
 export function CallMessage({
-  icon: Icon,
+  icon,
   iconTone = 'neutral',
   title,
   children,
@@ -31,50 +38,45 @@ export function CallMessage({
 }: CallMessageProps) {
   const insets = useSafeAreaInsets();
   return (
-    <View style={[styles.root, { paddingBottom: insets.bottom + Spacing.four }]}>
-      <CallBackdrop />
-      <View style={styles.body}>
-        <View style={[styles.icon, iconTone === 'success' && styles.iconSuccess]}>
-          {Icon ? (
-            <Icon
-              size={30}
-              color={iconTone === 'success' ? Colors.success : Colors.onInk}
-              strokeWidth={2.2}
-            />
-          ) : (
-            <ActivityIndicator color={Colors.onInk} />
-          )}
-        </View>
-        <ThemedText type="subtitle" style={[styles.onInk, styles.center]}>
-          {title}
-        </ThemedText>
-        {children ? (
-          <ThemedText type="small" style={[styles.muted, styles.center]}>
-            {children}
+    <View style={styles.root}>
+      <PageBackground />
+      <View
+        style={[
+          styles.content,
+          { paddingTop: insets.top + Spacing.four, paddingBottom: insets.bottom + Spacing.four },
+        ]}>
+        <View style={styles.body}>
+          <View style={styles.dishShadow}>
+            {icon ? (
+              <IconTile icon={icon} tone={iconTone} size={DISH} />
+            ) : (
+              // IconTile's quiet dish, with the spinner on a layer of its own above the tint.
+              <View style={styles.dish}>
+                <LinearGradient
+                  colors={Gradients.dishQuiet}
+                  start={{ x: 0.2, y: 0 }}
+                  end={{ x: 0.8, y: 1 }}
+                  style={StyleSheet.absoluteFill}
+                />
+                <View style={[StyleSheet.absoluteFill, styles.center]}>
+                  <ActivityIndicator color={Colors.primaryDeep} />
+                </View>
+              </View>
+            )}
+          </View>
+          <ThemedText style={[styles.title, styles.centerText]} accessibilityRole="header">
+            {title}
           </ThemedText>
-        ) : null}
-      </View>
-      <View style={styles.actions}>
-        {primary ? (
-          <Pressable
-            onPress={primary.onPress}
-            accessibilityRole="button"
-            style={({ pressed }) => [styles.button, styles.primary, pressed && styles.pressed]}>
-            <ThemedText type="bodyBold" style={styles.onInk}>
-              {primary.label}
-            </ThemedText>
-          </Pressable>
-        ) : null}
-        {secondary ? (
-          <Pressable
-            onPress={secondary.onPress}
-            accessibilityRole="button"
-            style={({ pressed }) => [styles.button, styles.secondary, pressed && styles.pressed]}>
-            <ThemedText type="bodyBold" style={styles.onInk}>
-              {secondary.label}
-            </ThemedText>
-          </Pressable>
-        ) : null}
+          {children ? (
+            <ThemedText style={[styles.text, styles.centerText]}>{children}</ThemedText>
+          ) : null}
+        </View>
+        <View style={styles.actions}>
+          {primary ? <Button label={primary.label} onPress={primary.onPress} /> : null}
+          {secondary ? (
+            <Button label={secondary.label} variant="secondary" onPress={secondary.onPress} />
+          ) : null}
+        </View>
       </View>
     </View>
   );
@@ -83,8 +85,14 @@ export function CallMessage({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: Colors.ink,
-    paddingHorizontal: Spacing.four,
+    backgroundColor: Colors.canvas,
+  },
+  content: {
+    flex: 1,
+    width: '100%',
+    maxWidth: 520,
+    alignSelf: 'center',
+    paddingHorizontal: Gutter,
   },
   body: {
     flex: 1,
@@ -92,45 +100,39 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.two,
   },
-  icon: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.two,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  dishShadow: {
+    marginBottom: Spacing.three - 4,
+    borderRadius: DISH / 2,
+    boxShadow: Shadows.dish,
   },
-  iconSuccess: {
-    backgroundColor: Colors.successSoft,
+  dish: {
+    width: DISH,
+    height: DISH,
+    borderRadius: DISH / 2,
+    overflow: 'hidden',
   },
-  onInk: {
-    color: Colors.onInk,
+  title: {
+    fontFamily: Fonts.displaySemibold,
+    fontSize: 24,
+    lineHeight: 30,
+    letterSpacing: -0.4,
+    color: Colors.text,
   },
-  muted: {
-    color: 'rgba(255, 255, 255, 0.75)',
+  text: {
+    fontFamily: Fonts.medium,
+    fontSize: 15,
+    lineHeight: 22,
+    color: Colors.textSoft,
   },
   center: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  centerText: {
     textAlign: 'center',
     maxWidth: 340,
   },
   actions: {
-    gap: Spacing.two + 4,
-  },
-  button: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 52,
-    borderRadius: Radius.pill,
-  },
-  primary: {
-    backgroundColor: Colors.primary,
-    boxShadow: '0 8px 20px rgba(221, 67, 1, 0.45)',
-  },
-  secondary: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-  },
-  pressed: {
-    opacity: 0.8,
+    gap: Spacing.three - 4,
   },
 });

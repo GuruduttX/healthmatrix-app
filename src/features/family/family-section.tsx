@@ -1,50 +1,29 @@
 import { router } from 'expo-router';
-import { ChevronRight, ShieldCheck, UserPlus, Users } from 'lucide-react-native';
+import { ShieldCheck, UserPlus, Users } from 'lucide-react-native';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { EmptyState, ErrorState } from '@/components/ui/empty-state';
-import { SectionHeader } from '@/components/ui/section-header';
+import { Chevron, LIST_LEAD, ListCard, ListRow } from '@/components/ui/list';
+import { Section } from '@/components/ui/section';
 import { SkeletonList } from '@/components/ui/skeleton';
-import { Surface } from '@/components/ui/surface';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { MemberAvatar } from '@/features/profile/member-avatar';
 
 import { confirmRemove } from './confirm';
 import { aboutLine, relationLabel } from './relations';
-import { type FamilyMember, type FamilyViewer } from './types';
+import { type FamilyViewer } from './types';
 import { useFamily } from './use-family';
 
 const openAdd = () => router.push('/family/add');
-
-function MemberRow({ member, first }: { member: FamilyMember; first: boolean }) {
-  return (
-    <Pressable
-      onPress={() => router.push({ pathname: '/family/[id]', params: { id: member.id } })}
-      accessibilityRole="button"
-      accessibilityLabel={`${member.name}, ${aboutLine(member)}. Open their records.`}
-      style={({ pressed }) => [styles.row, !first && styles.divider, pressed && styles.pressed]}>
-      <MemberAvatar name={member.name} photoUrl={member.photoUrl} size={44} />
-      <View style={styles.flex}>
-        <ThemedText type="smallBold" numberOfLines={1}>
-          {member.name}
-        </ThemedText>
-        <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1}>
-          {aboutLine(member)}
-        </ThemedText>
-      </View>
-      <ChevronRight size={18} color={Colors.textMuted} strokeWidth={2.2} />
-    </Pressable>
-  );
-}
 
 /**
  * "Family" on the Card tab: the people the member added (each opens their records), a way to
  * add someone, and the people who added the member and so can see the member's records, with a
  * way to stop that.
  */
-export function FamilySection() {
+export function FamilySection({ index }: { index?: number } = {}) {
   const { members, viewers, error, refresh, removeLink } = useFamily();
   const [removing, setRemoving] = useState<string | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
@@ -68,13 +47,11 @@ export function FamilySection() {
   };
 
   return (
-    <View style={styles.section}>
-      <SectionHeader
-        title="Family"
-        actionLabel={members?.length ? 'Add' : undefined}
-        onAction={openAdd}
-      />
-
+    <Section
+      title="Family"
+      actionLabel={members?.length ? 'Add' : undefined}
+      onAction={openAdd}
+      index={index}>
       {members === null ? (
         error ? (
           <ErrorState title="Couldn’t load your family" message={error} onRetry={refresh} />
@@ -82,11 +59,19 @@ export function FamilySection() {
           <SkeletonList rows={2} label="Loading your family" />
         )
       ) : members.length ? (
-        <Surface style={styles.card}>
-          {members.map((member, index) => (
-            <MemberRow key={member.linkId} member={member} first={index === 0} />
+        <ListCard>
+          {members.map((member) => (
+            <ListRow
+              key={member.linkId}
+              leading={<MemberAvatar name={member.name} photoUrl={member.photoUrl} size={LIST_LEAD} />}
+              title={member.name}
+              subtitle={aboutLine(member)}
+              trailing={<Chevron />}
+              onPress={() => router.push({ pathname: '/family/[id]', params: { id: member.id } })}
+              accessibilityLabel={`${member.name}, ${aboutLine(member)}. Open their records.`}
+            />
           ))}
-        </Surface>
+        </ListCard>
       ) : (
         <EmptyState
           icon={Users}
@@ -99,75 +84,52 @@ export function FamilySection() {
       {viewers?.length ? (
         <View style={styles.viewers}>
           <View style={styles.viewersHeader}>
-            <ShieldCheck size={15} color={Colors.success} strokeWidth={2.4} />
-            <ThemedText type="smallBold" themeColor="textSecondary">
+            <ShieldCheck size={15} color={Colors.good} strokeWidth={2.4} />
+            <ThemedText style={styles.viewersTitle} accessibilityRole="header">
               Who can see your records
             </ThemedText>
           </View>
-          <Surface style={styles.card}>
-            {viewers.map((viewer, index) => (
-              <View key={viewer.linkId} style={[styles.row, index > 0 && styles.divider]}>
-                <MemberAvatar name={viewer.name} photoUrl={viewer.photoUrl} size={36} />
-                <View style={styles.flex}>
-                  <ThemedText type="smallBold" numberOfLines={1}>
-                    {viewer.name}
-                  </ThemedText>
-                  <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1}>
-                    Added you as their{' '}
-                    {relationLabel(viewer.relation, viewer.relationName).toLowerCase()}
-                  </ThemedText>
-                </View>
-                <Pressable
-                  onPress={() => revoke(viewer)}
-                  disabled={removing === viewer.linkId}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Stop ${viewer.name} seeing your records`}
-                  hitSlop={8}
-                  style={({ pressed }) => [styles.remove, pressed && styles.pressed]}>
-                  {removing === viewer.linkId ? (
-                    <ActivityIndicator size="small" color={Colors.danger} />
-                  ) : (
-                    <ThemedText type="caption" themeColor="danger" style={styles.bold}>
-                      Remove
-                    </ThemedText>
-                  )}
-                </Pressable>
-              </View>
+          <ListCard>
+            {viewers.map((viewer) => (
+              <ListRow
+                key={viewer.linkId}
+                leading={
+                  <MemberAvatar name={viewer.name} photoUrl={viewer.photoUrl} size={LIST_LEAD} />
+                }
+                title={viewer.name}
+                subtitle={`Added you as their ${relationLabel(viewer.relation, viewer.relationName).toLowerCase()}`}
+                trailing={
+                  <Pressable
+                    onPress={() => revoke(viewer)}
+                    disabled={removing === viewer.linkId}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Stop ${viewer.name} seeing your records`}
+                    hitSlop={8}
+                    style={({ pressed }) => [styles.remove, pressed && styles.removePressed]}>
+                    {removing === viewer.linkId ? (
+                      <ActivityIndicator size="small" color={Colors.high} />
+                    ) : (
+                      <ThemedText style={styles.removeText}>Remove</ThemedText>
+                    )}
+                  </Pressable>
+                }
+              />
             ))}
-          </Surface>
+          </ListCard>
           {removeError ? (
-            <ThemedText type="caption" themeColor="danger">
+            <ThemedText style={styles.error} accessibilityLiveRegion="polite">
               {removeError}
             </ThemedText>
           ) : null}
         </View>
       ) : null}
-    </View>
+    </Section>
   );
 }
 
 const styles = StyleSheet.create({
-  section: {
-    gap: Spacing.two + 2,
-  },
-  flex: {
-    flex: 1,
-  },
-  card: {
-    paddingVertical: Spacing.one,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two + 4,
-    paddingVertical: 12,
-  },
-  divider: {
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-  },
   viewers: {
-    gap: Spacing.two,
+    gap: Spacing.two + 2,
     marginTop: Spacing.two,
   },
   viewersHeader: {
@@ -175,19 +137,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
+  viewersTitle: {
+    fontFamily: Fonts.semibold,
+    fontSize: 13.5,
+    lineHeight: 18,
+    color: Colors.textSoft,
+  },
+  // A small white pill with crimson words: removing, never orange.
   remove: {
-    minWidth: 64,
+    minWidth: 76,
+    height: 32,
     alignItems: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: Radius.sm,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    borderRadius: Radius.pill,
     borderWidth: 1,
-    borderColor: Colors.dangerSoft,
+    borderColor: Colors.hairline,
+    backgroundColor: Colors.backgroundElement,
   },
-  bold: {
+  removePressed: {
+    backgroundColor: Colors.highSoft,
+    transform: [{ scale: 0.97 }],
+  },
+  removeText: {
     fontFamily: Fonts.bold,
+    fontSize: 13,
+    lineHeight: 17,
+    color: Colors.high,
   },
-  pressed: {
-    opacity: 0.7,
+  error: {
+    fontFamily: Fonts.semibold,
+    fontSize: 13,
+    lineHeight: 18,
+    color: Colors.high,
   },
 });

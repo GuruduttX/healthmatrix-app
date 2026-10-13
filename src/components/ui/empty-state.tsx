@@ -2,7 +2,7 @@ import { CloudOff, RotateCw, type LucideIcon } from 'lucide-react-native';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
 
 import { Button } from './button';
 import { TONES, type Tone } from './icon-tile';
@@ -19,8 +19,8 @@ type EmptyStateProps = {
 };
 
 /**
- * What a list or screen shows when it has nothing yet: an icon on soft rings, a line on what
- * goes here, and the one thing to do next.
+ * What a list or screen shows when it has nothing yet: an icon in a round dish on a soft halo, a
+ * line on what goes here, and the one thing to do next.
  */
 export function EmptyState({
   icon: Icon,
@@ -31,24 +31,18 @@ export function EmptyState({
   card = true,
   style,
 }: EmptyStateProps) {
-  const { color, soft } = TONES[tone];
+  const { color } = TONES[tone];
 
   return (
     <View style={[styles.wrap, card && styles.card, style]}>
-      <View style={[styles.halo, { backgroundColor: soft }]}>
-        <View style={[styles.icon, { borderColor: soft }]}>
+      <View style={styles.halo}>
+        <View style={styles.icon}>
           <Icon size={24} color={color} strokeWidth={2} />
         </View>
       </View>
       <View style={styles.text}>
-        <ThemedText type="bodyBold" style={styles.center}>
-          {title}
-        </ThemedText>
-        {body ? (
-          <ThemedText type="small" themeColor="textSecondary" style={styles.center}>
-            {body}
-          </ThemedText>
-        ) : null}
+        <ThemedText style={[styles.title, styles.center]}>{title}</ThemedText>
+        {body ? <ThemedText style={[styles.body, styles.center]}>{body}</ThemedText> : null}
       </View>
       {action ? (
         <Button label={action.label} icon={action.icon} onPress={action.onPress} size="sm" />
@@ -76,18 +70,14 @@ export function ErrorState({
 }: ErrorStateProps) {
   return (
     <View style={[styles.wrap, card && styles.card, style]} accessibilityRole="alert">
-      <View style={[styles.halo, { backgroundColor: Colors.dangerSoft }]}>
-        <View style={[styles.icon, { borderColor: Colors.dangerSoft }]}>
-          <CloudOff size={24} color={Colors.danger} strokeWidth={2} />
+      <View style={[styles.halo, styles.haloAlert]}>
+        <View style={styles.icon}>
+          <CloudOff size={24} color={Colors.high} strokeWidth={2} />
         </View>
       </View>
       <View style={styles.text}>
-        <ThemedText type="bodyBold" style={styles.center}>
-          {title}
-        </ThemedText>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.center}>
-          {message}
-        </ThemedText>
+        <ThemedText style={[styles.title, styles.center]}>{title}</ThemedText>
+        <ThemedText style={[styles.body, styles.center]}>{message}</ThemedText>
       </View>
       {onRetry ? (
         <Button label="Try again" icon={RotateCw} variant="secondary" size="sm" onPress={onRetry} />
@@ -104,18 +94,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
   },
   card: {
-    borderRadius: Radius.lg + 4,
+    borderRadius: Radius.xl,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.hairline,
     backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.card,
+    boxShadow: Shadows.soft,
   },
+  // A warm halo around a white dish, lifted like Home's quick actions.
   halo: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: Colors.well,
+  },
+  haloAlert: {
+    backgroundColor: Colors.highSoft,
   },
   icon: {
     width: 54,
@@ -123,12 +118,25 @@ const styles = StyleSheet.create({
     borderRadius: 27,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 4,
     backgroundColor: Colors.backgroundElement,
+    boxShadow: Shadows.dish,
   },
   text: {
     gap: 4,
     maxWidth: 320,
+  },
+  title: {
+    fontFamily: Fonts.displaySemibold,
+    fontSize: 17.5,
+    lineHeight: 23,
+    letterSpacing: -0.2,
+    color: Colors.text,
+  },
+  body: {
+    fontFamily: Fonts.medium,
+    fontSize: 13.5,
+    lineHeight: 19,
+    color: Colors.textSoft,
   },
   center: {
     textAlign: 'center',

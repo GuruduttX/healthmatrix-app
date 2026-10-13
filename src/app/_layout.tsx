@@ -25,10 +25,10 @@ const navigationTheme = {
   colors: {
     ...DefaultTheme.colors,
     primary: Colors.primary,
-    background: Colors.background,
+    background: Colors.canvas,
     card: Colors.backgroundElement,
     text: Colors.text,
-    border: Colors.border,
+    border: Colors.hairline,
   },
 };
 
@@ -74,7 +74,8 @@ function RootNavigator() {
                 presentation: 'fullScreenModal',
                 animation: 'slide_from_bottom',
                 gestureEnabled: false,
-                contentStyle: { backgroundColor: Colors.ink },
+                // The waiting room and messages are on the warm page; the live call paints its own ink.
+                contentStyle: { backgroundColor: Colors.canvas },
               }}
             />
           </Stack.Protected>

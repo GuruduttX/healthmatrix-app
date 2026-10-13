@@ -1,10 +1,8 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
-import { StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/screen';
-import { SectionHeader } from '@/components/ui/section-header';
-import { Spacing } from '@/constants/theme';
+import { Section } from '@/components/ui/section';
 import { useAuth } from '@/features/auth/auth-context';
 import { DoctorHero } from '@/features/care/doctor-hero';
 import { FindPodCard } from '@/features/care/find-pod-card';
@@ -15,14 +13,12 @@ import { refreshAppointments } from '@/features/doctors/use-appointments';
 import { refreshConsultRequests } from '@/features/doctors/use-consult-requests';
 import { useFeaturedDoctor } from '@/features/doctors/use-featured-doctor';
 import { usePastConsults } from '@/features/doctors/use-past-consults';
-import { HomeSection } from '@/features/home/home-section';
 import { TodayMedicinesCard } from '@/features/reminders/today-card';
 import { refreshReminders } from '@/features/reminders/use-reminders';
 import { refreshVaccinations } from '@/features/vaccines/use-vaccinations';
 import { VaccinesCard } from '@/features/vaccines/vaccines-card';
 
-/** How far the featured doctor card rides up over the header. */
-const OVERLAP = 56;
+const openPods = () => router.push('/care/pods');
 
 export default function CareScreen() {
   const { pods } = sampleCare;
@@ -52,61 +48,37 @@ export default function CareScreen() {
     }, [memberId]),
   );
 
+  // The page puts 20pt between sections, as on Home. Consults and vaccines hide themselves when
+  // there are none, so they bring their own titled section.
   return (
     <Screen
       hero
       title="Care"
       subtitle="Doctors, pods, medicines and vaccines."
-      heroOverlap={OVERLAP}
       onRefresh={refresh}>
-      <View style={styles.sections}>
-        <HomeSection index={0}>
-          <DoctorHero featured={featured} />
-        </HomeSection>
+      <Section index={0}>
+        <DoctorHero featured={featured} />
+      </Section>
 
-        <HomeSection index={1}>
-          <ConsultsSection past={pastConsults} />
-        </HomeSection>
+      <ConsultsSection past={pastConsults} index={1} />
 
-        <HomeSection title="Find a specialist" index={2}>
-          <SpecialtyList />
-        </HomeSection>
+      <Section title="Find a specialist" index={2}>
+        <SpecialtyList />
+      </Section>
 
-        <HomeSection index={3}>
-          <View style={styles.section}>
-            <SectionHeader
-              title="Pods near you"
-              actionLabel="Map"
-              onAction={() => router.push('/care/pods')}
-            />
-            <FindPodCard pods={pods} onPress={() => router.push('/care/pods')} />
-          </View>
-        </HomeSection>
+      <Section title="Pods near you" actionLabel="Map" onAction={openPods} index={3}>
+        <FindPodCard pods={pods} onPress={openPods} />
+      </Section>
 
-        <HomeSection index={4}>
-          <View style={styles.section}>
-            <SectionHeader
-              title="Medicines today"
-              actionLabel="Manage"
-              onAction={() => router.push('/care/medicines')}
-            />
-            <TodayMedicinesCard />
-          </View>
-        </HomeSection>
+      <Section
+        title="Medicines today"
+        actionLabel="Manage"
+        onAction={() => router.push('/care/medicines')}
+        index={4}>
+        <TodayMedicinesCard />
+      </Section>
 
-        <HomeSection index={5}>
-          <VaccinesCard />
-        </HomeSection>
-      </View>
+      <VaccinesCard index={5} />
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  sections: {
-    gap: Spacing.four + 4,
-  },
-  section: {
-    gap: Spacing.three - 4,
-  },
-});

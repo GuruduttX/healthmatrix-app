@@ -25,15 +25,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 22,
   },
+  // Headings use the calmer semibold display cut, as on Home.
   title: {
-    fontFamily: Fonts.display,
-    fontSize: 32,
-    lineHeight: 36,
+    fontFamily: Fonts.displaySemibold,
+    fontSize: 28,
+    lineHeight: 34,
+    letterSpacing: -0.6,
   },
   subtitle: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.displaySemibold,
     fontSize: 20,
     lineHeight: 26,
+    letterSpacing: -0.3,
   },
   small: {
     fontFamily: Fonts.medium,

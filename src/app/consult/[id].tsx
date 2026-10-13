@@ -14,7 +14,8 @@ import { useAppointments } from '@/features/doctors/use-appointments';
 /**
  * A video consult, from the waiting room to the end of the call. Opened from the appointment's
  * "Join" button, which shows from five minutes before the slot. The doctor admits the member from
- * the console; see `features/consult-call/video-call*.tsx`.
+ * the console; see `features/consult-call/video-call*.tsx`. Everything here is on the warm page
+ * except the call itself, which turns the status bar light while it shows.
  */
 export default function ConsultCallScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -27,7 +28,7 @@ export default function ConsultCallScreen() {
 function CallUnavailable({ reason }: { reason: string }) {
   return (
     <>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <CallMessage
         icon={Smartphone}
         title="Join from the app"
@@ -151,7 +152,7 @@ function ConsultCall({ id }: { id: string }) {
 
   return (
     <>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       {screen()}
     </>
   );

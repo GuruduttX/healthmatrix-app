@@ -1,19 +1,22 @@
 import { StyleSheet, View, type ViewProps } from 'react-native';
 
-import { Colors, Radius, Shadows } from '@/constants/theme';
+import { Colors, Radius, Shadows, Spacing } from '@/constants/theme';
 
-/** White raised card: the standard container for content on the light background. */
+/**
+ * A white card on the warm page, as on Home: a hairline edge, barely lifted. Lists inside it use
+ * hairline dividers, not shaded boxes.
+ */
 export function Surface({ style, ...props }: ViewProps) {
   return <View style={[styles.surface, style]} {...props} />;
 }
 
 const styles = StyleSheet.create({
   surface: {
-    padding: 16,
-    borderRadius: Radius.lg + 4,
+    padding: Spacing.three,
+    borderRadius: Radius.xl,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.hairline,
     backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.card,
+    boxShadow: Shadows.soft,
   },
 });

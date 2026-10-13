@@ -1,9 +1,10 @@
-import { Check } from 'lucide-react-native';
+import { AlertCircle, Check, Clock, RotateCcw, type LucideIcon } from 'lucide-react-native';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
+import { LIST_LEAD } from '@/components/ui/list';
+import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { istToday } from '@/features/doctors/time';
 import { daysBetween, formatDay, formatShortDate } from '@/features/reminders/schedule';
 
@@ -28,11 +29,18 @@ function statusLine(dose: VaccineDose, today: string) {
   }
 }
 
-const RAIL: Record<VaccineDose['status'], { ring: string; fill: string; text: string }> = {
-  given: { ring: Colors.success, fill: Colors.success, text: Colors.onInk },
-  due: { ring: Colors.warning, fill: Colors.warningSoft, text: Colors.warning },
-  overdue: { ring: Colors.danger, fill: Colors.dangerSoft, text: Colors.danger },
-  upcoming: { ring: Colors.border, fill: Colors.backgroundElement, text: Colors.textSecondary },
+/**
+ * Each status's dot on the rail and the colour and icon of its line: the reading flags (good,
+ * watch, high), so a dose is never told apart by colour alone.
+ */
+const RAIL: Record<
+  VaccineDose['status'],
+  { ring: string; fill: string; text: string; icon?: LucideIcon }
+> = {
+  given: { ring: Colors.good, fill: Colors.good, text: Colors.good, icon: Check },
+  due: { ring: Colors.watch, fill: Colors.watchSoft, text: Colors.watch, icon: Clock },
+  overdue: { ring: Colors.high, fill: Colors.highSoft, text: Colors.high, icon: AlertCircle },
+  upcoming: { ring: Colors.border, fill: Colors.backgroundElement, text: Colors.textSoft },
 };
 
 /**
@@ -106,8 +114,10 @@ export function DoseTimeline({ vaccination, onMark }: DoseTimelineProps) {
     <View>
       {vaccination.doses.map((dose, index) => {
         const rail = RAIL[dose.status];
+        const StatusIcon = rail.icon;
         const isLast = index === vaccination.doses.length - 1;
-        const isNext = dose.number === nextNumber;
+        // The dose to get now: its button is the solid one.
+        const solid = dose.number === nextNumber && dose.status !== 'upcoming';
         return (
           <View key={dose.number} style={styles.row}>
             <View style={styles.rail}>
@@ -127,27 +137,33 @@ export function DoseTimeline({ vaccination, onMark }: DoseTimelineProps) {
 
             <View style={[styles.body, !isLast && styles.bodySpaced]}>
               <View style={styles.flex}>
-                <ThemedText type="smallBold">
+                <ThemedText style={styles.title} numberOfLines={1}>
                   Dose {dose.number}
                   {vaccination.totalDoses > 1 ? ` of ${vaccination.totalDoses}` : ''}
                 </ThemedText>
-                <ThemedText
-                  type="caption"
-                  themeColor={
-                    dose.status === 'overdue'
-                      ? 'danger'
-                      : dose.status === 'due'
-                        ? 'warning'
-                        : dose.status === 'given'
-                          ? 'success'
-                          : 'textSecondary'
-                  }>
-                  {statusLine(dose, today)}
-                </ThemedText>
+                <View style={styles.status}>
+                  {StatusIcon ? (
+                    <StatusIcon
+                      size={12}
+                      color={rail.text}
+                      strokeWidth={2.6}
+                      style={styles.statusIcon}
+                    />
+                  ) : null}
+                  <ThemedText
+                    style={[
+                      styles.statusText,
+                      { color: rail.text },
+                      dose.status === 'upcoming' && styles.statusQuiet,
+                    ]}
+                    numberOfLines={2}>
+                    {statusLine(dose, today)}
+                  </ThemedText>
+                </View>
               </View>
 
               {!onMark ? null : busy === dose.number ? (
-                <ActivityIndicator color={Colors.textSecondary} />
+                <ActivityIndicator color={Colors.textFaint} />
               ) : dose.status === 'given' ? (
                 <Pressable
                   onPress={() => run(dose, false)}
@@ -155,9 +171,8 @@ export function DoseTimeline({ vaccination, onMark }: DoseTimelineProps) {
                   accessibilityLabel={`Undo, dose ${dose.number} not given`}
                   hitSlop={8}
                   style={({ pressed }) => [styles.undo, pressed && styles.pressed]}>
-                  <ThemedText type="caption" themeColor="textSecondary" style={styles.bold}>
-                    Undo
-                  </ThemedText>
+                  <RotateCcw size={13} color={Colors.primaryDeep} strokeWidth={2.6} />
+                  <ThemedText style={styles.undoText}>Undo</ThemedText>
                 </Pressable>
               ) : (
                 <Pressable
@@ -166,16 +181,16 @@ export function DoseTimeline({ vaccination, onMark }: DoseTimelineProps) {
                   accessibilityLabel={`Mark dose ${dose.number} given`}
                   hitSlop={6}
                   style={({ pressed }) => [
-                    styles.mark,
-                    isNext && dose.status !== 'upcoming' ? styles.markPrimary : styles.markQuiet,
-                    pressed && styles.pressed,
+                    solid ? [styles.mark, styles.markSolid] : styles.tick,
+                    pressed && (solid ? styles.markSolidPressed : styles.tickPressed),
                   ]}>
-                  <ThemedText
-                    type="caption"
-                    themeColor={isNext && dose.status !== 'upcoming' ? 'onInk' : 'text'}
-                    style={styles.bold}>
-                    Mark given
-                  </ThemedText>
+                  <Check
+                    size={solid ? 14 : 16}
+                    color={solid ? Colors.onInk : Colors.primaryDeep}
+                    strokeWidth={solid ? 2.8 : 3}
+                  />
+                  {/* Words only on the dose to get now; the rest are a round tick, as on Home. */}
+                  {solid ? <ThemedText style={styles.markText}>Mark given</ThemedText> : null}
                 </Pressable>
               )}
             </View>
@@ -183,9 +198,10 @@ export function DoseTimeline({ vaccination, onMark }: DoseTimelineProps) {
         );
       })}
       {error ? (
-        <ThemedText type="caption" themeColor="danger" accessibilityLiveRegion="polite">
-          {error}
-        </ThemedText>
+        <View style={styles.error} accessibilityLiveRegion="polite">
+          <AlertCircle size={15} color={Colors.high} strokeWidth={2.4} />
+          <ThemedText style={styles.errorText}>{error}</ThemedText>
+        </View>
       ) : null}
     </View>
   );
@@ -196,10 +212,11 @@ const DOT = 30;
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    gap: Spacing.two + 4,
+    gap: Spacing.three - 4,
   },
+  // As wide as a list row's lead, so the words line up with the rows around the timeline.
   rail: {
-    width: DOT,
+    width: LIST_LEAD,
     alignItems: 'center',
   },
   dot: {
@@ -214,52 +231,121 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bold,
     fontSize: 13,
     lineHeight: 16,
+    fontVariant: ['tabular-nums'],
   },
   line: {
     flex: 1,
     width: 2,
-    marginVertical: 2,
+    marginVertical: 3,
+    borderRadius: 1,
     backgroundColor: Colors.border,
   },
   lineDone: {
-    backgroundColor: Colors.success,
+    backgroundColor: Colors.good,
   },
   body: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    minHeight: DOT,
+    minHeight: DOT + 4,
   },
   bodySpaced: {
-    paddingBottom: Spacing.three,
+    paddingBottom: Spacing.three + 2,
   },
   flex: {
     flex: 1,
+    minWidth: 0,
   },
+  title: {
+    fontFamily: Fonts.bold,
+    fontSize: 14.5,
+    lineHeight: 19,
+    color: Colors.text,
+  },
+  // Top-aligned, so the icon stays on the first line when a long status wraps.
+  status: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 4,
+    marginTop: 1,
+  },
+  statusIcon: {
+    marginTop: 2.5,
+  },
+  statusText: {
+    flexShrink: 1,
+    fontFamily: Fonts.semibold,
+    fontSize: 12.5,
+    lineHeight: 17,
+  },
+  statusQuiet: {
+    fontFamily: Fonts.medium,
+  },
+  // As on Home's Today card: a solid pill for the dose to get now, a round tick for the rest.
   mark: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    height: 32,
+    paddingHorizontal: 12,
     borderRadius: Radius.pill,
-    borderWidth: 1,
   },
-  markPrimary: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primary,
-    boxShadow: Shadows.glow,
+  markSolid: {
+    backgroundColor: Colors.primaryDeep,
   },
-  markQuiet: {
-    borderColor: Colors.border,
+  markSolidPressed: {
+    backgroundColor: Colors.primaryInk,
+    transform: [{ scale: 0.97 }],
+  },
+  // Like a checkbox waiting for a tick: white, with a peach ring.
+  tick: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: Colors.primaryLight,
     backgroundColor: Colors.backgroundElement,
   },
-  undo: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+  tickPressed: {
+    backgroundColor: Colors.primaryTintStrong,
+    transform: [{ scale: 0.97 }],
   },
-  bold: {
+  markText: {
     fontFamily: Fonts.bold,
+    fontSize: 13.5,
+    lineHeight: 18,
+    color: Colors.onInk,
+  },
+  undo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+  },
+  undoText: {
+    fontFamily: Fonts.bold,
+    fontSize: 13.5,
+    lineHeight: 18,
+    color: Colors.primaryDeep,
   },
   pressed: {
-    opacity: 0.75,
+    opacity: 0.6,
+  },
+  error: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginTop: Spacing.two,
+  },
+  errorText: {
+    flex: 1,
+    fontFamily: Fonts.semibold,
+    fontSize: 13,
+    lineHeight: 18,
+    color: Colors.high,
   },
 });

@@ -1,4 +1,4 @@
-import { Image } from 'expo-image';
+import { Image, type ImageSource } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import {
@@ -6,14 +6,12 @@ import {
   Check,
   ChevronRight,
   CircleCheck,
-  Pill,
   Plus,
   RotateCcw,
-  Syringe,
   Video,
   type LucideIcon,
 } from 'lucide-react-native';
-import { useEffect, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
@@ -38,30 +36,37 @@ import { countdown, type TodayItem, type TodaySummary } from './today-summary';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
-/** The ring's and day line's empty part, a warm grey that sits on the peach tint. */
+/** The ring's empty part, a warm grey. */
 const TRACK = '#EFE5DC';
-/** A dose later today: a hollow dot. */
-const LATER = '#CFC3B8';
+/** The ring, the dishes and the doctor's photo at the start of each line share one size. */
+const LEAD = 34;
+
+/** Microsoft Fluent Emoji (MIT), as on Home's quick actions; see assets/images/home/3d/LICENSE. */
+const PILL = require('@/assets/images/home/3d/medicine.png');
+const SYRINGE = require('@/assets/images/home/3d/syringe.png');
 
 const vaccineTitle = (name: string) => (/vaccin/i.test(name) ? name : `${name} vaccine`);
 
-/** "3 doses and a vaccine left today", or how the day went. */
+const openMedicines = () => router.push('/care/medicines');
+
+/** "2 doses left today", "3 doses, 1 vaccine left", or how the day went: one line on a phone. */
 function headline(summary: TodaySummary) {
   const { total, taken, dosesLeft, vaccinesDue } = summary;
   const parts = [
     dosesLeft ? `${dosesLeft} ${dosesLeft === 1 ? 'dose' : 'doses'}` : null,
-    vaccinesDue ? (vaccinesDue === 1 ? 'a vaccine' : `${vaccinesDue} vaccines`) : null,
+    vaccinesDue ? `${vaccinesDue} ${vaccinesDue === 1 ? 'vaccine' : 'vaccines'}` : null,
   ].filter(Boolean);
-  if (parts.length) return `${parts.join(' and ')} left today`;
+  if (parts.length === 2) return `${parts.join(', ')} left`;
+  if (dosesLeft) return `${parts[0]} left today`;
+  if (vaccinesDue) return `${parts[0]} due`;
   if (total) return taken === total ? 'Every dose taken today' : 'Today’s doses are done';
   return 'Nothing to take today';
 }
 
 /** Today's doses as a share of a circle, filling in when the card appears. */
 function DoseRing({ taken, total }: { taken: number; total: number }) {
-  const size = 72;
-  const stroke = 7;
-  const radius = (size - stroke) / 2;
+  const stroke = 3.5;
+  const radius = (LEAD - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
   const fraction = total ? Math.min(taken / total, 1) : 0;
   const reduceMotion = useReducedMotion();
@@ -80,22 +85,19 @@ function DoseRing({ taken, total }: { taken: number; total: number }) {
   }));
 
   return (
-    <View
-      style={{ width: size, height: size }}
-      accessible
-      accessibilityLabel={`${taken} of ${total} doses taken`}>
-      <Svg width={size} height={size}>
+    <View style={styles.lead}>
+      <Svg width={LEAD} height={LEAD}>
         <Circle
-          cx={size / 2}
-          cy={size / 2}
+          cx={LEAD / 2}
+          cy={LEAD / 2}
           r={radius}
           stroke={TRACK}
           strokeWidth={stroke}
           fill="none"
         />
         <AnimatedCircle
-          cx={size / 2}
-          cy={size / 2}
+          cx={LEAD / 2}
+          cy={LEAD / 2}
           r={radius}
           stroke={Colors.primary}
           strokeWidth={stroke}
@@ -104,124 +106,68 @@ function DoseRing({ taken, total }: { taken: number; total: number }) {
           animatedProps={animatedProps}
           fill="none"
           // Start at 12 o'clock instead of 3 o'clock.
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          transform={`rotate(-90 ${LEAD / 2} ${LEAD / 2})`}
         />
       </Svg>
-      <View style={[StyleSheet.absoluteFill, styles.ringCenter]}>
+      <View style={[StyleSheet.absoluteFill, styles.center]}>
         <ThemedText style={styles.ringValue}>
           {taken}
           <ThemedText style={styles.ringTotal}>/{total}</ThemedText>
         </ThemedText>
-        <ThemedText style={styles.ringLabel}>taken</ThemedText>
       </View>
     </View>
   );
 }
 
-const hourOf = (date: Date) => date.getHours() + date.getMinutes() / 60;
-
-function hourLabel(hour: number) {
-  const h = hour % 24;
-  if (h === 0) return '12 AM';
-  if (h === 12) return 'Noon';
-  return h < 12 ? `${h} AM` : `${h - 12} PM`;
-}
-
-const MARKER = 14;
-
-function markerStyle(state: DoseState) {
-  switch (state) {
-    case 'taken':
-      return styles.markerTaken;
-    case 'due':
-    case 'missed':
-      return styles.markerDue;
-    case 'skipped':
-      return styles.markerSkipped;
-    default:
-      return styles.markerLater;
-  }
-}
-
-/**
- * The day from early morning to night as a line: each dose sits at its time, filled once taken,
- * and the line is orange up to now. A consult today shows as a camera.
- */
-function DayStrip({
-  doses,
-  consultAt,
-  now,
-}: {
-  doses: TodaySummary['doses'];
-  consultAt?: Date;
-  now: Date;
-}) {
-  const [width, setWidth] = useState(0);
-  const hours = [
-    ...doses.map(({ dose }) => hourOf(dose.at)),
-    ...(consultAt ? [hourOf(consultAt)] : []),
-  ];
-  const start = Math.floor(Math.min(6, ...hours));
-  const end = Math.ceil(Math.max(23, ...hours.map((hour) => hour + 0.5)));
-  const x = (hour: number) => MARKER / 2 + ((hour - start) / (end - start)) * (width - MARKER);
-  const nowX = x(Math.min(Math.max(hourOf(now), start), end));
-  const labels = [start, 12, 18, end].filter(
-    (hour, i, all) => hour >= start && hour <= end && (i === 0 || hour - all[i - 1]! >= 3),
-  );
-
+/** A 3D picture in a round, neutral dish. */
+function Dish({ art, size = 21 }: { art: ImageSource; size?: number }) {
   return (
-    <View
-      style={styles.strip}
-      onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
-      aria-hidden
-      importantForAccessibility="no-hide-descendants">
-      {width > 0 ? (
-        <>
-          <View style={[styles.trackLine, { left: MARKER / 2, right: MARKER / 2 }]} />
-          <View
-            style={[
-              styles.trackLine,
-              styles.trackDone,
-              { left: MARKER / 2, width: nowX - MARKER / 2 },
-            ]}
-          />
-          {doses.map(({ dose, state }) => (
-            <View
-              key={`${dose.reminder.id}-${dose.time}`}
-              style={[
-                styles.marker,
-                markerStyle(state),
-                { left: x(hourOf(dose.at)) - MARKER / 2 },
-              ]}>
-              {state === 'taken' ? <Check size={9} color={Colors.onInk} strokeWidth={4} /> : null}
-            </View>
-          ))}
-          {consultAt ? (
-            <View style={[styles.consultMarker, { left: x(hourOf(consultAt)) - 11 }]}>
-              <Video size={12} color={Colors.onInk} strokeWidth={2.6} />
-            </View>
-          ) : null}
-          {labels.map((hour) => (
-            <ThemedText
-              key={hour}
-              style={[
-                styles.stripLabel,
-                hour === start
-                  ? { left: 0 }
-                  : hour === end
-                    ? { right: 0 }
-                    : { left: x(hour) - 22, width: 44, textAlign: 'center' },
-              ]}>
-              {hourLabel(hour)}
-            </ThemedText>
-          ))}
-        </>
-      ) : null}
+    <View style={[styles.lead, styles.dish]}>
+      <Image
+        source={art}
+        style={{ width: size, height: size }}
+        contentFit="contain"
+        accessibilityIgnoresInvertColors
+        aria-hidden
+      />
     </View>
   );
 }
 
-/** A line on the card: an icon or photo, two lines of text and one action. */
+function Chevron() {
+  return <ChevronRight size={18} color={Colors.textFaint} strokeWidth={2.4} />;
+}
+
+/** The card's top, one line: how today is going, and the way to every medicine and reminder. */
+function Header({
+  leading,
+  title,
+  more,
+  accessibilityLabel,
+}: {
+  leading: ReactNode;
+  title: string;
+  /** "1 more": open items that did not make the card. */
+  more?: string;
+  accessibilityLabel: string;
+}) {
+  return (
+    <Pressable
+      onPress={openMedicines}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      style={({ pressed }) => [styles.header, pressed && styles.pressed]}>
+      {leading}
+      <ThemedText style={[styles.flex, styles.title]} numberOfLines={1}>
+        {title}
+      </ThemedText>
+      {more ? <ThemedText style={styles.more}>{more}</ThemedText> : null}
+      <Chevron />
+    </Pressable>
+  );
+}
+
+/** A line on the card: a picture or photo, a name with one line under it, and one action. */
 function Row({
   leading,
   title,
@@ -258,7 +204,7 @@ function Row({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}>
+      style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
       {body}
     </Pressable>
   ) : (
@@ -267,15 +213,13 @@ function Row({
   );
 }
 
-/** The card's one solid action per line: Take, Join. */
-function ActionButton({
-  label,
-  icon: Icon,
+/** Ticks a dose off: a round button, solid when the dose is due now, soft otherwise. */
+function TakeButton({
+  solid,
   onPress,
   accessibilityLabel,
 }: {
-  label: string;
-  icon: LucideIcon;
+  solid: boolean;
   onPress: () => void;
   accessibilityLabel: string;
 }) {
@@ -285,18 +229,44 @@ function ActionButton({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       hitSlop={8}
-      style={({ pressed }) => [styles.action, pressed && styles.actionPressed]}>
-      <Icon size={15} color={Colors.onInk} strokeWidth={2.8} />
-      <ThemedText style={styles.actionText}>{label}</ThemedText>
+      style={({ pressed }) => [
+        styles.take,
+        solid ? styles.actionSolid : styles.takeSoft,
+        pressed && (solid ? styles.actionSolidPressed : styles.actionSoftPressed),
+      ]}>
+      <Check size={16} color={solid ? Colors.onInk : Colors.primaryDeep} strokeWidth={3} />
     </Pressable>
   );
 }
 
-function Chevron() {
+/** A line's one action with a word on it: Join, Retry. Solid when it is the thing to do now. */
+function ActionButton({
+  label,
+  icon: Icon,
+  solid,
+  onPress,
+  accessibilityLabel,
+}: {
+  label: string;
+  icon: LucideIcon;
+  solid?: boolean;
+  onPress: () => void;
+  accessibilityLabel: string;
+}) {
   return (
-    <View style={styles.chevron}>
-      <ChevronRight size={17} color={Colors.textSoft} strokeWidth={2.4} />
-    </View>
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      hitSlop={8}
+      style={({ pressed }) => [
+        styles.action,
+        solid ? styles.actionSolid : styles.actionSoft,
+        pressed && (solid ? styles.actionSolidPressed : styles.actionSoftPressed),
+      ]}>
+      <Icon size={14} color={solid ? Colors.onInk : Colors.primaryDeep} strokeWidth={2.8} />
+      <ThemedText style={[styles.actionText, !solid && styles.actionTextSoft]}>{label}</ThemedText>
+    </Pressable>
   );
 }
 
@@ -314,11 +284,7 @@ function DoseLine({ dose, state, onTake }: { dose: Dose; state: DoseState; onTak
 
   return (
     <Row
-      leading={
-        <View style={styles.iconTile}>
-          <Pill size={19} color={Colors.primary} strokeWidth={2.2} />
-        </View>
-      }
+      leading={<Dish art={PILL} />}
       title={dose.reminder.name}
       subtitle={
         <>
@@ -331,9 +297,8 @@ function DoseLine({ dose, state, onTake }: { dose: Dose; state: DoseState; onTak
         </>
       }
       trailing={
-        <ActionButton
-          label="Take"
-          icon={Check}
+        <TakeButton
+          solid={state === 'due'}
           onPress={onTake}
           accessibilityLabel={`Mark ${dose.reminder.name} taken`}
         />
@@ -360,9 +325,9 @@ function ConsultLine({ item, now }: { item: Extract<TodayItem, { kind: 'consult'
     <Row
       leading={
         <View>
-          <DoctorAvatar name={doctor} photoUrl={appointment.doctor?.photoUrl} size={42} />
+          <DoctorAvatar name={doctor} photoUrl={appointment.doctor?.photoUrl} size={LEAD} />
           <View style={[styles.camBadge, canJoin && styles.camBadgeLive]}>
-            <Video size={9} color={Colors.onInk} strokeWidth={3} />
+            <Video size={8} color={Colors.onInk} strokeWidth={3} />
           </View>
         </View>
       }
@@ -382,6 +347,7 @@ function ConsultLine({ item, now }: { item: Extract<TodayItem, { kind: 'consult'
           <ActionButton
             label="Join"
             icon={Video}
+            solid
             onPress={() =>
               router.push({ pathname: '/consult/[id]', params: { id: appointment.id } })
             }
@@ -407,11 +373,7 @@ function VaccineLine({ item }: { item: Extract<TodayItem, { kind: 'vaccine' }> }
 
   return (
     <Row
-      leading={
-        <View style={[styles.iconTile, overdue && styles.iconTileOverdue]}>
-          <Syringe size={18} color={overdue ? Colors.high : Colors.primary} strokeWidth={2.2} />
-        </View>
-      }
+      leading={<Dish art={SYRINGE} size={19} />}
       title={vaccineTitle(vaccination.name)}
       subtitle={
         <>
@@ -430,29 +392,32 @@ function VaccineLine({ item }: { item: Extract<TodayItem, { kind: 'vaccine' }> }
   );
 }
 
-/** The card itself: white, lit warm from the top right, with the brand's petals in the corner. */
+/** Lines under the header, a hairline between each. */
+function Lines({ children }: { children: ReactNode[] }) {
+  return (
+    <View style={styles.lines}>
+      {children.map((child, i) => (
+        <Fragment key={i}>
+          {i ? <View style={styles.divider} /> : null}
+          {child}
+        </Fragment>
+      ))}
+    </View>
+  );
+}
+
+/** The card itself: white, with a faint warm light in the top right corner. */
 function Shell({ children }: { children: ReactNode }) {
   return (
-    // The shadow sits outside the card, which clips its corners and gradients.
+    // The shadow sits outside the card, which clips its corners and gradient.
     <View style={styles.shadow}>
       <View style={styles.card}>
         <LinearGradient
-          colors={[
-            'rgba(250, 190, 160, 0.5)',
-            'rgba(250, 190, 160, 0.12)',
-            'rgba(250, 190, 160, 0)',
-          ]}
-          locations={[0, 0.35, 0.7]}
+          colors={['rgba(250, 190, 160, 0.3)', 'rgba(250, 190, 160, 0)']}
+          locations={[0, 0.5]}
           start={{ x: 1, y: 0 }}
-          end={{ x: 0.25, y: 0.75 }}
+          end={{ x: 0.3, y: 0.7 }}
           style={[StyleSheet.absoluteFill, styles.noTouch]}
-        />
-        <Image
-          source={require('@/assets/images/logo-mark.png')}
-          style={styles.petals}
-          contentFit="contain"
-          accessibilityIgnoresInvertColors
-          aria-hidden
         />
         {children}
       </View>
@@ -465,8 +430,6 @@ export type JustTaken = { dose: Dose; onUndo: () => void };
 
 type TodayHeroProps = {
   summary: TodaySummary;
-  /** Today's label: "Mon, 12 Oct". */
-  dateLabel: string;
   now: Date;
   onTake: (dose: Dose) => void;
   justTaken?: JustTaken | null;
@@ -475,38 +438,35 @@ type TodayHeroProps = {
 };
 
 /**
- * The top of Home: how today's doses are going, the day at a glance, and the two things to do
- * next, each with its one action. Reads like a page of a care plan, not a list of alerts.
+ * Today on Home, kept compact: how the day's doses are going in one line, then the two things to
+ * do next, each with its one action. The header opens every medicine and reminder.
  */
-export function TodayHero({ summary, dateLabel, now, onTake, justTaken, error }: TodayHeroProps) {
-  const consult = summary.next.find((item) => item.kind === 'consult');
-  const consultAt =
-    consult?.kind === 'consult' && istParts(consult.appointment.scheduledAt).date === istToday(now)
-      ? new Date(consult.appointment.scheduledAt)
-      : undefined;
+export function TodayHero({ summary, now, onTake, justTaken, error }: TodayHeroProps) {
+  const title = headline(summary);
+  const more = summary.more ? `${summary.more} more` : undefined;
+  const progress = summary.total ? `${summary.taken} of ${summary.total} doses taken. ` : '';
 
   return (
     <Shell>
-      <View style={styles.top}>
-        <View style={styles.flex}>
-          <ThemedText style={styles.kicker}>Today · {dateLabel}</ThemedText>
-          <ThemedText style={styles.headline} accessibilityRole="header">
-            {headline(summary)}
-          </ThemedText>
-        </View>
-        {summary.total ? <DoseRing taken={summary.taken} total={summary.total} /> : null}
-      </View>
-
-      {summary.total || consultAt ? (
-        <DayStrip doses={summary.doses} consultAt={consultAt} now={now} />
-      ) : null}
+      <Header
+        leading={
+          summary.total ? (
+            <DoseRing taken={summary.taken} total={summary.total} />
+          ) : (
+            <Dish art={summary.vaccinesDue ? SYRINGE : PILL} />
+          )
+        }
+        title={title}
+        more={more}
+        accessibilityLabel={`${title}. ${progress}${more ? `${more}. ` : ''}Opens all medicines and reminders.`}
+      />
 
       {justTaken ? (
         <Animated.View
           entering={FadeIn.duration(200)}
           exiting={FadeOut.duration(200)}
           style={styles.undo}>
-          <CircleCheck size={17} color={Colors.good} strokeWidth={2.4} />
+          <CircleCheck size={16} color={Colors.good} strokeWidth={2.4} />
           <ThemedText style={styles.undoText} numberOfLines={1}>
             {justTaken.dose.reminder.name} marked taken
           </ThemedText>
@@ -523,22 +483,25 @@ export function TodayHero({ summary, dateLabel, now, onTake, justTaken, error }:
       ) : null}
 
       {summary.next.length ? (
-        <View style={styles.rows}>
-          {summary.next.map((item) =>
-            item.kind === 'dose' ? (
-              <DoseLine
-                key={`${item.dose.reminder.id}-${item.dose.time}`}
-                dose={item.dose}
-                state={item.state}
-                onTake={() => onTake(item.dose)}
-              />
-            ) : item.kind === 'consult' ? (
-              <ConsultLine key={item.appointment.id} item={item} now={now} />
-            ) : (
-              <VaccineLine key={item.due.vaccination.id} item={item} />
-            ),
-          )}
-        </View>
+        <>
+          <View style={styles.rule} />
+          <Lines>
+            {summary.next.map((item) =>
+              item.kind === 'dose' ? (
+                <DoseLine
+                  key={`${item.dose.reminder.id}-${item.dose.time}`}
+                  dose={item.dose}
+                  state={item.state}
+                  onTake={() => onTake(item.dose)}
+                />
+              ) : item.kind === 'consult' ? (
+                <ConsultLine key={item.appointment.id} item={item} now={now} />
+              ) : (
+                <VaccineLine key={item.due.vaccination.id} item={item} />
+              ),
+            )}
+          </Lines>
+        </>
       ) : null}
 
       {error ? (
@@ -547,42 +510,28 @@ export function TodayHero({ summary, dateLabel, now, onTake, justTaken, error }:
           <ThemedText style={styles.errorText}>{error}</ThemedText>
         </View>
       ) : null}
-
-      <Pressable
-        onPress={() => router.push('/care/medicines')}
-        accessibilityRole="button"
-        hitSlop={6}
-        style={({ pressed }) => [styles.footer, pressed && styles.pressed]}>
-        <ThemedText style={styles.footerText}>
-          {summary.more ? `See ${summary.more} more for today` : 'All medicines and reminders'}
-        </ThemedText>
-        <ChevronRight size={16} color={Colors.primaryDeep} strokeWidth={2.4} />
-      </Pressable>
     </Shell>
   );
 }
 
 /** Before any medicine is added: what the card will do, and the way to start. */
 export function TodayHeroEmpty({
-  dateLabel,
   consult,
   now,
 }: {
-  dateLabel: string;
   consult?: Extract<TodayItem, { kind: 'consult' }>;
   now: Date;
 }) {
   return (
     <Shell>
-      {/* Adding sits where the doses ring will be once there are medicines. */}
-      <View style={styles.emptyTop}>
+      <View style={styles.header}>
+        <Dish art={PILL} />
         <View style={styles.flex}>
-          <ThemedText style={styles.kicker}>Today · {dateLabel}</ThemedText>
-          <ThemedText style={styles.headline} accessibilityRole="header">
+          <ThemedText style={styles.title} accessibilityRole="header">
             Never miss a dose
           </ThemedText>
-          <ThemedText style={styles.lede}>
-            Add your medicines and we’ll remind you at the right time, every day.
+          <ThemedText style={styles.subtitle}>
+            Add your medicines and we’ll remind you on time.
           </ThemedText>
         </View>
         <Pressable
@@ -591,13 +540,14 @@ export function TodayHeroEmpty({
           accessibilityLabel="Add a medicine"
           hitSlop={6}
           style={({ pressed }) => [styles.addIcon, pressed && styles.addIconPressed]}>
-          <Plus size={22} color={Colors.primaryDeep} strokeWidth={2.4} />
+          <Plus size={18} color={Colors.primaryDeep} strokeWidth={2.4} />
         </Pressable>
       </View>
       {consult ? (
-        <View style={styles.rows}>
+        <>
+          <View style={styles.rule} />
           <ConsultLine item={consult} now={now} />
-        </View>
+        </>
       ) : null}
     </Shell>
   );
@@ -607,20 +557,25 @@ export function TodayHeroEmpty({
 export function TodayHeroError({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <Shell>
-      <View style={styles.flex}>
-        <ThemedText style={styles.kicker}>Today</ThemedText>
-        <ThemedText style={styles.headline} accessibilityRole="header">
-          Couldn’t load today’s plan
-        </ThemedText>
-        <ThemedText style={styles.lede}>{message}</ThemedText>
+      <View style={styles.header}>
+        <View style={[styles.lead, styles.dish, styles.dishAlert]}>
+          <AlertCircle size={17} color={Colors.high} strokeWidth={2.2} />
+        </View>
+        <View style={styles.flex}>
+          <ThemedText style={styles.title} accessibilityRole="header">
+            Couldn’t load today
+          </ThemedText>
+          <ThemedText style={styles.subtitle} numberOfLines={2}>
+            {message}
+          </ThemedText>
+        </View>
+        <ActionButton
+          label="Retry"
+          icon={RotateCcw}
+          onPress={onRetry}
+          accessibilityLabel="Try loading today again"
+        />
       </View>
-      <Pressable
-        onPress={onRetry}
-        accessibilityRole="button"
-        style={({ pressed }) => [styles.retry, pressed && styles.pressed]}>
-        <RotateCcw size={15} color={Colors.text} strokeWidth={2.4} />
-        <ThemedText style={styles.retryText}>Try again</ThemedText>
-      </Pressable>
     </Shell>
   );
 }
@@ -629,28 +584,27 @@ export function TodayHeroError({ message, onRetry }: { message: string; onRetry:
 export function TodayHeroSkeleton() {
   return (
     <Shell>
-      <SkeletonGroup label="Loading today’s plan" style={styles.skeleton}>
-        <View style={styles.top}>
-          <View style={[styles.flex, styles.skeletonText]}>
-            <Skeleton width={120} height={11} />
-            <Skeleton width="85%" height={22} />
-            <Skeleton width="45%" height={22} />
+      <SkeletonGroup label="Loading today’s plan">
+        <View style={styles.header}>
+          <SkeletonCircle size={LEAD} />
+          <View style={styles.flex}>
+            <Skeleton width="60%" height={15} />
           </View>
-          <SkeletonCircle size={72} />
         </View>
-        <Skeleton height={8} radius={4} />
-        <View style={styles.rows}>
-          {[0, 1].map((i) => (
-            <View key={i} style={styles.row}>
-              <SkeletonCircle size={42} />
+        <View style={styles.rule} />
+        {[0, 1].map((i) => (
+          <Fragment key={i}>
+            {i ? <View style={styles.divider} /> : null}
+            <View style={styles.row}>
+              <SkeletonCircle size={LEAD} />
               <View style={[styles.flex, styles.skeletonText]}>
                 <Skeleton width={i ? '55%' : '45%'} height={13} />
                 <Skeleton width={i ? '70%' : '62%'} height={10} />
               </View>
-              <Skeleton width={72} height={38} radius={Radius.pill} />
+              <SkeletonCircle size={34} />
             </View>
-          ))}
-        </View>
+          </Fragment>
+        ))}
       </SkeletonGroup>
     </Shell>
   );
@@ -660,6 +614,10 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
+  center: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   pressed: {
     opacity: 0.6,
   },
@@ -667,187 +625,110 @@ const styles = StyleSheet.create({
     pointerEvents: 'none',
   },
   shadow: {
-    borderRadius: Radius.xxl,
-    boxShadow: Shadows.raised,
+    borderRadius: Radius.xl,
+    boxShadow: Shadows.soft,
   },
   card: {
-    gap: Spacing.three,
-    padding: Spacing.three + 2,
-    borderRadius: Radius.xxl,
+    paddingHorizontal: Spacing.three - 2,
+    paddingVertical: Spacing.three - 4,
+    borderRadius: Radius.xl,
     borderWidth: 1,
     borderColor: Colors.hairline,
     overflow: 'hidden',
     backgroundColor: Colors.backgroundElement,
   },
-  petals: {
-    position: 'absolute',
-    top: -38,
-    right: -46,
-    width: 168,
-    height: 150,
-    opacity: 0.12,
-    transform: [{ rotate: '14deg' }],
-  },
-  top: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.three,
+    gap: Spacing.three - 6,
   },
-  kicker: {
-    fontFamily: Fonts.bold,
-    fontSize: 12,
-    lineHeight: 16,
-    letterSpacing: 0.9,
-    textTransform: 'uppercase',
-    color: Colors.textFaint,
-  },
-  headline: {
-    marginTop: 4,
+  title: {
     fontFamily: Fonts.displaySemibold,
-    fontSize: 25,
-    lineHeight: 30,
-    letterSpacing: -0.5,
+    fontSize: 16.5,
+    lineHeight: 21,
+    letterSpacing: -0.3,
     color: Colors.text,
   },
-  lede: {
-    marginTop: 6,
-    fontFamily: Fonts.regular,
-    fontSize: 15,
-    lineHeight: 21,
-    color: Colors.textSoft,
+  more: {
+    marginRight: -6,
+    fontFamily: Fonts.semibold,
+    fontSize: 12.5,
+    lineHeight: 16,
+    color: Colors.textFaint,
   },
-  ringCenter: {
-    alignItems: 'center',
-    justifyContent: 'center',
+  subtitle: {
+    marginTop: 1,
+    fontFamily: Fonts.medium,
+    fontSize: 13,
+    lineHeight: 17,
+    color: Colors.textFaint,
+  },
+  lead: {
+    width: LEAD,
+    height: LEAD,
   },
   ringValue: {
     fontFamily: Fonts.displaySemibold,
-    fontSize: 21,
-    lineHeight: 24,
+    fontSize: 11.5,
+    lineHeight: 14,
     color: Colors.text,
   },
   ringTotal: {
     fontFamily: Fonts.displaySemibold,
-    fontSize: 14,
-    color: Colors.textFaint,
-  },
-  ringLabel: {
-    marginTop: -1,
-    fontFamily: Fonts.semibold,
-    fontSize: 11,
-    lineHeight: 13,
-    color: Colors.textFaint,
-  },
-
-  // Day strip
-  strip: {
-    height: MARKER + 22,
-  },
-  trackLine: {
-    position: 'absolute',
-    top: MARKER / 2 - 1.5,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: TRACK,
-  },
-  // The part of the day already gone, up to now.
-  trackDone: {
-    backgroundColor: Colors.primaryMid,
-  },
-  marker: {
-    position: 'absolute',
-    top: 0,
-    width: MARKER,
-    height: MARKER,
-    borderRadius: MARKER / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  markerTaken: {
-    backgroundColor: Colors.primary,
-  },
-  markerDue: {
-    borderWidth: 3,
-    borderColor: Colors.primary,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: '0 0 0 4px rgba(221, 67, 1, 0.14)',
-  },
-  markerLater: {
-    borderWidth: 2.5,
-    borderColor: LATER,
-    backgroundColor: Colors.backgroundElement,
-  },
-  markerSkipped: {
-    transform: [{ scale: 0.55 }],
-    backgroundColor: LATER,
-  },
-  consultMarker: {
-    position: 'absolute',
-    top: -4,
-    width: 22,
-    height: 22,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: Colors.backgroundElement,
-    backgroundColor: Colors.ink,
-  },
-  stripLabel: {
-    position: 'absolute',
-    top: MARKER + 7,
-    fontFamily: Fonts.semibold,
-    fontSize: 11,
+    fontSize: 9,
     lineHeight: 14,
     color: Colors.textFaint,
   },
+  dish: {
+    borderRadius: LEAD / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.well,
+  },
+  dishAlert: {
+    backgroundColor: Colors.highSoft,
+  },
 
-  // Rows
-  rows: {
-    gap: Spacing.two,
+  // Lines
+  rule: {
+    height: StyleSheet.hairlineWidth,
+    marginTop: Spacing.two + 2,
+    marginHorizontal: -(Spacing.three - 2),
+    backgroundColor: Colors.hairline,
+  },
+  // The last line's own padding is most of the card's bottom edge.
+  lines: {
+    marginBottom: -5,
+  },
+  // Starts where the words do, like a list's separators.
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    marginLeft: LEAD + Spacing.three - 6,
+    backgroundColor: Colors.hairline,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.three - 4,
-    minHeight: 68,
-    paddingVertical: 12,
-    paddingLeft: 12,
-    paddingRight: 12,
-    borderRadius: Radius.lg + 2,
-    backgroundColor: Colors.well,
-  },
-  rowPressed: {
-    opacity: 0.85,
-    transform: [{ scale: 0.985 }],
-  },
-  iconTile: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.backgroundElement,
-  },
-  iconTileOverdue: {
-    backgroundColor: Colors.highSoft,
+    gap: Spacing.three - 6,
+    paddingVertical: 7,
   },
   rowTitle: {
     fontFamily: Fonts.bold,
-    fontSize: 15.5,
-    lineHeight: 20,
+    fontSize: 14.5,
+    lineHeight: 18.5,
     color: Colors.text,
   },
   rowSubtitle: {
-    marginTop: 1,
     fontFamily: Fonts.medium,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 16,
     color: Colors.textSoft,
   },
+  // Nested in the subtitle: each sets its line height, or ThemedText's default 24 makes the line tall.
   flag: {
     fontFamily: Fonts.bold,
-    fontSize: 13,
+    fontSize: 12,
+    lineHeight: 16,
     color: Colors.primaryDeep,
   },
   flagMissed: {
@@ -858,20 +739,21 @@ const styles = StyleSheet.create({
   },
   flagLive: {
     fontFamily: Fonts.bold,
-    fontSize: 13,
+    fontSize: 12,
+    lineHeight: 16,
     color: Colors.good,
   },
   camBadge: {
     position: 'absolute',
     right: -3,
     bottom: -3,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: Colors.well,
+    borderColor: Colors.backgroundElement,
     backgroundColor: Colors.ink,
   },
   camBadgeLive: {
@@ -880,47 +762,63 @@ const styles = StyleSheet.create({
   action: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    minHeight: 40,
-    paddingHorizontal: 15,
+    gap: 4,
+    height: 32,
+    paddingHorizontal: 13,
     borderRadius: Radius.pill,
+  },
+  take: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionSolid: {
     backgroundColor: Colors.primaryDeep,
   },
-  actionPressed: {
+  actionSolidPressed: {
     backgroundColor: Colors.primaryInk,
+    transform: [{ scale: 0.97 }],
+  },
+  actionSoft: {
+    backgroundColor: Colors.primaryTint,
+  },
+  // Like a checkbox waiting for a tick: white, with a peach ring.
+  takeSoft: {
+    borderWidth: 1.5,
+    borderColor: Colors.primaryLight,
+    backgroundColor: Colors.backgroundElement,
+  },
+  actionSoftPressed: {
+    backgroundColor: Colors.primaryTintStrong,
     transform: [{ scale: 0.97 }],
   },
   actionText: {
     fontFamily: Fonts.bold,
-    fontSize: 14.5,
-    lineHeight: 19,
+    fontSize: 13.5,
+    lineHeight: 18,
     color: Colors.onInk,
   },
-  chevron: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
+  actionTextSoft: {
+    color: Colors.primaryDeep,
   },
   undo: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    minHeight: 44,
+    minHeight: 38,
+    marginTop: Spacing.three - 4,
     paddingLeft: 12,
-    paddingRight: 8,
-    borderRadius: Radius.lg,
+    paddingRight: 6,
+    borderRadius: Radius.md,
     backgroundColor: Colors.goodSoft,
   },
   undoText: {
     flex: 1,
     fontFamily: Fonts.semibold,
-    fontSize: 13.5,
-    lineHeight: 18,
+    fontSize: 13,
+    lineHeight: 17,
     color: Colors.text,
   },
   undoButton: {
@@ -932,7 +830,7 @@ const styles = StyleSheet.create({
   },
   undoButtonText: {
     fontFamily: Fonts.bold,
-    fontSize: 14,
+    fontSize: 13.5,
     lineHeight: 18,
     color: Colors.primaryDeep,
   },
@@ -940,6 +838,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    marginTop: Spacing.two,
   },
   errorText: {
     flex: 1,
@@ -948,31 +847,11 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     color: Colors.high,
   },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 2,
-    marginTop: -4,
-    marginBottom: -6,
-    paddingVertical: 6,
-  },
-  footerText: {
-    fontFamily: Fonts.bold,
-    fontSize: 14,
-    lineHeight: 18,
-    color: Colors.primaryDeep,
-  },
-  emptyTop: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.three,
-  },
-  // Light: a white button with a peach edge and an orange plus, floating just off the card.
+  // A white button with a peach edge and an orange plus.
   addIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -983,27 +862,6 @@ const styles = StyleSheet.create({
   addIconPressed: {
     backgroundColor: Colors.primaryTint,
     transform: [{ scale: 0.95 }],
-  },
-  retry: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 6,
-    minHeight: 46,
-    paddingHorizontal: 18,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-  },
-  retryText: {
-    fontFamily: Fonts.bold,
-    fontSize: 14.5,
-    lineHeight: 19,
-    color: Colors.text,
-  },
-  skeleton: {
-    gap: Spacing.three,
   },
   skeletonText: {
     gap: 8,

@@ -12,7 +12,7 @@ type TagProps = {
   icon?: LucideIcon;
 };
 
-/** Small coloured label, e.g. "2 need attention". */
+/** Small coloured label, e.g. "2 need attention". Status tones always carry their word. */
 export function Tag({ label, tone = 'neutral', icon: Icon }: TagProps) {
   const { color, soft } = TONES[tone];
 
@@ -31,8 +31,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    gap: 4,
-    paddingVertical: 3,
+    gap: 3,
+    paddingVertical: 2.5,
     paddingHorizontal: 8,
     borderRadius: Radius.pill,
   },

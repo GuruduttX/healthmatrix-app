@@ -1,9 +1,19 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { CalendarCheck, Check, Clock, Lock, Send, Video } from 'lucide-react-native';
+import {
+  AlertCircle,
+  CalendarCheck,
+  Check,
+  Clock,
+  Info,
+  Lock,
+  MessageSquareText,
+  Send,
+  Video,
+  type LucideIcon,
+} from 'lucide-react-native';
 import { useCallback, useState, type ReactNode } from 'react';
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -14,16 +24,28 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { ErrorState } from '@/components/ui/empty-state';
+import { IconTile } from '@/components/ui/icon-tile';
+import { Divided, LIST_LEAD, ListRow, listText } from '@/components/ui/list';
+import { PageBackground } from '@/components/ui/morning-light';
+import { Section } from '@/components/ui/section';
 import { Segmented } from '@/components/ui/segmented';
 import { Skeleton, SkeletonCircle, SkeletonGroup } from '@/components/ui/skeleton';
 import { StackHeader } from '@/components/ui/stack-header';
 import { Surface } from '@/components/ui/surface';
 import { TextField } from '@/components/ui/text-field';
-import { Colors, Fonts, Gradients, MaxContentWidth, Radius, Shadows, Spacing } from '@/constants/theme';
+import {
+  Colors,
+  Fonts,
+  Gradients,
+  Gutter,
+  MaxContentWidth,
+  Radius,
+  Shadows,
+  Spacing,
+} from '@/constants/theme';
 import { CustomTimeInput } from '@/features/doctors/custom-time-input';
 import { DoctorAvatar } from '@/features/doctors/doctor-avatar';
 import { isSpecialty, specialtyLabel } from '@/features/doctors/specialties';
@@ -46,6 +68,7 @@ import {
   partOfDay,
   WEEKDAY_NAMES,
 } from '@/features/reminders/schedule';
+import { useKeyboardVisible } from '@/hooks/use-keyboard-visible';
 import { useRefreshControl } from '@/hooks/use-refresh-control';
 import { useTabBarClearance } from '@/hooks/use-tab-bar-clearance';
 import { ApiError, api } from '@/services/api';
@@ -103,6 +126,7 @@ export default function BookDoctorScreen() {
   const { send: sendRequest } = useConsultRequests();
   const now = useNow();
   const clearance = useTabBarClearance();
+  const keyboardVisible = useKeyboardVisible();
 
   const [data, setData] = useState<DoctorWithSlots | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -117,6 +141,8 @@ export default function BookDoctorScreen() {
   const [mode, setMode] = useState<Mode>('slots');
   const [requestTime, setRequestTime] = useState<string | null>(null);
   const [requested, setRequested] = useState<ConsultRequest | null>(null);
+  // The pinned button's height, so the last field can scroll clear of it.
+  const [footerHeight, setFooterHeight] = useState(0);
 
   /** Loads the doctor and free slots; `isActive` drops the answer once the screen has moved on. */
   const load = useCallback(
@@ -180,7 +206,7 @@ export default function BookDoctorScreen() {
 
   if (requested) {
     return (
-      <Shell title="Request sent" onBack={() => router.dismissTo('/care')} close>
+      <Shell onBack={() => router.dismissTo('/care')} close>
         <RequestSent request={requested} />
       </Shell>
     );
@@ -188,7 +214,7 @@ export default function BookDoctorScreen() {
 
   if (booked) {
     return (
-      <Shell title="Booked" onBack={() => router.dismissTo('/care')} close>
+      <Shell onBack={() => router.dismissTo('/care')} close>
         <Confirmation appointment={booked} />
       </Shell>
     );
@@ -284,6 +310,22 @@ export default function BookDoctorScreen() {
     }
   };
 
+  // The pinned button: what it does, and the time it is for once there is one.
+  const cta =
+    mode === 'slots'
+      ? {
+          label: chosen ? 'Confirm booking' : 'Pick a time to continue',
+          icon: chosen ? CalendarCheck : undefined,
+          summary: chosen ? formatSlot(chosen.at) : null,
+          onPress: confirm,
+        }
+      : {
+          label: requestAt ? `Send request to ${doctor.name}` : 'Pick a day and time',
+          icon: requestAt ? Send : undefined,
+          summary: requestAt ? formatSlot(requestAt) : null,
+          onPress: request,
+        };
+
   return (
     <Shell title="Book appointment" onBack={back}>
       <KeyboardAvoidingView
@@ -293,38 +335,43 @@ export default function BookDoctorScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           refreshControl={refreshControl}
-          contentContainerStyle={[styles.content, { paddingBottom: clearance + Spacing.three }]}>
+          contentContainerStyle={[
+            styles.content,
+            { paddingBottom: footerHeight + Spacing.four },
+          ]}>
           <Surface style={styles.doctor}>
-            <DoctorAvatar name={doctor.name} photoUrl={doctor.photoUrl} size={56} />
-            <View style={styles.flex}>
-              <ThemedText style={styles.doctorName} numberOfLines={1}>
-                {doctor.name}
-              </ThemedText>
-              {doctor.qualifications ? (
-                <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1}>
-                  {doctor.qualifications}
+            <View style={styles.doctorTop}>
+              <DoctorAvatar name={doctor.name} photoUrl={doctor.photoUrl} size={52} />
+              <View style={styles.flex}>
+                <ThemedText style={styles.doctorName} numberOfLines={1}>
+                  {doctor.name}
                 </ThemedText>
-              ) : null}
-              <View style={styles.mode}>
-                <Video size={13} color={Colors.success} strokeWidth={2.4} />
-                <ThemedText type="caption" themeColor="success" style={styles.modeText}>
-                  Video consult · {slotMinutes} min
-                </ThemedText>
+                {doctor.qualifications ? (
+                  <ThemedText style={styles.doctorLine} numberOfLines={1}>
+                    {doctor.qualifications}
+                  </ThemedText>
+                ) : null}
+                <View style={styles.mode}>
+                  <Video size={13} color={Colors.primary} strokeWidth={2.4} />
+                  <ThemedText style={styles.modeText} numberOfLines={1}>
+                    Video consult · {slotMinutes} min
+                  </ThemedText>
+                </View>
               </View>
             </View>
+            {doctor.about ? (
+              <>
+                <View style={styles.rule} />
+                <View style={styles.about}>
+                  <ThemedText style={styles.aboutTitle}>About the doctor</ThemedText>
+                  <ThemedText style={styles.aboutText}>{doctor.about}</ThemedText>
+                </View>
+              </>
+            ) : null}
           </Surface>
 
-          {doctor.about ? (
-            <Surface style={styles.section}>
-              <ThemedText type="bodyBold">About the doctor</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                {doctor.about}
-              </ThemedText>
-            </Surface>
-          ) : null}
-
           {bookable.length > 1 ? (
-            <Section title="Consult for">
+            <Section title="Consult for" index={0}>
               <View style={styles.wrap}>
                 {bookable.map((id) => (
                   <Chip
@@ -338,7 +385,7 @@ export default function BookDoctorScreen() {
             </Section>
           ) : null}
 
-          <Section title="Choose a day" step={1}>
+          <Section title="Choose a day" index={1}>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -347,6 +394,7 @@ export default function BookDoctorScreen() {
               {days.map((d) => {
                 const free = d.slots.filter((slot) => slot.available).length;
                 const selected = d.date === date;
+                const closed = mode === 'slots' && !free;
                 const weekday =
                   d.date === today ? 'Today' : WEEKDAY_NAMES[fromDateKey(d.date).getDay()];
                 return (
@@ -358,25 +406,25 @@ export default function BookDoctorScreen() {
                       setRequestTime(mode === 'request' ? soonest.time : null);
                       setError(null);
                     }}
-                    disabled={mode === 'slots' && !free}
+                    disabled={closed}
                     accessibilityRole="button"
-                    accessibilityState={{ selected, disabled: mode === 'slots' && !free }}
+                    accessibilityState={{ selected, disabled: closed }}
                     accessibilityLabel={`${formatDay(d.date, today)}, ${free ? `${free} free slots` : dayStatus(d, free).toLowerCase()}`}
                     style={({ pressed }) => [
                       styles.day,
                       selected && styles.daySelected,
-                      mode === 'slots' && !free && styles.dayFull,
+                      closed && !selected && styles.dayClosed,
                       pressed && styles.pressed,
                     ]}>
-                    <ThemedText type="caption" themeColor={selected ? 'onInk' : 'textSecondary'}>
+                    <ThemedText style={[styles.dayWeekday, selected && styles.onInkSoft]}>
                       {weekday}
                     </ThemedText>
                     <ThemedText style={[styles.dayNumber, selected && styles.onInk]}>
                       {fromDateKey(d.date).getDate()}
                     </ThemedText>
                     <ThemedText
-                      type="caption"
-                      themeColor={selected ? 'onInk' : free ? 'success' : 'textMuted'}>
+                      style={[styles.dayStatus, selected && styles.onInkSoft]}
+                      numberOfLines={1}>
                       {dayStatus(d, free)}
                     </ThemedText>
                   </Pressable>
@@ -387,8 +435,8 @@ export default function BookDoctorScreen() {
 
           <Section
             title={mode === 'slots' ? 'Choose a time' : 'Ask for a time'}
-            hint="India time (IST)"
-            step={2}>
+            meta="India time (IST)"
+            index={2}>
             <Segmented
               value={mode}
               onChange={switchMode}
@@ -399,9 +447,9 @@ export default function BookDoctorScreen() {
             />
             {mode === 'request' ? (
               <>
-                <View style={styles.requestNote}>
-                  <Clock size={15} color={Colors.primary} strokeWidth={2.2} />
-                  <ThemedText type="caption" themeColor="textSecondary" style={styles.flex}>
+                <View style={styles.note}>
+                  <Info size={15} color={Colors.textFaint} strokeWidth={2.2} />
+                  <ThemedText style={[styles.noteText, styles.flex]}>
                     Ask {doctor.name} for any time on the day you picked above. Nothing is booked
                     until they confirm; you’ll see their answer under Your consults in Care.
                   </ThemedText>
@@ -422,9 +470,7 @@ export default function BookDoctorScreen() {
             ) : day && day.slots.length ? (
               groupSlots(day.slots).map((group) => (
                 <View key={group.title} style={styles.group}>
-                  <ThemedText type="caption" themeColor="textSecondary" style={styles.groupTitle}>
-                    {group.title}
-                  </ThemedText>
+                  <ThemedText style={styles.groupTitle}>{group.title}</ThemedText>
                   <View style={styles.slots}>
                     {group.slots.map((slot) => {
                       const selected = slot.at === slotAt;
@@ -446,9 +492,11 @@ export default function BookDoctorScreen() {
                             pressed && styles.pressed,
                           ]}>
                           <ThemedText
-                            type="smallBold"
-                            themeColor={selected ? 'onInk' : slot.available ? 'text' : 'textMuted'}
-                            style={!slot.available && styles.struck}>
+                            style={[
+                              styles.slotText,
+                              selected && styles.onInk,
+                              !slot.available && styles.slotTakenText,
+                            ]}>
                             {formatTime(slot.time)}
                           </ThemedText>
                         </Pressable>
@@ -458,16 +506,14 @@ export default function BookDoctorScreen() {
                 </View>
               ))
             ) : (
-              <ThemedText type="small" themeColor="textSecondary">
-                {emptyDayText(day)}
-              </ThemedText>
+              <ThemedText style={styles.empty}>{emptyDayText(day)}</ThemedText>
             )}
           </Section>
 
           <Section
             title="What would you like to discuss?"
-            hint="Optional. Helps the doctor prepare."
-            step={3}>
+            caption="Optional. Helps the doctor prepare."
+            index={3}>
             <TextField
               value={reason}
               onChangeText={setReason}
@@ -479,180 +525,191 @@ export default function BookDoctorScreen() {
             />
           </Section>
 
-          <View style={styles.note}>
-            <Lock size={14} color={Colors.textSecondary} strokeWidth={2.2} />
-            <ThemedText type="caption" themeColor="textSecondary" style={styles.flex}>
+          <View style={styles.trust}>
+            <Lock size={13} color={Colors.textFaint} strokeWidth={2.2} style={styles.trustIcon} />
+            <ThemedText style={styles.trustText}>
               The doctor sees your health records only after you approve with your OTP.
             </ThemedText>
           </View>
+        </ScrollView>
 
+        {/* Pinned over the bottom of the page: the page fades out under the button. */}
+        <View
+          onLayout={(event) => setFooterHeight(event.nativeEvent.layout.height)}
+          style={[
+            styles.footer,
+            { paddingBottom: keyboardVisible ? Spacing.two + 4 : clearance + Spacing.two + 4 },
+          ]}>
+          <LinearGradient
+            colors={['rgba(248, 245, 240, 0)', Colors.canvas]}
+            style={[styles.fade, styles.noTouch]}
+          />
           {error ? (
-            <ThemedText type="small" themeColor="danger" accessibilityLiveRegion="polite">
-              {error}
+            <View style={styles.error} accessibilityLiveRegion="polite">
+              <AlertCircle size={15} color={Colors.high} strokeWidth={2.4} />
+              <ThemedText style={styles.errorText}>{error}</ThemedText>
+            </View>
+          ) : cta.summary ? (
+            <ThemedText style={styles.summary} numberOfLines={1}>
+              {cta.summary}
             </ThemedText>
           ) : null}
-
-          <Pressable
-            onPress={mode === 'slots' ? confirm : request}
-            disabled={!canSubmit || busy}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: !canSubmit || busy, busy }}
-            style={({ pressed }) => [
-              styles.book,
-              !canSubmit && styles.bookDisabled,
-              pressed && styles.pressed,
-            ]}>
-            {busy ? (
-              <ActivityIndicator color={Colors.onInk} />
-            ) : mode === 'slots' ? (
-              <>
-                <ThemedText type="smallBold" themeColor="onInk">
-                  {chosen ? 'Confirm booking' : 'Pick a time to continue'}
-                </ThemedText>
-                {chosen ? (
-                  <ThemedText type="caption" style={styles.bookSub}>
-                    {formatSlot(chosen.at)}
-                  </ThemedText>
-                ) : null}
-              </>
-            ) : (
-              <>
-                <View style={styles.sendRow}>
-                  {requestAt ? <Send size={15} color={Colors.onInk} strokeWidth={2.4} /> : null}
-                  <ThemedText type="smallBold" themeColor="onInk">
-                    {requestAt ? `Send request to ${doctor.name}` : 'Pick a day and time'}
-                  </ThemedText>
-                </View>
-                {requestAt ? (
-                  <ThemedText type="caption" style={styles.bookSub}>
-                    {formatSlot(requestAt)}
-                  </ThemedText>
-                ) : null}
-              </>
-            )}
-          </Pressable>
-        </ScrollView>
+          <Button
+            label={cta.label}
+            icon={cta.icon}
+            // Quiet white until there is something to book, then the one orange thing on the page.
+            variant={canSubmit ? 'primary' : 'secondary'}
+            onPress={cta.onPress}
+            disabled={!canSubmit}
+            loading={busy}
+          />
+        </View>
       </KeyboardAvoidingView>
     </Shell>
   );
 }
 
-function Confirmation({ appointment }: { appointment: Appointment }) {
+/** A round dish at the top of a done screen: a check in the "good" colour, or a sent request. */
+function DoneBadge({ icon: Icon, good }: { icon: LucideIcon; good?: boolean }) {
   return (
-    <View style={styles.done}>
-      <SuccessBadge>
-        <Check size={40} color={Colors.onInk} strokeWidth={3} />
-      </SuccessBadge>
-      <ThemedText style={styles.doneTitle}>You’re booked</ThemedText>
-      <ThemedText type="small" themeColor="textSecondary" style={styles.center}>
-        Your video consult is confirmed. You’ll find it under Your consults in Care, and on Home.
-      </ThemedText>
-
-      <Surface style={styles.doneCard}>
-        {appointment.doctor ? (
-          <View style={styles.doctorRow}>
-            <DoctorAvatar
-              name={appointment.doctor.name}
-              photoUrl={appointment.doctor.photoUrl}
-              size={44}
-            />
-            <View style={styles.flex}>
-              <ThemedText type="bodyBold">{appointment.doctor.name}</ThemedText>
-              <ThemedText type="caption" themeColor="textSecondary">
-                {specialtyLabel(appointment.specialty)}
-              </ThemedText>
-            </View>
-          </View>
-        ) : null}
-        <View style={styles.doneRow}>
-          <CalendarCheck size={16} color={Colors.primary} strokeWidth={2.2} />
-          <ThemedText type="smallBold">{formatSlot(appointment.scheduledAt)}</ThemedText>
+    // The shadow sits outside; a plain View rounds and clips the tint.
+    <View style={styles.badgeShadow}>
+      <View style={[styles.badge, good && styles.badgeGood]}>
+        {good ? null : (
+          <LinearGradient
+            colors={Gradients.dish}
+            start={{ x: 0.2, y: 0 }}
+            end={{ x: 0.8, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+        )}
+        {/* A layer of its own, so it paints above the gradient on web too. */}
+        <View style={[StyleSheet.absoluteFill, styles.center]}>
+          <Icon size={30} color={good ? Colors.good : Colors.primaryDeep} strokeWidth={2.6} />
         </View>
-        <View style={styles.doneRow}>
-          <Video size={16} color={Colors.primary} strokeWidth={2.2} />
-          <ThemedText type="small">Video consult in the app</ThemedText>
-        </View>
-        {appointment.reason ? (
-          <ThemedText type="caption" themeColor="textSecondary">
-            “{appointment.reason}”
-          </ThemedText>
-        ) : null}
-      </Surface>
-
-      <View style={styles.doneButton}>
-        <Button label="Done" onPress={() => router.dismissTo('/care')} />
       </View>
     </View>
+  );
+}
+
+/**
+ * A done screen: one white card with the badge, what happened, and the consult's lines under a
+ * hairline (the doctor, when, what it's about), then Done.
+ */
+function Done({
+  badge,
+  title,
+  body,
+  doctor,
+  specialty,
+  when,
+  whenIcon,
+  whenDetail,
+  reason,
+}: {
+  badge: ReactNode;
+  title: string;
+  body: string;
+  doctor: Appointment['doctor'];
+  specialty: Specialty;
+  when: string;
+  whenIcon: LucideIcon;
+  whenDetail: string;
+  reason?: string;
+}) {
+  return (
+    <ScrollView
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={[styles.content, styles.doneContent]}>
+      <Surface style={styles.doneCard}>
+        <View style={styles.doneTop}>
+          {badge}
+          <ThemedText style={styles.doneTitle} accessibilityRole="header">
+            {title}
+          </ThemedText>
+          <ThemedText style={styles.doneBody}>{body}</ThemedText>
+        </View>
+        <View style={styles.rule} />
+        <Divided>
+          {doctor ? (
+            <ListRow
+              leading={<DoctorAvatar name={doctor.name} photoUrl={doctor.photoUrl} size={LIST_LEAD} />}
+              title={doctor.name}
+              subtitle={specialtyLabel(specialty)}
+            />
+          ) : null}
+          <ListRow
+            leading={<IconTile icon={whenIcon} size={LIST_LEAD} />}
+            title={when}
+            subtitle={whenDetail}
+          />
+          {reason ? (
+            <ListRow
+              leading={<IconTile icon={MessageSquareText} size={LIST_LEAD} />}
+              title={
+                <ThemedText style={listText.subtitle} numberOfLines={3}>
+                  “{reason}”
+                </ThemedText>
+              }
+            />
+          ) : null}
+        </Divided>
+      </Surface>
+
+      <Button label="Done" onPress={() => router.dismissTo('/care')} />
+    </ScrollView>
+  );
+}
+
+function Confirmation({ appointment }: { appointment: Appointment }) {
+  return (
+    <Done
+      badge={<DoneBadge icon={Check} good />}
+      title="You’re booked"
+      body="Your video consult is confirmed. You’ll find it under Your consults in Care, and on Home."
+      doctor={appointment.doctor}
+      specialty={appointment.specialty}
+      when={formatSlot(appointment.scheduledAt)}
+      whenIcon={CalendarCheck}
+      whenDetail="Video consult in the app"
+      reason={appointment.reason}
+    />
   );
 }
 
 function RequestSent({ request }: { request: ConsultRequest }) {
   return (
-    <View style={styles.done}>
-      <SuccessBadge tone="brand">
-        <Send size={34} color={Colors.onInk} strokeWidth={2.4} />
-      </SuccessBadge>
-      <ThemedText style={styles.doneTitle}>Request sent</ThemedText>
-      <ThemedText type="small" themeColor="textSecondary" style={styles.center}>
-        {request.doctor?.name ?? 'The doctor'} will confirm or decline. If they confirm, it’s
-        booked and shows under Your consults in Care. If not, you can pick one of their open
-        slots.
-      </ThemedText>
-
-      <Surface style={styles.doneCard}>
-        {request.doctor ? (
-          <View style={styles.doctorRow}>
-            <DoctorAvatar name={request.doctor.name} photoUrl={request.doctor.photoUrl} size={44} />
-            <View style={styles.flex}>
-              <ThemedText type="bodyBold">{request.doctor.name}</ThemedText>
-              <ThemedText type="caption" themeColor="textSecondary">
-                {specialtyLabel(request.specialty)}
-              </ThemedText>
-            </View>
-          </View>
-        ) : null}
-        <View style={styles.doneRow}>
-          <Clock size={16} color={Colors.primary} strokeWidth={2.2} />
-          <ThemedText type="smallBold">{formatSlot(request.requestedAt)}</ThemedText>
-        </View>
-        <View style={styles.doneRow}>
-          <Video size={16} color={Colors.primary} strokeWidth={2.2} />
-          <ThemedText type="small">Waiting for the doctor to confirm</ThemedText>
-        </View>
-        {request.reason ? (
-          <ThemedText type="caption" themeColor="textSecondary">
-            “{request.reason}”
-          </ThemedText>
-        ) : null}
-      </Surface>
-
-      <View style={styles.doneButton}>
-        <Button label="Done" onPress={() => router.dismissTo('/care')} />
-      </View>
-    </View>
+    <Done
+      badge={<DoneBadge icon={Send} />}
+      title="Request sent"
+      body={`${request.doctor?.name ?? 'The doctor'} will confirm or decline. If they confirm, it’s booked and shows under Your consults in Care. If not, you can pick one of their open slots.`}
+      doctor={request.doctor}
+      specialty={request.specialty}
+      when={formatSlot(request.requestedAt)}
+      whenIcon={Clock}
+      whenDetail="Waiting for the doctor to confirm"
+      reason={request.reason}
+    />
   );
 }
 
-/** The page around each step: a warm wash, a back (or close) bar, then the content. */
+/** The page around each step: the warm backdrop, a back (or close) bar, then the content. */
 function Shell({
   title,
   onBack,
   close = false,
   children,
 }: {
-  title: string;
+  /** Left out on the done screens, whose card has the big title. */
+  title?: string;
   onBack: () => void;
   /** Done screens close back to Care rather than stepping back. */
   close?: boolean;
   children: ReactNode;
 }) {
   return (
-    <ThemedView style={styles.container}>
-      <LinearGradient
-        colors={['rgba(254, 241, 234, 0.9)', 'rgba(243, 247, 247, 0)']}
-        style={styles.wash}
-        pointerEvents="none"
-      />
+    <View style={styles.container}>
+      <PageBackground />
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         <StackHeader
           onBack={onBack}
@@ -662,61 +719,6 @@ function Shell({
         />
         {children}
       </SafeAreaView>
-    </ThemedView>
-  );
-}
-
-/** One step of the booking, numbered, on a white card. */
-function Section({
-  title,
-  hint,
-  step,
-  children,
-}: {
-  title: string;
-  hint?: string;
-  step?: number;
-  children: ReactNode;
-}) {
-  return (
-    <Surface style={styles.section}>
-      <View style={styles.sectionHeader}>
-        {step ? (
-          <View style={styles.step}>
-            <ThemedText style={styles.stepText}>{step}</ThemedText>
-          </View>
-        ) : null}
-        <View style={styles.flex}>
-          <ThemedText type="bodyBold">{title}</ThemedText>
-          {hint ? (
-            <ThemedText type="caption" themeColor="textSecondary">
-              {hint}
-            </ThemedText>
-          ) : null}
-        </View>
-      </View>
-      {children}
-    </Surface>
-  );
-}
-
-/** A big round icon on soft rings, for the done screens. */
-function SuccessBadge({ tone = 'success', children }: { tone?: 'success' | 'brand'; children: ReactNode }) {
-  const soft = tone === 'success' ? Colors.successSoft : Colors.primarySoft;
-  return (
-    <View style={[styles.ringOuter, { backgroundColor: soft }]}>
-      <View style={styles.ringInner}>
-        <View style={styles.badgeClip}>
-          <LinearGradient
-            colors={tone === 'success' ? [Colors.teal, Colors.success] : Gradients.brand}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
-          {/* In a View, so the icon paints above the gradient on web too. */}
-          <View>{children}</View>
-        </View>
-      </View>
     </View>
   );
 }
@@ -725,58 +727,37 @@ function SuccessBadge({ tone = 'success', children }: { tone?: 'success' | 'bran
 function BookingSkeleton() {
   return (
     <SkeletonGroup label="Loading free times" style={styles.skeletonStack}>
-      <Surface style={styles.doctor}>
-        <SkeletonCircle size={56} />
+      <Surface style={styles.doctorTop}>
+        <SkeletonCircle size={52} />
         <View style={styles.flex}>
           <Skeleton width="55%" height={16} />
           <Skeleton width="40%" height={11} style={styles.skeletonGap} />
         </View>
       </Surface>
-      <Surface style={styles.section}>
-        <Skeleton width={140} height={16} />
-        <View style={styles.days}>
-          {[0, 1, 2, 3].map((i) => (
-            <Skeleton key={i} width={66} height={82} radius={Radius.lg} />
-          ))}
-        </View>
-      </Surface>
-      <Surface style={styles.section}>
-        <Skeleton width={120} height={16} />
-        <Skeleton height={48} radius={Radius.pill} />
-        <View style={styles.slots}>
-          {[0, 1, 2, 3, 4, 5].map((i) => (
-            <Skeleton key={i} width="30%" height={44} radius={Radius.pill} />
-          ))}
-        </View>
-      </Surface>
+      <Skeleton width={140} height={20} />
+      <View style={styles.skeletonRow}>
+        {[0, 1, 2, 3, 4].map((i) => (
+          <Skeleton key={i} width={DAY_WIDTH} height={80} radius={Radius.pill} />
+        ))}
+      </View>
+      <Skeleton width={130} height={20} />
+      <Skeleton height={48} radius={Radius.pill} />
+      <View style={styles.slots}>
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <Skeleton key={i} width="30%" height={44} radius={Radius.pill} />
+        ))}
+      </View>
     </SkeletonGroup>
   );
 }
 
+const DAY_WIDTH = 60;
+
 const styles = StyleSheet.create({
-  requestNote: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.two,
-    padding: 12,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.primarySoft,
-  },
-  sendRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
   container: {
     flex: 1,
     alignItems: 'center',
-  },
-  wash: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 280,
+    backgroundColor: Colors.canvas,
   },
   safeArea: {
     flex: 1,
@@ -787,17 +768,25 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   center: {
-    textAlign: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noTouch: {
+    pointerEvents: 'none',
   },
   onInk: {
     color: Colors.onInk,
   },
+  onInkSoft: {
+    color: Colors.onInkMuted,
+  },
   pressed: {
-    opacity: 0.75,
+    opacity: 0.8,
+    transform: [{ scale: 0.97 }],
   },
   content: {
-    gap: Spacing.three,
-    padding: Spacing.three,
+    gap: Spacing.four - 4,
+    paddingHorizontal: Gutter,
     paddingTop: Spacing.one,
   },
   skeletonGap: {
@@ -806,96 +795,151 @@ const styles = StyleSheet.create({
   skeletonStack: {
     gap: Spacing.three,
   },
+  skeletonRow: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+  },
+
+  // The doctor
   doctor: {
+    paddingVertical: 14,
+  },
+  doctorTop: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three - 4,
   },
   doctorName: {
-    fontFamily: Fonts.display,
+    fontFamily: Fonts.displaySemibold,
     fontSize: 18,
     lineHeight: 23,
+    letterSpacing: -0.3,
+    color: Colors.text,
+  },
+  doctorLine: {
+    fontFamily: Fonts.medium,
+    fontSize: 13,
+    lineHeight: 18,
+    color: Colors.textSoft,
   },
   mode: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 4,
-    marginTop: 6,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.successSoft,
+    gap: 5,
+    marginTop: 3,
   },
   modeText: {
+    flexShrink: 1,
     fontFamily: Fonts.semibold,
-  },
-  section: {
-    gap: Spacing.three - 2,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two + 2,
-  },
-  step: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.ink,
-  },
-  stepText: {
-    fontFamily: Fonts.bold,
-    fontSize: 13,
+    fontSize: 12.5,
     lineHeight: 16,
-    color: Colors.onInk,
+    color: Colors.textFaint,
+  },
+  // A hairline across the whole card.
+  rule: {
+    height: StyleSheet.hairlineWidth,
+    marginVertical: Spacing.three - 4,
+    marginHorizontal: -Spacing.three,
+    backgroundColor: Colors.hairline,
+  },
+  about: {
+    gap: 3,
+  },
+  aboutTitle: {
+    fontFamily: Fonts.semibold,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: Colors.textFaint,
+  },
+  aboutText: {
+    fontFamily: Fonts.medium,
+    fontSize: 14,
+    lineHeight: 20,
+    color: Colors.textSoft,
   },
   wrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.two,
   },
-  // Bleed to the card edges so the days scroll under its padding.
+
+  // Days: tall pills that scroll sideways, out to the screen's edges.
   daysScroll: {
-    marginHorizontal: -Spacing.three,
+    marginHorizontal: -Gutter,
   },
   days: {
     flexDirection: 'row',
     gap: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: 2,
+    paddingHorizontal: Gutter,
+    // Room for the pills' shadows.
+    paddingTop: 2,
+    paddingBottom: 6,
   },
   day: {
-    width: 66,
+    width: DAY_WIDTH,
     alignItems: 'center',
-    gap: 2,
-    paddingVertical: 10,
-    borderRadius: Radius.lg,
+    paddingTop: 11,
+    paddingBottom: 12,
+    borderRadius: Radius.pill,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.hairline,
     backgroundColor: Colors.backgroundElement,
+    boxShadow: Shadows.soft,
   },
   daySelected: {
-    borderColor: Colors.ink,
-    backgroundColor: Colors.ink,
-    boxShadow: '0 8px 18px rgba(14, 42, 51, 0.25)',
+    borderColor: Colors.text,
+    backgroundColor: Colors.text,
   },
-  dayFull: {
-    opacity: 0.45,
+  // Nothing to book: faded, flat, still in its place so the week reads in order.
+  dayClosed: {
+    opacity: 0.5,
+    backgroundColor: 'transparent',
+    boxShadow: 'none',
+  },
+  dayWeekday: {
+    fontFamily: Fonts.semibold,
+    fontSize: 12,
+    lineHeight: 16,
+    color: Colors.textFaint,
   },
   dayNumber: {
-    fontFamily: Fonts.display,
-    fontSize: 22,
-    lineHeight: 28,
+    marginVertical: 1,
+    fontFamily: Fonts.displaySemibold,
+    fontSize: 21,
+    lineHeight: 26,
+    letterSpacing: -0.4,
     color: Colors.text,
+    fontVariant: ['tabular-nums'],
+  },
+  dayStatus: {
+    fontFamily: Fonts.semibold,
+    fontSize: 11,
+    lineHeight: 14,
+    color: Colors.textFaint,
+  },
+
+  // Times
+  note: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.two,
+    paddingHorizontal: 2,
+  },
+  noteText: {
+    fontFamily: Fonts.medium,
+    fontSize: 13,
+    lineHeight: 18,
+    color: Colors.textSoft,
   },
   group: {
     gap: Spacing.two,
   },
   groupTitle: {
+    marginTop: 2,
     fontFamily: Fonts.semibold,
+    fontSize: 13,
+    lineHeight: 17,
+    color: Colors.textFaint,
   },
   slots: {
     flexDirection: 'row',
@@ -907,96 +951,141 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     maxWidth: '33%',
     alignItems: 'center',
-    paddingVertical: 11,
+    justifyContent: 'center',
+    minHeight: 44,
     borderRadius: Radius.pill,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.hairline,
     backgroundColor: Colors.backgroundElement,
+    boxShadow: Shadows.soft,
   },
   slotSelected: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primary,
-    boxShadow: Shadows.glow,
+    borderColor: Colors.text,
+    backgroundColor: Colors.text,
   },
+  // Taken: no fill, no lift, faint words.
   slotTaken: {
-    backgroundColor: Colors.background,
-  },
-  struck: {
-    textDecorationLine: 'line-through',
-  },
-  note: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    paddingHorizontal: Spacing.one,
-  },
-  book: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 60,
-    paddingVertical: 9,
-    borderRadius: Radius.xl,
-    backgroundColor: Colors.primary,
-    boxShadow: Shadows.glow,
-  },
-  bookDisabled: {
-    opacity: 0.45,
+    backgroundColor: 'transparent',
     boxShadow: 'none',
   },
-  bookSub: {
-    color: 'rgba(255, 255, 255, 0.9)',
+  slotText: {
+    fontFamily: Fonts.bold,
+    fontSize: 14,
+    lineHeight: 18,
+    color: Colors.text,
+    fontVariant: ['tabular-nums'],
   },
-  done: {
-    flex: 1,
-    alignItems: 'center',
-    gap: Spacing.three,
-    padding: Spacing.four,
-    paddingTop: Spacing.four,
+  slotTakenText: {
+    fontFamily: Fonts.semibold,
+    color: Colors.textMuted,
   },
-  doneTitle: {
-    fontFamily: Fonts.display,
-    fontSize: 28,
-    lineHeight: 34,
+  empty: {
+    fontFamily: Fonts.medium,
+    fontSize: 14,
+    lineHeight: 20,
+    color: Colors.textSoft,
+  },
+  trust: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.two,
+  },
+  trustIcon: {
+    marginTop: 2,
+  },
+  trustText: {
+    flexShrink: 1,
+    fontFamily: Fonts.medium,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: Colors.textFaint,
+  },
+
+  // The pinned button
+  footer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    gap: Spacing.two + 2,
+    paddingTop: Spacing.two,
+    paddingHorizontal: Gutter,
+    backgroundColor: Colors.canvas,
+  },
+  // Above the footer: the page fades into it instead of stopping at an edge.
+  fade: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: '100%',
+    height: Spacing.five,
+  },
+  summary: {
     textAlign: 'center',
+    fontFamily: Fonts.semibold,
+    fontSize: 13,
+    lineHeight: 17,
+    color: Colors.textSoft,
   },
-  ringOuter: {
-    width: 132,
-    height: 132,
-    borderRadius: 66,
-    alignItems: 'center',
+  error: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     justifyContent: 'center',
+    gap: 6,
   },
-  ringInner: {
-    width: 108,
-    height: 108,
-    borderRadius: 54,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.backgroundElement,
+  errorText: {
+    flexShrink: 1,
+    fontFamily: Fonts.semibold,
+    fontSize: 13,
+    lineHeight: 18,
+    color: Colors.high,
   },
-  badgeClip: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
+
+  // Done
+  doneContent: {
+    paddingTop: Spacing.three,
+    paddingBottom: Spacing.six + Spacing.five,
   },
   doneCard: {
-    alignSelf: 'stretch',
-    gap: Spacing.two + 4,
+    paddingTop: Spacing.four,
+    paddingBottom: Spacing.one,
   },
-  doctorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two + 4,
-  },
-  doneRow: {
-    flexDirection: 'row',
+  doneTop: {
     alignItems: 'center',
     gap: Spacing.two,
+    paddingHorizontal: Spacing.two,
   },
-  doneButton: {
-    alignSelf: 'stretch',
+  doneTitle: {
+    marginTop: Spacing.two,
+    textAlign: 'center',
+    fontFamily: Fonts.displaySemibold,
+    fontSize: 26,
+    lineHeight: 32,
+    letterSpacing: -0.5,
+    color: Colors.text,
+  },
+  doneBody: {
+    textAlign: 'center',
+    fontFamily: Fonts.medium,
+    fontSize: 14,
+    lineHeight: 20,
+    color: Colors.textSoft,
+  },
+  badgeShadow: {
+    borderRadius: 36,
+    boxShadow: Shadows.dish,
+  },
+  badge: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Colors.backgroundElement,
+  },
+  badgeGood: {
+    backgroundColor: Colors.goodSoft,
   },
 });

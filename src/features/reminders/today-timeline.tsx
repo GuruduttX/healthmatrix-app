@@ -1,116 +1,131 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { Bell, Check, ChevronRight, CircleCheck, Pill, Plus, Syringe } from 'lucide-react-native';
+import { AlertCircle, CircleCheck, Plus } from 'lucide-react-native';
+import { Fragment, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { IconTile } from '@/components/ui/icon-tile';
+import { Chevron, Divided } from '@/components/ui/list';
 import { Skeleton, SkeletonCircle, SkeletonGroup } from '@/components/ui/skeleton';
-import { Surface } from '@/components/ui/surface';
-import { Tag } from '@/components/ui/tag';
 import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
 import { type VaccinationRecord, type VaccineDose } from '@/features/vaccines/types';
 
 import { doseState, type DoseState } from './dose-item';
+import { DoseRing, LEAD, MedicineDish, TickButton, type TickLook } from './dose-ui';
 import { describeDose, formatTime, type Dose } from './schedule';
 
-// Today's doses as a timeline card, shared by Home's "Today" and the Care tab's "Medicines today",
-// with the card's loading, empty and nothing-due states.
+// Today's doses as one card, shared with the Care tab's "Medicines today", built like Home's
+// Today card: a compact header that opens every medicine, then a line per dose with its tick.
+// Also the card's loading, empty and nothing-due states.
 
 const vaccineTitle = (name: string) => (/vaccin/i.test(name) ? name : `${name} vaccine`);
 
-const STATE_COLORS: Record<DoseState, string> = {
-  taken: Colors.success,
-  skipped: Colors.textMuted,
-  due: Colors.primary,
-  missed: Colors.warning,
-  later: Colors.border,
-  upcoming: Colors.border,
+const openMedicines = () => router.push('/care/medicines');
+
+/** The word at the start of a dose's quiet line, in its flag's colour. */
+const FLAGS: Partial<Record<DoseState, { text: string; color: string }>> = {
+  taken: { text: 'Taken', color: Colors.good },
+  skipped: { text: 'Skipped', color: Colors.textFaint },
+  due: { text: 'Due now', color: Colors.primaryDeep },
+  missed: { text: 'Not marked', color: Colors.watch },
 };
 
-const STATE_LABELS: Partial<Record<DoseState, string>> = {
-  taken: 'Taken',
-  skipped: 'Skipped',
-  due: 'Due now',
-  missed: 'Not marked',
-};
+/** "2 doses left today", "3 doses, 1 vaccine left", or how the day went: one line on a phone. */
+function headline(total: number, taken: number, dosesLeft: number, vaccinesDue: number) {
+  const parts = [
+    dosesLeft ? `${dosesLeft} ${dosesLeft === 1 ? 'dose' : 'doses'}` : null,
+    vaccinesDue ? `${vaccinesDue} ${vaccinesDue === 1 ? 'vaccine' : 'vaccines'}` : null,
+  ].filter(Boolean);
+  if (parts.length === 2) return `${parts.join(', ')} left`;
+  if (dosesLeft) return `${parts[0]} left today`;
+  if (vaccinesDue) return `${parts[0]} due`;
+  return taken === total ? 'Every dose taken today' : 'Today’s doses are done';
+}
 
-/** Where a row sits on the timeline, so the rail starts and ends at the first and last dots. */
-type RailPosition = { first: boolean; last: boolean };
+/** A white card, as on Home. */
+function Card({ children }: { children: ReactNode }) {
+  return <View style={styles.card}>{children}</View>;
+}
 
-function Rail({ color, filled, first, last }: RailPosition & { color: string; filled: boolean }) {
+/** The card's top, one line, opening every medicine and reminder. */
+function Header({
+  leading,
+  title,
+  more,
+  accessibilityLabel,
+}: {
+  leading: ReactNode;
+  title: string;
+  /** "2 more": doses that did not make the card. */
+  more?: string;
+  accessibilityLabel: string;
+}) {
   return (
-    <View style={styles.rail}>
-      <View style={[styles.railLine, first && styles.railFromMiddle, last && styles.railToMiddle]} />
-      <View
-        style={[
-          styles.node,
-          { borderColor: color },
-          filled && { backgroundColor: color },
-          color === Colors.primary && styles.nodeHalo,
-        ]}
-      />
-    </View>
+    <Pressable
+      onPress={openMedicines}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      style={({ pressed }) => [styles.header, pressed && styles.pressed]}>
+      {leading}
+      <ThemedText style={[styles.flex, styles.title]} numberOfLines={1}>
+        {title}
+      </ThemedText>
+      {more ? <ThemedText style={styles.more}>{more}</ThemedText> : null}
+      <Chevron />
+    </Pressable>
   );
 }
 
-type DoseRowProps = RailPosition & {
-  dose: Dose;
-  state: DoseState;
-  onToggle: () => void;
-};
+const tickLook = (state: DoseState): TickLook =>
+  state === 'taken' ? 'done' : state === 'due' ? 'solid' : 'soft';
 
-function DoseRow({ dose, state, first, last, onToggle }: DoseRowProps) {
+/** A dose's line. The whole line is the checkbox: tap it to tick the dose off, or back. */
+function DoseRow({ dose, state, onToggle }: { dose: Dose; state: DoseState; onToggle: () => void }) {
   const done = dose.status === 'taken';
-  const label = STATE_LABELS[state];
-  const detail = describeDose(dose.reminder);
-  const color = STATE_COLORS[state];
+  const flag = FLAGS[state];
+  // "Due now" already says when; every other line needs its time.
+  const detail = [state === 'due' ? null : formatTime(dose.time), describeDose(dose.reminder)]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <Pressable
       onPress={onToggle}
       accessibilityRole="checkbox"
       accessibilityState={{ checked: done }}
-      accessibilityLabel={`${dose.reminder.name}, ${formatTime(dose.time)}${label ? `, ${label}` : ''}`}
+      accessibilityLabel={`${dose.reminder.name}, ${formatTime(dose.time)}${flag ? `, ${flag.text}` : ''}`}
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
-      <ThemedText
-        style={[styles.time, state === 'due' && styles.timeDue]}
-        numberOfLines={1}>
-        {formatTime(dose.time)}
-      </ThemedText>
-      <Rail color={color} filled={done} first={first} last={last} />
+      <MedicineDish faded={!!dose.status} />
       <View style={styles.flex}>
         <ThemedText
-          type="smallBold"
           numberOfLines={1}
-          themeColor={dose.status ? 'textSecondary' : 'text'}
-          style={dose.status === 'skipped' && styles.struck}>
+          style={[
+            styles.rowTitle,
+            !!dose.status && styles.rowTitleMarked,
+            dose.status === 'skipped' && styles.struck,
+          ]}>
           {dose.reminder.name}
         </ThemedText>
-        {label || detail ? (
-          <ThemedText type="caption" themeColor="textMuted" numberOfLines={1}>
-            {label ? (
-              <ThemedText type="caption" style={[styles.semibold, { color }]}>
-                {label}
-              </ThemedText>
-            ) : null}
-            {label && detail ? ' · ' : ''}
-            {detail}
-          </ThemedText>
-        ) : null}
+        <ThemedText style={styles.rowSubtitle} numberOfLines={1}>
+          {flag ? (
+            <ThemedText style={[styles.flag, { color: flag.color }]}>
+              {flag.text}
+              {detail ? ' · ' : ''}
+            </ThemedText>
+          ) : null}
+          {detail}
+        </ThemedText>
       </View>
-      <View style={[styles.check, done && styles.checkDone]}>
-        {done ? <Check size={14} color={Colors.onInk} strokeWidth={3} /> : null}
-      </View>
+      <TickButton look={tickLook(state)} />
     </Pressable>
   );
 }
 
-type VaccineRowProps = RailPosition & { vaccination: VaccinationRecord; dose: VaccineDose };
-
-function VaccineRow({ vaccination, dose, first, last }: VaccineRowProps) {
+function VaccineRow({ vaccination, dose }: VaccineDue) {
   const overdue = dose.status === 'overdue';
-  const color = overdue ? Colors.danger : Colors.primary;
+  const detail = [`Dose ${dose.number} of ${vaccination.totalDoses}`, vaccination.doseText]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <Pressable
@@ -119,118 +134,75 @@ function VaccineRow({ vaccination, dose, first, last }: VaccineRowProps) {
       accessibilityLabel={`${vaccineTitle(vaccination.name)}, dose ${dose.number} ${overdue ? 'overdue' : 'due'}`}
       accessibilityHint="Opens the vaccine record"
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
-      <ThemedText style={[styles.time, { color }]} numberOfLines={1}>
-        {overdue ? 'Overdue' : 'Due'}
-      </ThemedText>
-      <Rail color={color} filled={false} first={first} last={last} />
+      <MedicineDish art="syringe" />
       <View style={styles.flex}>
-        <ThemedText type="smallBold" numberOfLines={1}>
+        <ThemedText style={styles.rowTitle} numberOfLines={1}>
           {vaccineTitle(vaccination.name)}
         </ThemedText>
-        <ThemedText type="caption" themeColor="textMuted" numberOfLines={1}>
-          Dose {dose.number} of {vaccination.totalDoses}
-          {vaccination.doseText ? ` · ${vaccination.doseText}` : ''}
+        <ThemedText style={styles.rowSubtitle} numberOfLines={1}>
+          <ThemedText style={[styles.flag, { color: overdue ? Colors.high : Colors.primaryDeep }]}>
+            {overdue ? 'Overdue' : 'Due'} ·{' '}
+          </ThemedText>
+          {detail}
         </ThemedText>
       </View>
-      <View style={[styles.vaccineIcon, { backgroundColor: overdue ? Colors.dangerSoft : Colors.primarySoft }]}>
-        <Syringe size={14} color={color} strokeWidth={2.4} />
-      </View>
+      <Chevron />
     </Pressable>
   );
 }
 
-/** The gradient's far corner: a touch of amber, so the card never fades to plain white. */
-const WARM_WHITE = '#FFF9EF';
-
-/** Before any medicine is added: a peek at what a reminder looks like, and the way to add one. */
+/** Before any medicine is added: what the card will do, and the way to start. */
 export function NoMedicinesCard() {
   return (
-    // The shadow sits outside the card, which clips its corners and gradient.
-    <View style={styles.inviteShadow}>
-      <View style={styles.invite}>
-        <LinearGradient
-          colors={[Colors.warningSoft, WARM_WHITE]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-
-        <View style={styles.inviteText}>
-          <ThemedText type="bodyBold">Never miss a dose</ThemedText>
-          <ThemedText type="caption" themeColor="textSecondary">
+    <Card>
+      <View style={styles.header}>
+        <MedicineDish />
+        <View style={styles.flex}>
+          <ThemedText style={styles.title} accessibilityRole="header">
+            Never miss a dose
+          </ThemedText>
+          <ThemedText style={styles.subtitle}>
             Add your medicines and we’ll remind you at the right time.
           </ThemedText>
-          <Pressable
-            onPress={() => router.push('/care/medicine/new')}
-            accessibilityRole="button"
-            style={({ pressed }) => [styles.addMedicine, pressed && styles.pressed]}>
-            <Plus size={15} color={Colors.onInk} strokeWidth={2.6} />
-            <ThemedText type="caption" style={styles.addMedicineText}>
-              Add medicine
-            </ThemedText>
-          </Pressable>
         </View>
-
-        <View style={styles.peek} aria-hidden importantForAccessibility="no-hide-descendants">
-          <View style={styles.peekBack} />
-          <View style={styles.peekCard}>
-            <View style={styles.peekIcon}>
-              <Pill size={14} color={Colors.warning} strokeWidth={2.4} />
-            </View>
-            <View style={styles.flex}>
-              <ThemedText style={styles.peekTime}>8:00 AM</ThemedText>
-              <ThemedText style={styles.peekLabel} numberOfLines={1}>
-                Time to take
-              </ThemedText>
-            </View>
-          </View>
-          <View style={styles.peekBell}>
-            <Bell size={11} color={Colors.onInk} strokeWidth={2.6} />
-          </View>
-        </View>
+        <Pressable
+          onPress={() => router.push('/care/medicine/new')}
+          accessibilityRole="button"
+          accessibilityLabel="Add medicine"
+          hitSlop={6}
+          style={({ pressed }) => [styles.addIcon, pressed && styles.addIconPressed]}>
+          <Plus size={18} color={Colors.primaryDeep} strokeWidth={2.4} />
+        </Pressable>
       </View>
-    </View>
+    </Card>
   );
 }
 
-/** The medicines card's shape while it loads: header, progress bar and three timeline rows. */
+/** The medicines card's shape while it loads: the header, then three dose lines. */
 export function MedicinesSkeleton() {
   return (
-    <SkeletonGroup label="Loading today’s medicines" style={styles.skeletonCard}>
-      <View style={styles.headerRow}>
-        <View style={styles.skeletonTitle}>
-          <Skeleton width={110} height={16} />
-          <Skeleton width={70} height={11} />
+    <SkeletonGroup label="Loading today’s medicines" style={styles.card}>
+      <View style={styles.header}>
+        <SkeletonCircle size={LEAD} />
+        <View style={styles.flex}>
+          <Skeleton width="55%" height={15} />
         </View>
-        <Skeleton width={72} height={22} radius={Radius.pill} />
       </View>
-      <Skeleton height={6} radius={3} />
+      <View style={styles.rule} />
       {[0, 1, 2].map((i) => (
-        <View key={i} style={styles.skeletonRow}>
-          <Skeleton width={TIME_WIDTH - 10} height={12} />
-          <SkeletonCircle size={12} />
-          <View style={styles.skeletonTitle}>
-            <Skeleton height={13} width={i === 1 ? '45%' : '60%'} />
-            <Skeleton height={10} width={i === 1 ? '65%' : '40%'} />
+        <Fragment key={i}>
+          {i ? <View style={styles.divider} /> : null}
+          <View style={styles.row}>
+            <SkeletonCircle size={LEAD} />
+            <View style={[styles.flex, styles.skeletonText]}>
+              <Skeleton width={i === 1 ? '45%' : '58%'} height={13} />
+              <Skeleton width={i === 1 ? '66%' : '50%'} height={10} />
+            </View>
+            <SkeletonCircle size={LEAD} />
           </View>
-          <SkeletonCircle size={26} />
-        </View>
+        </Fragment>
       ))}
     </SkeletonGroup>
-  );
-}
-
-function FooterLink({ label }: { label: string }) {
-  return (
-    <Pressable
-      onPress={() => router.push('/care/medicines')}
-      accessibilityRole="button"
-      style={({ pressed }) => [styles.footer, pressed && styles.pressed]}>
-      <ThemedText type="smallBold" themeColor="primary">
-        {label}
-      </ThemedText>
-      <ChevronRight size={16} color={Colors.primary} strokeWidth={2.4} />
-    </Pressable>
   );
 }
 
@@ -240,24 +212,24 @@ export type VaccineDue = { vaccination: VaccinationRecord; dose: VaccineDose };
 /** Nothing scheduled today, with a way to the medicines screen. */
 export function NothingDueCard({ includesVaccines = false }: { includesVaccines?: boolean }) {
   return (
-    <Surface style={styles.calm}>
-      <IconTile icon={CircleCheck} tone="success" size={44} />
-      <View style={styles.flex}>
-        <ThemedText type="bodyBold">Nothing due today</ThemedText>
-        <ThemedText type="caption" themeColor="textSecondary">
-          {includesVaccines
-            ? 'No medicines or vaccines scheduled. Enjoy your day.'
-            : 'No medicines scheduled today. Enjoy your day.'}
-        </ThemedText>
+    <Pressable
+      onPress={openMedicines}
+      accessibilityRole="button"
+      accessibilityHint="Manage medicines"
+      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}>
+      <View style={styles.header}>
+        <IconTile icon={CircleCheck} tone="success" size={LEAD} />
+        <View style={styles.flex}>
+          <ThemedText style={styles.title}>Nothing due today</ThemedText>
+          <ThemedText style={styles.subtitle}>
+            {includesVaccines
+              ? 'No medicines or vaccines scheduled. Enjoy your day.'
+              : 'No medicines scheduled today. Enjoy your day.'}
+          </ThemedText>
+        </View>
+        <Chevron />
       </View>
-      <Pressable
-        onPress={() => router.push('/care/medicines')}
-        accessibilityRole="button"
-        accessibilityLabel="Manage medicines"
-        hitSlop={8}>
-        <ChevronRight size={20} color={Colors.textMuted} strokeWidth={2.2} />
-      </Pressable>
-    </Surface>
+    </Pressable>
   );
 }
 
@@ -275,8 +247,8 @@ type MedicinesTimelineCardProps = {
 };
 
 /**
- * Today's doses on a timeline with a progress bar (tap a dose to tick it off), then any vaccine
- * that is due, and a link to every medicine.
+ * Today's doses on one card: how the day is going in a line (which opens every medicine), then a
+ * line per dose to tick off, then any vaccine that is due.
  */
 export function MedicinesTimelineCard({
   doses,
@@ -289,315 +261,183 @@ export function MedicinesTimelineCard({
 }: MedicinesTimelineCardProps) {
   const shown = doses.slice(0, maxDoses);
   const taken = doses.filter((dose) => dose.status === 'taken').length;
-  const toTake = doses.filter(
-    (dose) => !dose.status && ['due', 'missed'].includes(doseState(dose, now, today)),
-  ).length;
-  const rows = shown.length + vaccinesDue.length;
+  const left = doses.filter((dose) => !dose.status).length;
+  const title = doses.length
+    ? headline(doses.length, taken, left, vaccinesDue.length)
+    : vaccinesDue.length === 1
+      ? 'Vaccine due'
+      : 'Vaccines due';
+  const more = doses.length > shown.length ? `${doses.length - shown.length} more` : undefined;
+  const progress = doses.length ? `${taken} of ${doses.length} doses taken. ` : '';
 
   return (
-    <Surface style={styles.card}>
-      {doses.length ? (
-        <View style={styles.cardHeader}>
-          <View style={styles.headerRow}>
-            <View style={styles.flex}>
-              <ThemedText type="bodyBold">Medicines</ThemedText>
-              <ThemedText type="caption" themeColor="textSecondary">
-                {taken} of {doses.length} taken
-              </ThemedText>
-            </View>
-            {toTake > 0 ? (
-              <Tag label={`${toTake} to take`} tone="warning" />
-            ) : taken === doses.length ? (
-              <Tag label="All taken" tone="success" icon={Check} />
-            ) : null}
-          </View>
-          <View style={styles.track}>
-            <View style={[styles.fill, { width: `${(taken / doses.length) * 100}%` }]} />
-          </View>
-        </View>
-      ) : (
-        <View style={styles.cardHeader}>
-          <ThemedText type="bodyBold">Vaccines due</ThemedText>
-        </View>
-      )}
+    <Card>
+      <Header
+        leading={
+          doses.length ? (
+            <DoseRing taken={taken} total={doses.length} />
+          ) : (
+            <MedicineDish art="syringe" />
+          )
+        }
+        title={title}
+        more={more}
+        accessibilityLabel={`${title}. ${progress}${more ? `${more}. ` : ''}Opens all medicines and reminders.`}
+      />
 
-      <View>
-        {shown.map((dose, index) => (
-          <DoseRow
-            key={`${dose.reminder.id}-${dose.time}`}
-            dose={dose}
-            state={doseState(dose, now, today)}
-            first={index === 0}
-            last={index === rows - 1}
-            onToggle={() => onToggle(dose)}
-          />
-        ))}
-        {vaccinesDue.map(({ vaccination, dose }, index) => (
-          <VaccineRow
-            key={vaccination.id}
-            vaccination={vaccination}
-            dose={dose}
-            first={shown.length + index === 0}
-            last={shown.length + index === rows - 1}
-          />
-        ))}
-      </View>
-
-      {markError ? (
-        <ThemedText type="caption" themeColor="danger">
-          {markError}
-        </ThemedText>
+      {shown.length || vaccinesDue.length ? (
+        <>
+          <View style={styles.rule} />
+          <View style={styles.lines}>
+            <Divided inset={LEAD}>
+              {shown.map((dose) => (
+                <DoseRow
+                  key={`${dose.reminder.id}-${dose.time}`}
+                  dose={dose}
+                  state={doseState(dose, now, today)}
+                  onToggle={() => onToggle(dose)}
+                />
+              ))}
+              {vaccinesDue.map((due) => (
+                <VaccineRow key={due.vaccination.id} {...due} />
+              ))}
+            </Divided>
+          </View>
+        </>
       ) : null}
 
-      <FooterLink
-        label={
-          doses.length > shown.length
-            ? `See all ${doses.length} doses`
-            : 'All medicines and reminders'
-        }
-      />
-    </Surface>
+      {markError ? (
+        <View style={styles.error} accessibilityLiveRegion="polite">
+          <AlertCircle size={15} color={Colors.high} strokeWidth={2.4} />
+          <ThemedText style={styles.errorText}>{markError}</ThemedText>
+        </View>
+      ) : null}
+    </Card>
   );
 }
-
-const TIME_WIDTH = 62;
 
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
-  semibold: {
-    fontFamily: Fonts.semibold,
-  },
   pressed: {
-    opacity: 0.65,
-  },
-
-  // Doses and vaccines
-  skeletonCard: {
-    gap: Spacing.three,
-    padding: Spacing.three,
-    borderRadius: Radius.lg + 4,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.card,
-  },
-  skeletonTitle: {
-    flex: 1,
-    gap: 7,
-  },
-  skeletonRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two + 2,
-    minHeight: 40,
-  },
-  inviteShadow: {
-    borderRadius: Radius.lg + 4,
-    boxShadow: Shadows.card,
-  },
-  invite: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    padding: Spacing.three,
-    borderRadius: Radius.lg + 4,
-    borderWidth: 1,
-    borderColor: 'rgba(181, 120, 10, 0.18)',
-    backgroundColor: WARM_WHITE,
-    overflow: 'hidden',
-  },
-  inviteText: {
-    flex: 1,
-    gap: 3,
-  },
-  addMedicine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 5,
-    marginTop: Spacing.two + 2,
-    paddingVertical: 8,
-    paddingLeft: 12,
-    paddingRight: 14,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.primary,
-    boxShadow: Shadows.glow,
-  },
-  addMedicineText: {
-    fontFamily: Fonts.bold,
-    color: Colors.onInk,
-  },
-  // A small mock reminder, a card tilted behind it and a bell badge.
-  peek: {
-    width: 118,
-    height: 84,
-  },
-  peekBack: {
-    position: 'absolute',
-    top: 8,
-    left: 14,
-    right: 0,
-    height: 44,
-    borderRadius: Radius.md + 2,
-    borderWidth: 1,
-    borderColor: 'rgba(181, 120, 10, 0.14)',
-    backgroundColor: 'rgba(255, 255, 255, 0.6)',
-    transform: [{ rotate: '-7deg' }],
-  },
-  peekCard: {
-    position: 'absolute',
-    top: 28,
-    left: 0,
-    right: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    padding: 8,
-    borderRadius: Radius.md + 2,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: '0 6px 16px rgba(14, 42, 51, 0.12)',
-  },
-  peekIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.warningSoft,
-  },
-  peekTime: {
-    fontFamily: Fonts.bold,
-    fontSize: 12,
-    lineHeight: 15,
-    color: Colors.text,
-  },
-  peekLabel: {
-    fontFamily: Fonts.medium,
-    fontSize: 10,
-    lineHeight: 13,
-    color: Colors.textMuted,
-  },
-  peekBell: {
-    position: 'absolute',
-    top: 18,
-    right: 0,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: Colors.backgroundElement,
-    backgroundColor: Colors.primary,
-  },
-  calm: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two + 4,
+    opacity: 0.6,
   },
   card: {
-    gap: Spacing.two,
-    paddingBottom: 0,
+    paddingHorizontal: Spacing.three - 2,
+    paddingVertical: Spacing.three - 4,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    borderColor: Colors.hairline,
+    backgroundColor: Colors.backgroundElement,
+    boxShadow: Shadows.soft,
   },
-  cardHeader: {
-    gap: Spacing.two + 2,
-    paddingBottom: Spacing.one,
+  cardPressed: {
+    transform: [{ scale: 0.99 }],
+    opacity: 0.85,
   },
-  headerRow: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
+    gap: Spacing.three - 4,
   },
-  track: {
-    height: 6,
-    borderRadius: 3,
-    overflow: 'hidden',
-    backgroundColor: Colors.backgroundSelected,
+  title: {
+    fontFamily: Fonts.displaySemibold,
+    fontSize: 16.5,
+    lineHeight: 21,
+    letterSpacing: -0.3,
+    color: Colors.text,
   },
-  fill: {
-    height: '100%',
-    borderRadius: 3,
-    backgroundColor: Colors.success,
+  subtitle: {
+    marginTop: 1,
+    fontFamily: Fonts.medium,
+    fontSize: 13,
+    lineHeight: 17,
+    color: Colors.textSoft,
+  },
+  more: {
+    marginRight: -6,
+    fontFamily: Fonts.semibold,
+    fontSize: 12.5,
+    lineHeight: 16,
+    color: Colors.textFaint,
+  },
+  // Lines
+  rule: {
+    height: StyleSheet.hairlineWidth,
+    marginTop: Spacing.two + 2,
+    marginHorizontal: -(Spacing.three - 2),
+    backgroundColor: Colors.hairline,
+  },
+  // The last line's own padding is most of the card's bottom edge.
+  lines: {
+    marginBottom: -5,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    marginLeft: LEAD + Spacing.three - 4,
+    backgroundColor: Colors.hairline,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two + 2,
-    minHeight: 54,
+    gap: Spacing.three - 4,
+    paddingVertical: 7,
   },
-  time: {
-    width: TIME_WIDTH,
-    fontFamily: Fonts.semibold,
-    fontSize: 12,
-    lineHeight: 16,
-    color: Colors.textSecondary,
-  },
-  timeDue: {
-    color: Colors.primary,
+  rowTitle: {
     fontFamily: Fonts.bold,
+    fontSize: 14.5,
+    lineHeight: 18.5,
+    color: Colors.text,
   },
-  rail: {
-    width: 14,
-    alignSelf: 'stretch',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  railLine: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    width: 2,
-    borderRadius: 1,
-    backgroundColor: Colors.backgroundSelected,
-  },
-  railFromMiddle: {
-    top: '50%',
-  },
-  railToMiddle: {
-    bottom: '50%',
-  },
-  node: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    borderWidth: 2.5,
-    backgroundColor: Colors.backgroundElement,
-  },
-  nodeHalo: {
-    boxShadow: '0 0 0 4px rgba(221, 67, 1, 0.15)',
-  },
-  check: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: Colors.border,
-  },
-  checkDone: {
-    borderColor: Colors.success,
-    backgroundColor: Colors.success,
+  rowTitleMarked: {
+    color: Colors.textSoft,
   },
   struck: {
     textDecorationLine: 'line-through',
   },
-  vaccineIcon: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
+  rowSubtitle: {
+    fontFamily: Fonts.medium,
+    fontSize: 12,
+    lineHeight: 16,
+    color: Colors.textSoft,
   },
-  footer: {
+  // Nested in the subtitle, so it sets its own line height (ThemedText's default is 24).
+  flag: {
+    fontFamily: Fonts.bold,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  error: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
+    marginTop: Spacing.two,
+  },
+  errorText: {
+    flex: 1,
+    fontFamily: Fonts.semibold,
+    fontSize: 13,
+    lineHeight: 18,
+    color: Colors.high,
+  },
+  // A white button with a peach edge and an orange plus, as on Home.
+  addIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    borderWidth: 1,
+    borderColor: Colors.primaryTintStrong,
+    backgroundColor: Colors.backgroundElement,
+    boxShadow: Shadows.soft,
+  },
+  addIconPressed: {
+    backgroundColor: Colors.primaryTint,
+    transform: [{ scale: 0.95 }],
+  },
+  skeletonText: {
+    gap: 8,
   },
 });

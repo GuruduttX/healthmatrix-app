@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 
 import { fromDateKey, MONTH_NAMES, toDateKey, WEEKDAY_LETTERS } from './schedule';
 import { type DateKey } from './types';
@@ -16,7 +16,7 @@ type DatePickerProps = {
   minDate?: DateKey;
 };
 
-/** A month calendar. Today is outlined; the chosen day is filled. */
+/** A month calendar. Today is ringed in peach; the chosen day is solid ink. */
 export function DatePicker({ value, onChange, today, minDate }: DatePickerProps) {
   const [month, setMonth] = useState(() => {
     const day = fromDateKey(value);
@@ -42,7 +42,7 @@ export function DatePicker({ value, onChange, today, minDate }: DatePickerProps)
     <View style={styles.wrap}>
       <View style={styles.header}>
         <NavButton label="Previous month" onPress={() => shift(-1)} icon={ChevronLeft} />
-        <ThemedText type="bodyBold">
+        <ThemedText style={styles.month}>
           {MONTH_NAMES[month.m]} {month.y}
         </ThemedText>
         <NavButton label="Next month" onPress={() => shift(1)} icon={ChevronRight} />
@@ -51,9 +51,7 @@ export function DatePicker({ value, onChange, today, minDate }: DatePickerProps)
       <View style={styles.grid}>
         {WEEKDAY_LETTERS.map((letter, i) => (
           <View key={`h${i}`} style={styles.cell}>
-            <ThemedText type="caption" themeColor="textMuted">
-              {letter}
-            </ThemedText>
+            <ThemedText style={styles.weekday}>{letter}</ThemedText>
           </View>
         ))}
         {cells.map((date, i) => {
@@ -75,9 +73,12 @@ export function DatePicker({ value, onChange, today, minDate }: DatePickerProps)
                   pressed && styles.pressed,
                 ]}>
                 <ThemedText
-                  type={selected || date === today ? 'smallBold' : 'small'}
-                  themeColor={selected ? 'onInk' : disabled ? 'textMuted' : 'text'}
-                  style={disabled && styles.disabledText}>
+                  style={[
+                    styles.dayText,
+                    date === today && styles.todayText,
+                    selected && styles.selectedText,
+                    disabled && styles.disabledText,
+                  ]}>
                   {Number(date.slice(8))}
                 </ThemedText>
               </Pressable>
@@ -104,8 +105,8 @@ function NavButton({
       accessibilityRole="button"
       accessibilityLabel={label}
       hitSlop={6}
-      style={({ pressed }) => [styles.nav, pressed && styles.pressed]}>
-      <Icon size={18} color={Colors.text} strokeWidth={2.4} />
+      style={({ pressed }) => [styles.nav, pressed && styles.navPressed]}>
+      <Icon size={17} color={Colors.text} strokeWidth={2.3} />
     </Pressable>
   );
 }
@@ -119,13 +120,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  month: {
+    fontFamily: Fonts.displaySemibold,
+    fontSize: 16,
+    lineHeight: 21,
+    letterSpacing: -0.2,
+    color: Colors.text,
+  },
+  // White and round like the page's other small buttons.
   nav: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.backgroundSelected,
+    borderWidth: 1,
+    borderColor: Colors.hairline,
+    backgroundColor: Colors.backgroundElement,
+  },
+  navPressed: {
+    backgroundColor: Colors.well,
+    transform: [{ scale: 0.96 }],
   },
   grid: {
     flexDirection: 'row',
@@ -138,25 +153,48 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 2,
   },
+  weekday: {
+    fontFamily: Fonts.semibold,
+    fontSize: 12,
+    lineHeight: 16,
+    color: Colors.textFaint,
+  },
   day: {
     width: '100%',
     height: '100%',
-    maxWidth: 44,
-    maxHeight: 44,
+    maxWidth: 42,
+    maxHeight: 42,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: Radius.pill,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
   },
   today: {
-    borderWidth: 1.5,
-    borderColor: Colors.primary,
+    borderColor: Colors.primaryLight,
   },
   selected: {
-    borderColor: Colors.ink,
-    backgroundColor: Colors.ink,
+    borderColor: Colors.text,
+    backgroundColor: Colors.text,
+  },
+  dayText: {
+    fontFamily: Fonts.medium,
+    fontSize: 14.5,
+    lineHeight: 19,
+    color: Colors.text,
+    fontVariant: ['tabular-nums'],
+  },
+  todayText: {
+    fontFamily: Fonts.bold,
+    color: Colors.primaryDeep,
+  },
+  selectedText: {
+    fontFamily: Fonts.bold,
+    color: Colors.onInk,
   },
   disabledText: {
-    opacity: 0.5,
+    color: Colors.textMuted,
+    opacity: 0.6,
   },
   pressed: {
     opacity: 0.7,

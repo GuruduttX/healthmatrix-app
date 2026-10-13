@@ -1,13 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { useAppointments } from '@/features/doctors/use-appointments';
-import {
-  dosesOn,
-  formatShortDate,
-  toDateKey,
-  WEEKDAY_NAMES,
-  type Dose,
-} from '@/features/reminders/schedule';
+import { dosesOn, toDateKey, type Dose } from '@/features/reminders/schedule';
 import { type DoseStatus } from '@/features/reminders/types';
 import { useNow } from '@/features/reminders/use-now';
 import { useReminders } from '@/features/reminders/use-reminders';
@@ -38,7 +32,6 @@ export function TodayPlan() {
   }, [justTaken]);
 
   const today = toDateKey(now);
-  const dateLabel = `${WEEKDAY_NAMES[now.getDay()]}, ${formatShortDate(today)}`;
   const consult = appointments?.find(
     (appointment) => appointment.status === 'scheduled' || appointment.status === 'in_progress',
   );
@@ -72,7 +65,6 @@ export function TodayPlan() {
     const consultItem = summary.next.find((item) => item.kind === 'consult');
     return (
       <TodayHeroEmpty
-        dateLabel={dateLabel}
         consult={consultItem?.kind === 'consult' ? consultItem : undefined}
         now={now}
       />
@@ -82,7 +74,6 @@ export function TodayPlan() {
   return (
     <TodayHero
       summary={summary}
-      dateLabel={dateLabel}
       now={now}
       onTake={(dose) => {
         mark(dose, 'taken');

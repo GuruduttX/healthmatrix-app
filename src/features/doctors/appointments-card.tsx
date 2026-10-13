@@ -1,16 +1,16 @@
 import { router } from 'expo-router';
-import { CalendarClock, CalendarX, Video } from 'lucide-react-native';
+import { AlertCircle, CalendarPlus, CalendarX, Video } from 'lucide-react-native';
 import { useState } from 'react';
-import { Alert, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Platform, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Surface } from '@/components/ui/surface';
+import { Divided, ListRow, listText } from '@/components/ui/list';
 import { Tag } from '@/components/ui/tag';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { JOIN_OPENS_MS } from '@/features/consult-call/consult-call-api';
 import { useNow } from '@/features/reminders/use-now';
 
-import { DoctorAvatar } from './doctor-avatar';
+import { ConsultAvatar, PillButton, TextButton } from './consult-actions';
 import { specialtyLabel } from './specialties';
 import { formatSlot } from './time';
 import { type Appointment } from './types';
@@ -47,8 +47,9 @@ function bookAgain(appointment: Appointment) {
 }
 
 /**
- * The Upcoming tab of "Your consults" on the Care tab (`ConsultsSection`). Consults the doctor
- * cancelled in the console stay for a while, with their reason.
+ * The Upcoming tab of "Your consults" on the Care tab (`ConsultsSection`): one row per consult,
+ * for a `ListCard`. Consults the doctor cancelled in the console stay for a while, with their
+ * reason.
  */
 export function UpcomingList({ appointments }: { appointments: Appointment[] }) {
   const { cancel } = useAppointments();
@@ -70,161 +71,154 @@ export function UpcomingList({ appointments }: { appointments: Appointment[] }) 
   };
 
   return (
-    <Surface style={styles.card}>
-      {appointments.map((appointment, index) => {
-        const startsIn = new Date(appointment.scheduledAt).getTime() - now.getTime();
-        const running = appointment.status === 'in_progress';
-        const cancelledByDoctor = appointment.status === 'cancelled';
-        const soon = running || startsIn <= SOON_MS;
-        // The waiting room opens five minutes before the slot.
-        const canJoin = running || startsIn <= JOIN_OPENS_MS;
-        return (
-          <View key={appointment.id} style={[styles.row, index > 0 && styles.divider]}>
-            <DoctorAvatar
-              name={appointment.doctor?.name ?? 'Doctor'}
-              photoUrl={appointment.doctor?.photoUrl}
-              size={44}
-            />
-            <View style={styles.flex}>
-              <ThemedText type="smallBold" numberOfLines={1}>
-                {appointment.doctor?.name ?? 'Doctor'}
-              </ThemedText>
-              <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1}>
-                {specialtyLabel(appointment.specialty)}
-              </ThemedText>
-              <View style={styles.when}>
-                {cancelledByDoctor ? (
-                  <CalendarX size={13} color={Colors.danger} strokeWidth={2.4} />
+    <>
+      <Divided>
+        {appointments.map((appointment) => {
+          const doctor = appointment.doctor?.name ?? 'Doctor';
+          const who = appointment.doctor?.name ?? 'the doctor';
+          const startsIn = new Date(appointment.scheduledAt).getTime() - now.getTime();
+          const running = appointment.status === 'in_progress';
+          const cancelledByDoctor = appointment.status === 'cancelled';
+          const soon = running || startsIn <= SOON_MS;
+          // The waiting room opens five minutes before the slot.
+          const canJoin = !cancelledByDoctor && (running || startsIn <= JOIN_OPENS_MS);
+
+          return (
+            <ListRow
+              key={appointment.id}
+              leading={
+                <ConsultAvatar
+                  name={doctor}
+                  photoUrl={appointment.doctor?.photoUrl}
+                  live={canJoin}
+                />
+              }
+              title={doctor}
+              subtitle={
+                <>
+                  <ThemedText style={listText.subtitle} numberOfLines={1}>
+                    {specialtyLabel(appointment.specialty)}
+                  </ThemedText>
+                  <ThemedText
+                    style={[styles.when, cancelledByDoctor && styles.struck]}
+                    numberOfLines={1}>
+                    {formatSlot(appointment.scheduledAt)} · Video
+                  </ThemedText>
+                  {cancelledByDoctor ? (
+                    <View style={styles.note}>
+                      <CalendarX
+                        size={13}
+                        color={Colors.high}
+                        strokeWidth={2.4}
+                        style={styles.noteIcon}
+                      />
+                      <ThemedText style={styles.noteText}>
+                        <ThemedText style={styles.noteFlag}>Cancelled by doctor. </ThemedText>
+                        {appointment.cancelReason ?? 'Please book another slot.'}
+                      </ThemedText>
+                    </View>
+                  ) : running ? (
+                    // The photo's camera badge turns teal-blue with it, as on Home.
+                    <ThemedText style={styles.live}>The doctor is ready for you</ThemedText>
+                  ) : null}
+                </>
+              }
+              trailing={
+                cancelledByDoctor ? (
+                  <PillButton
+                    label="Book again"
+                    icon={CalendarPlus}
+                    onPress={() => bookAgain(appointment)}
+                    accessibilityLabel={`Book again with ${appointment.doctor?.name ?? 'a doctor'}`}
+                  />
+                ) : canJoin ? (
+                  <PillButton
+                    label="Join"
+                    icon={Video}
+                    solid
+                    onPress={() => join(appointment)}
+                    accessibilityLabel={`Join video consult with ${who}`}
+                  />
+                ) : soon ? (
+                  <Tag label="Starting soon" tone="success" icon={Video} />
                 ) : (
-                  <CalendarClock size={13} color={Colors.primary} strokeWidth={2.4} />
-                )}
-                <ThemedText
-                  type="caption"
-                  themeColor={cancelledByDoctor ? 'danger' : 'primary'}
-                  style={[styles.whenText, cancelledByDoctor && styles.struck]}>
-                  {formatSlot(appointment.scheduledAt)} · Video
-                </ThemedText>
-              </View>
-              {cancelledByDoctor ? (
-                <ThemedText type="caption" themeColor="textSecondary">
-                  Cancelled by doctor. {appointment.cancelReason ?? 'Please book another slot.'}
-                </ThemedText>
-              ) : running ? (
-                <ThemedText type="caption" themeColor="success" style={styles.cancelText}>
-                  The doctor is ready for you
-                </ThemedText>
-              ) : null}
-            </View>
-            {cancelledByDoctor ? (
-              <Pressable
-                onPress={() => bookAgain(appointment)}
-                accessibilityRole="button"
-                accessibilityLabel={`Book again with ${appointment.doctor?.name ?? 'a doctor'}`}
-                hitSlop={8}
-                style={({ pressed }) => [styles.rebook, pressed && styles.pressed]}>
-                <ThemedText type="caption" themeColor="primary" style={styles.cancelText}>
-                  Book again
-                </ThemedText>
-              </Pressable>
-            ) : canJoin ? (
-              <Pressable
-                onPress={() => join(appointment)}
-                accessibilityRole="button"
-                accessibilityLabel={`Join video consult with ${appointment.doctor?.name ?? 'the doctor'}`}
-                hitSlop={8}
-                style={({ pressed }) => [styles.join, pressed && styles.pressed]}>
-                <Video size={14} color={Colors.onInk} strokeWidth={2.4} />
-                <ThemedText type="caption" style={styles.joinText}>
-                  {running ? 'Join now' : 'Join call'}
-                </ThemedText>
-              </Pressable>
-            ) : soon ? (
-              <Tag label="Starting soon" tone="success" icon={Video} />
-            ) : (
-              <Pressable
-                onPress={() => cancelOne(appointment)}
-                disabled={busyId === appointment.id}
-                accessibilityRole="button"
-                accessibilityLabel={`Cancel appointment with ${appointment.doctor?.name ?? 'the doctor'}`}
-                hitSlop={8}
-                style={({ pressed }) => [styles.cancel, pressed && styles.pressed]}>
-                <ThemedText type="caption" themeColor="danger" style={styles.cancelText}>
-                  {busyId === appointment.id ? 'Cancelling…' : 'Cancel'}
-                </ThemedText>
-              </Pressable>
-            )}
-          </View>
-        );
-      })}
+                  <TextButton
+                    label={busyId === appointment.id ? 'Cancelling…' : 'Cancel'}
+                    tone="danger"
+                    busy={busyId === appointment.id}
+                    onPress={() => cancelOne(appointment)}
+                    accessibilityLabel={`Cancel appointment with ${who}`}
+                  />
+                )
+              }
+            />
+          );
+        })}
+      </Divided>
       {error ? (
-        <ThemedText type="caption" themeColor="danger">
-          {error}
-        </ThemedText>
+        <View style={styles.error} accessibilityRole="alert">
+          <AlertCircle size={15} color={Colors.high} strokeWidth={2.4} />
+          <ThemedText style={styles.errorText}>{error}</ThemedText>
+        </View>
       ) : null}
-    </Surface>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    paddingVertical: Spacing.one,
-  },
-  flex: {
-    flex: 1,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two + 4,
-    paddingVertical: 12,
-  },
-  divider: {
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-  },
+  // The time is what the row is for: a step stronger than the specialty above it.
   when: {
+    fontFamily: Fonts.semibold,
+    fontSize: 13,
+    lineHeight: 18,
+    color: Colors.text,
+    fontVariant: ['tabular-nums'],
+  },
+  struck: {
+    color: Colors.textFaint,
+    textDecorationLine: 'line-through',
+  },
+  note: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+    alignItems: 'flex-start',
+    gap: 5,
+    marginTop: 3,
+  },
+  noteIcon: {
     marginTop: 2,
   },
-  whenText: {
-    fontFamily: Fonts.semibold,
+  noteText: {
+    flex: 1,
+    fontFamily: Fonts.medium,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: Colors.textSoft,
   },
-  cancel: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.dangerSoft,
-  },
-  cancelText: {
+  // Nested in the note, so it sets its own line height.
+  noteFlag: {
     fontFamily: Fonts.bold,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: Colors.high,
   },
-  rebook: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.primary,
+  live: {
+    marginTop: 1,
+    fontFamily: Fonts.bold,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: Colors.good,
   },
-  join: {
+  error: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.primary,
+    paddingBottom: Spacing.three - 4,
   },
-  joinText: {
-    fontFamily: Fonts.bold,
-    color: Colors.onInk,
-  },
-  struck: {
-    textDecorationLine: 'line-through',
-  },
-  pressed: {
-    opacity: 0.7,
+  errorText: {
+    flex: 1,
+    fontFamily: Fonts.semibold,
+    fontSize: 13,
+    lineHeight: 18,
+    color: Colors.high,
   },
 });

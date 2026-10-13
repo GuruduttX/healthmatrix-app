@@ -1,6 +1,6 @@
-import { router, useIsFocused, useLocalSearchParams } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { Mic, SendHorizontal, ShieldCheck, Sparkles } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { router, useLocalSearchParams } from 'expo-router';
+import { Info, Mic, SendHorizontal, Sparkles } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -15,8 +15,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { EkaayMark } from '@/components/ui/ekaay-mark';
-import { HeroBackground } from '@/components/ui/hero-background';
-import { Colors, Fonts, MaxContentWidth, Radius, Shadows, Spacing } from '@/constants/theme';
+import { PageBackground } from '@/components/ui/morning-light';
+import {
+  Colors,
+  Fonts,
+  Gradients,
+  Gutter,
+  MaxContentWidth,
+  Radius,
+  Shadows,
+  Spacing,
+} from '@/constants/theme';
 import { MessageBubble } from '@/features/ekaay/message-bubble';
 import {
   notConnectedReply,
@@ -36,6 +45,10 @@ function exchange(question: string): ChatMessage[] {
   ];
 }
 
+/** Ekaay's mark in the header, as big as Home's profile and bell buttons. */
+const MARK = 46;
+const SEND = 42;
+
 export default function EkaayScreen() {
   const [messages, setMessages] = useState<ChatMessage[]>(sampleConversation);
   const [draft, setDraft] = useState('');
@@ -47,8 +60,6 @@ export default function EkaayScreen() {
   const keyboardVisible = useKeyboardVisible();
   const clearance = useTabBarClearance();
   const insets = useSafeAreaInsets();
-  // Light status bar text over the dark header, only while Ekaay is showing.
-  const focused = useIsFocused();
   const canSend = draft.trim().length > 0;
 
   // Ask a question from Home once; the param is then cleared so it can be tapped again later.
@@ -70,24 +81,26 @@ export default function EkaayScreen() {
 
   return (
     <View style={styles.container}>
-      {focused ? <StatusBar style="light" /> : null}
-      {/* Ekaay on the same dark header as the other tabs. */}
-      <View style={[styles.header, { paddingTop: insets.top + Spacing.two }]}>
-        <HeroBackground />
-        <View style={styles.headerRow}>
-          <View>
-            <EkaayMark size={48} style={styles.avatar} />
-            <View style={styles.onlineDot} />
-          </View>
-          <View style={styles.flex}>
-            <ThemedText style={styles.title}>Ekaay</ThemedText>
-            <ThemedText type="caption" style={styles.subtitle}>
-              Answers from your own records
+      {/* The page stands still behind the header and the chat; only the messages scroll. */}
+      <PageBackground />
+
+      <View style={[styles.header, { paddingTop: insets.top + Spacing.three }]}>
+        {/* The shadow sits on a wrapper, since the mark clips its own corners. */}
+        <View style={styles.markShadow}>
+          <EkaayMark size={MARK} />
+        </View>
+        <View style={styles.flex}>
+          <View style={styles.titleRow}>
+            <ThemedText style={styles.title} accessibilityRole="header">
+              Ekaay
             </ThemedText>
+            <View style={styles.aiTag}>
+              <ThemedText style={styles.aiTagText}>AI</ThemedText>
+            </View>
           </View>
-          <View style={styles.aiPill}>
-            <ThemedText style={styles.aiText}>AI</ThemedText>
-          </View>
+          <ThemedText style={styles.subtitle} numberOfLines={1}>
+            Answers from your own records
+          </ThemedText>
         </View>
       </View>
 
@@ -101,9 +114,10 @@ export default function EkaayScreen() {
           keyboardShouldPersistTaps="handled"
           onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
           contentContainerStyle={styles.messages}>
+          {/* A quiet line at the top of the chat, like Home's note under Ekaay's insight. */}
           <View style={styles.notice}>
-            <ShieldCheck size={15} color={Colors.success} strokeWidth={2.4} />
-            <ThemedText type="caption" themeColor="textSecondary" style={styles.flex}>
+            <Info size={13} color={Colors.textFaint} strokeWidth={2.2} />
+            <ThemedText style={styles.noticeText}>
               Ekaay gives health information, not a diagnosis. In an emergency, call 112.
             </ThemedText>
           </View>
@@ -130,9 +144,9 @@ export default function EkaayScreen() {
                 onPress={() => send(question)}
                 accessibilityRole="button"
                 accessibilityLabel={`Ask: ${question}`}
-                style={({ pressed }) => [styles.suggestion, pressed && styles.pressed]}>
+                style={({ pressed }) => [styles.suggestion, pressed && styles.suggestionPressed]}>
                 <Sparkles size={13} color={Colors.primary} strokeWidth={2.4} />
-                <ThemedText type="small" style={styles.suggestionText}>
+                <ThemedText style={styles.suggestionText} numberOfLines={1}>
                   {question}
                 </ThemedText>
               </Pressable>
@@ -145,28 +159,39 @@ export default function EkaayScreen() {
               onChangeText={setDraft}
               placeholder="Ask Ekaay anything"
               placeholderTextColor={Colors.textMuted}
+              selectionColor={Colors.primary}
               returnKeyType="send"
               submitBehavior="submit"
               onSubmitEditing={() => send(draft)}
               accessibilityLabel="Ask Ekaay"
               style={styles.input}
             />
+            {/* A quiet dish, so the send button stays the one coloured thing in the bar. */}
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Speak"
               hitSlop={8}
               style={({ pressed }) => [styles.mic, pressed && styles.pressed]}>
-              <Mic size={19} color={Colors.textSecondary} strokeWidth={2.2} />
+              <LinearGradient
+                colors={Gradients.dishQuiet}
+                start={{ x: 0.2, y: 0 }}
+                end={{ x: 0.8, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <View style={[StyleSheet.absoluteFill, styles.center]}>
+                <Mic size={18} color={Colors.textSoft} strokeWidth={2.2} />
+              </View>
             </Pressable>
             <Pressable
               onPress={() => send(draft)}
               disabled={!canSend}
               accessibilityRole="button"
               accessibilityLabel="Send"
+              accessibilityState={{ disabled: !canSend }}
               style={({ pressed }) => [
                 styles.send,
                 !canSend && styles.sendDisabled,
-                pressed && styles.pressed,
+                pressed && styles.sendPressed,
               ]}>
               <SendHorizontal size={18} color={Colors.onInk} strokeWidth={2.4} />
             </Pressable>
@@ -177,86 +202,89 @@ export default function EkaayScreen() {
   );
 }
 
-/** Lifted brand green, for the online dot. */
-const ONLINE = '#22C55E';
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.canvas,
   },
   flex: {
     flex: 1,
   },
+  // Home's header row: a round lead, a big name with a quiet line under it.
   header: {
-    paddingBottom: Spacing.three + 4,
-    backgroundColor: Colors.background,
-  },
-  headerRow: {
     width: '100%',
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three - 4,
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: Gutter,
+    paddingBottom: Spacing.three - 4,
   },
-  // A hairline of light around the mark, so the ink circle reads on the ink header.
-  avatar: {
-    borderWidth: 1.5,
-    borderColor: Colors.glassBorder,
+  markShadow: {
+    borderRadius: MARK / 2,
+    boxShadow: Shadows.dish,
   },
-  onlineDot: {
-    position: 'absolute',
-    right: 0,
-    bottom: 1,
-    width: 13,
-    height: 13,
-    borderRadius: 7,
-    borderWidth: 2.5,
-    borderColor: Colors.ink,
-    backgroundColor: ONLINE,
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
   },
   title: {
-    fontFamily: Fonts.display,
-    fontSize: 24,
-    lineHeight: 30,
-    color: Colors.onInk,
+    fontFamily: Fonts.displaySemibold,
+    fontSize: 27,
+    lineHeight: 33,
+    letterSpacing: -0.5,
+    color: Colors.text,
+  },
+  // As on Home's "Ekaay noticed" card: a small hairline tag, not a badge.
+  aiTag: {
+    marginTop: 3,
+    paddingVertical: 1,
+    paddingHorizontal: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: Colors.hairline,
+    backgroundColor: Colors.backgroundElement,
+  },
+  aiTagText: {
+    fontFamily: Fonts.bold,
+    fontSize: 10.5,
+    lineHeight: 14,
+    letterSpacing: 0.4,
+    color: Colors.textFaint,
   },
   subtitle: {
-    color: Colors.onInkMuted,
-  },
-  aiPill: {
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    backgroundColor: Colors.glass,
-  },
-  aiText: {
-    fontFamily: Fonts.bold,
-    fontSize: 12,
-    lineHeight: 16,
-    color: Colors.primaryLight,
+    fontFamily: Fonts.medium,
+    fontSize: 14,
+    lineHeight: 19,
+    color: Colors.textSoft,
   },
   messages: {
     width: '100%',
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
     gap: Spacing.three - 2,
-    padding: Spacing.three,
+    paddingHorizontal: Gutter,
+    paddingTop: Spacing.two,
+    paddingBottom: Spacing.three,
   },
   notice: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(16, 128, 109, 0.16)',
-    backgroundColor: Colors.successSoft,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.three,
+    marginBottom: Spacing.one,
+  },
+  noticeText: {
+    flexShrink: 1,
+    marginTop: -2,
+    textAlign: 'center',
+    fontFamily: Fonts.medium,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: Colors.textFaint,
   },
   footer: {
     width: '100%',
@@ -268,71 +296,86 @@ const styles = StyleSheet.create({
   suggestions: {
     flexGrow: 0,
   },
+  // Inside the gutters, with room for the pills' shadows.
   suggestionsContent: {
     gap: Spacing.two,
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: Gutter,
+    paddingVertical: 2,
   },
   suggestion: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    height: 36,
+    paddingHorizontal: 13,
     borderRadius: Radius.pill,
     borderWidth: 1,
-    borderColor: 'rgba(221, 67, 1, 0.16)',
-    backgroundColor: Colors.primarySoft,
+    borderColor: Colors.hairline,
+    backgroundColor: Colors.backgroundElement,
+    boxShadow: Shadows.soft,
+  },
+  suggestionPressed: {
+    backgroundColor: Colors.well,
+    transform: [{ scale: 0.97 }],
   },
   suggestionText: {
     fontFamily: Fonts.semibold,
-    color: Colors.primary,
+    fontSize: 13.5,
+    lineHeight: 18,
+    color: Colors.text,
   },
+  // The one raised thing on the screen.
   composer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    marginHorizontal: Spacing.three,
-    paddingLeft: Spacing.three + 2,
-    paddingRight: 6,
-    paddingVertical: 2,
+    marginHorizontal: Gutter,
+    paddingLeft: Spacing.four - 4,
+    paddingRight: 5,
+    paddingVertical: 5,
     borderRadius: Radius.pill,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.hairline,
     backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.lifted,
+    boxShadow: Shadows.raised,
   },
   input: {
     flex: 1,
     minWidth: 0,
     outlineStyle: 'solid',
     outlineWidth: 0,
-    paddingVertical: 14,
+    paddingVertical: 9,
     color: Colors.text,
     fontFamily: Fonts.medium,
     fontSize: 15,
   },
   mic: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    overflow: 'hidden',
+  },
+  // The icon's own layer, so it paints above the dish's gradient on web.
+  center: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.background,
   },
   send: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: SEND,
+    height: SEND,
+    borderRadius: SEND / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.primary,
-    boxShadow: Shadows.glow,
+    backgroundColor: Colors.primaryBright,
+  },
+  sendPressed: {
+    backgroundColor: Colors.primaryDeep,
+    transform: [{ scale: 0.95 }],
   },
   sendDisabled: {
-    opacity: 0.4,
-    boxShadow: 'none',
+    opacity: 0.35,
   },
   pressed: {
-    opacity: 0.75,
+    opacity: 0.7,
   },
 });

@@ -1,7 +1,9 @@
 pod.png is the Cloudspital Arc pod render from the HealthMatrix product brochure (page 13).
 
 The other 3D images are from Microsoft Fluent Emoji (https://github.com/microsoft/fluentui-emoji):
-doctor.png (Man health worker, light skin tone), medicine.png (Pill), records.png (Clipboard).
+medicine.png (Pill) and syringe.png (Syringe), used on the Today card; and the vitals'
+vital-bp.png (Anatomical heart), vital-sugar.png (Drop of blood), vital-spo2.png (Lungs) and
+vital-pulse.png (Beating heart).
 They are used under the MIT License below.
 
     MIT License

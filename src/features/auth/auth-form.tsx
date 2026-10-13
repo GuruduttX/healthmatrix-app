@@ -1,7 +1,4 @@
-import { Image } from 'expo-image';
-import { useIsFocused } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { ArrowRight, Lock, QrCode, Sparkles, Video } from 'lucide-react-native';
+import { AlertCircle, ArrowRight, Lock, QrCode, Sparkles, Video } from 'lucide-react-native';
 import { useEffect, useRef, type ReactNode } from 'react';
 import {
   KeyboardAvoidingView,
@@ -16,16 +13,29 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
-import { HeroBackground } from '@/components/ui/hero-background';
+import { LogoMark } from '@/components/ui/logo-mark';
+import { PageBackground } from '@/components/ui/morning-light';
 import { TextField } from '@/components/ui/text-field';
-import { Colors, Fonts, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
+import {
+  Colors,
+  Fonts,
+  Gutter,
+  MaxContentWidth,
+  Radius,
+  Shadows,
+  Spacing,
+} from '@/constants/theme';
 import { useKeyboardVisible } from '@/hooks/use-keyboard-visible';
+
+import { OtpField } from './otp-field';
 
 export type AuthField = TextInputProps & {
   /** Shown above the field, so it stays clear what to type once the placeholder is gone. */
   label: string;
   /** Fixed text before the value, e.g. "+91". */
   prefix?: string;
+  /** A one-time code: a box per digit (`maxLength` of them) instead of a plain field. */
+  otp?: boolean;
 };
 
 type AuthFormProps = {
@@ -46,10 +56,12 @@ type AuthFormProps = {
   footer?: ReactNode;
 };
 
+const LOGO = 64;
+
 /**
- * Shared layout for the sign-in steps: a dark header with the brand, then a white sheet with the
- * heading, fields and one button. It scrolls, and while the keyboard is up it drops the header
- * and scrolls the fields and button into view above it.
+ * Shared layout for the sign-in steps, on the warm page: the brand in the morning light, then one
+ * white card with the heading, fields and one button. It scrolls, and while the keyboard is up it
+ * drops the brand and scrolls the fields and button into view above it.
  */
 export function AuthForm({
   title,
@@ -66,7 +78,6 @@ export function AuthForm({
   const enabled = canSubmit && !busy;
   const keyboardVisible = useKeyboardVisible();
   const insets = useSafeAreaInsets();
-  const focused = useIsFocused();
   const scroll = useRef<ScrollView>(null);
   const inputs = useRef<(TextInput | null)[]>([]);
 
@@ -79,90 +90,104 @@ export function AuthForm({
 
   return (
     <View style={styles.screen}>
-      {/* Light status bar text over the dark header, while it shows. */}
-      {focused && !keyboardVisible ? <StatusBar style="light" /> : null}
+      <PageBackground height={480} />
       {/* Android draws edge to edge, so the window no longer shrinks for the keyboard: pad on
           both platforms. */}
       <KeyboardAvoidingView style={styles.flex} behavior="padding">
         <ScrollView
           ref={scroll}
           style={styles.flex}
-          contentContainerStyle={styles.container}
+          contentContainerStyle={[
+            styles.container,
+            {
+              paddingTop: insets.top + (keyboardVisible ? Spacing.three : Spacing.five + 4),
+              paddingBottom: insets.bottom + Spacing.three,
+            },
+          ]}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
           showsVerticalScrollIndicator={false}>
-          {keyboardVisible ? (
-            <View style={{ height: insets.top + Spacing.three }} />
-          ) : (
-            <View style={[styles.hero, { paddingTop: insets.top + Spacing.five }]}>
-              <HeroBackground />
-              <View style={styles.heroInner}>
-                <View style={styles.logoTile}>
-                  <Image
-                    source={require('@/assets/images/logo-mark.png')}
-                    style={styles.logo}
-                    contentFit="contain"
-                  />
+          {/* The brand and the card sit together in the middle of the page; with the keyboard up,
+              the card alone sits at the top. */}
+          <View style={[styles.main, keyboardVisible && styles.mainTop]}>
+            {keyboardVisible ? null : (
+              <View style={styles.hero}>
+                {/* The shadow sits on its own wrapper, outside the tile's rounded clip. */}
+                <View style={styles.logoShadow}>
+                  <View style={styles.logoTile}>
+                    <LogoMark size={LOGO} scale={0.6} />
+                  </View>
                 </View>
-                <ThemedText style={styles.brand}>HealthMatrix</ThemedText>
+                <ThemedText style={styles.brand} accessibilityRole="header">
+                  HealthMatrix
+                </ThemedText>
                 <ThemedText style={styles.tagline}>
                   Your health ID, records and doctors, in one card.
                 </ThemedText>
-                <View style={styles.pills}>
+                <View style={styles.features}>
                   {FEATURES.map(({ icon: Icon, label }) => (
-                    <View key={label} style={styles.pill}>
-                      <Icon size={13} color={Colors.primaryLight} strokeWidth={2.4} />
-                      <ThemedText style={styles.pillText}>{label}</ThemedText>
+                    <View key={label} style={styles.feature}>
+                      <Icon size={14} color={Colors.primary} strokeWidth={2.4} />
+                      <ThemedText style={styles.featureText}>{label}</ThemedText>
                     </View>
                   ))}
                 </View>
               </View>
-            </View>
-          )}
+            )}
 
-          <View style={[styles.sheet, keyboardVisible && styles.sheetFlat]}>
-            <ThemedText style={styles.title}>{title}</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              {subtitle}
-            </ThemedText>
+            <View style={styles.card}>
+              <View style={styles.heading}>
+                <ThemedText style={styles.title} accessibilityRole="header">
+                  {title}
+                </ThemedText>
+                <ThemedText style={styles.subtitle}>{subtitle}</ThemedText>
+              </View>
 
-            {beforeFields ? <View style={styles.beforeFields}>{beforeFields}</View> : null}
+              {beforeFields}
 
-            <View style={[styles.fields, beforeFields ? styles.fieldsAfterSlot : null]}>
-              {fields.map(({ label, prefix, ...field }, index) => {
-                const isLast = index === fields.length - 1;
-                return (
-                  <TextField
-                    key={field.nativeID ?? index}
-                    ref={(input) => {
+              <View style={styles.fields}>
+                {fields.map(({ label, prefix, otp, ...field }, index) => {
+                  const isLast = index === fields.length - 1;
+                  const shared = {
+                    ref: (input: TextInput | null) => {
                       inputs.current[index] = input;
-                    }}
-                    label={label}
-                    prefix={prefix}
-                    keyboardType="number-pad"
-                    returnKeyType={isLast ? 'done' : 'next'}
-                    submitBehavior={isLast ? 'blurAndSubmit' : 'submit'}
-                    onSubmitEditing={
-                      isLast
-                        ? enabled
-                          ? onSubmit
-                          : undefined
-                        : () => inputs.current[index + 1]?.focus()
-                    }
-                    editable={!busy}
-                    {...field}
-                  />
-                );
-              })}
-            </View>
+                    },
+                    label,
+                    keyboardType: 'number-pad',
+                    returnKeyType: isLast ? 'done' : 'next',
+                    submitBehavior: isLast ? 'blurAndSubmit' : 'submit',
+                    onSubmitEditing: isLast
+                      ? enabled
+                        ? onSubmit
+                        : undefined
+                      : () => inputs.current[index + 1]?.focus(),
+                    editable: !busy,
+                  } as const;
+                  return otp ? (
+                    <OtpField
+                      key={field.nativeID ?? index}
+                      {...shared}
+                      {...field}
+                      value={field.value ?? ''}
+                    />
+                  ) : (
+                    <TextField
+                      key={field.nativeID ?? index}
+                      {...shared}
+                      prefix={prefix}
+                      {...field}
+                    />
+                  );
+                })}
+              </View>
 
-            {error ? (
-              <ThemedText type="small" themeColor="danger" accessibilityLiveRegion="polite">
-                {error}
-              </ThemedText>
-            ) : null}
+              {error ? (
+                <View style={styles.error} accessibilityLiveRegion="polite">
+                  <AlertCircle size={15} color={Colors.high} strokeWidth={2.4} />
+                  <ThemedText style={styles.errorText}>{error}</ThemedText>
+                </View>
+              ) : null}
 
-            <View style={styles.submit}>
               <Button
                 label={buttonLabel}
                 icon={ArrowRight}
@@ -170,16 +195,16 @@ export function AuthForm({
                 disabled={!canSubmit}
                 onPress={onSubmit}
               />
-            </View>
 
-            {footer}
-
-            <View style={styles.trust}>
-              <Lock size={12} color={Colors.textMuted} strokeWidth={2.2} />
-              <ThemedText type="caption" themeColor="textMuted">
-                Encrypted, and shared only with your consent
-              </ThemedText>
+              {footer}
             </View>
+          </View>
+
+          <View style={styles.trust}>
+            <Lock size={13} color={Colors.textFaint} strokeWidth={2.2} />
+            <ThemedText style={styles.trustText}>
+              Encrypted, and shared only with your consent
+            </ThemedText>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -187,7 +212,7 @@ export function AuthForm({
   );
 }
 
-/** What membership brings, shown on the sign-in header. */
+/** What membership brings, shown under the brand. */
 const FEATURES = [
   { icon: QrCode, label: 'Emergency QR' },
   { icon: Sparkles, label: 'Ekaay AI' },
@@ -197,7 +222,7 @@ const FEATURES = [
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.backgroundElement,
+    backgroundColor: Colors.canvas,
   },
   flex: {
     flex: 1,
@@ -205,108 +230,129 @@ const styles = StyleSheet.create({
   },
   container: {
     flexGrow: 1,
+    width: '100%',
+    maxWidth: MaxContentWidth / 2 + Gutter * 2,
+    alignSelf: 'center',
+    gap: Spacing.four,
+    paddingHorizontal: Gutter,
+  },
+  // A little above the middle, where the eye lands first.
+  main: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    gap: Spacing.four + 4,
+    paddingBottom: Spacing.five,
+  },
+  mainTop: {
+    justifyContent: 'flex-start',
+    paddingBottom: 0,
   },
   hero: {
-    paddingBottom: Spacing.five + Spacing.three,
-    backgroundColor: Colors.backgroundElement,
-  },
-  heroInner: {
-    width: '100%',
-    maxWidth: MaxContentWidth / 2,
-    alignSelf: 'center',
-    alignItems: 'flex-start',
-    gap: Spacing.two,
-    paddingHorizontal: Spacing.four,
-  },
-  logoTile: {
-    width: 60,
-    height: 60,
-    marginBottom: Spacing.two,
-    borderRadius: 18,
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: '0 10px 24px rgba(0, 0, 0, 0.25)',
   },
-  logo: {
-    width: 38,
-    height: 34,
+  logoShadow: {
+    marginBottom: Spacing.three,
+    borderRadius: 20,
+    boxShadow: Shadows.dish,
+  },
+  // A white app-icon tile with the petals in the brand's three oranges.
+  logoTile: {
+    width: LOGO,
+    height: LOGO,
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Colors.hairline,
+    backgroundColor: Colors.backgroundElement,
   },
   brand: {
     fontFamily: Fonts.display,
-    fontSize: 32,
-    lineHeight: 38,
-    color: Colors.onInk,
+    fontSize: 30,
+    lineHeight: 36,
+    letterSpacing: -0.6,
+    color: Colors.text,
   },
   tagline: {
+    marginTop: 4,
+    textAlign: 'center',
     fontFamily: Fonts.medium,
     fontSize: 15,
-    lineHeight: 22,
-    color: Colors.onInkMuted,
+    lineHeight: 21,
+    color: Colors.textSoft,
   },
-  pills: {
+  // A quiet line of what membership brings: an orange icon and a word each, no boxes.
+  features: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.two,
-    marginTop: Spacing.two,
+    justifyContent: 'center',
+    columnGap: Spacing.three,
+    rowGap: Spacing.two,
+    marginTop: Spacing.three,
   },
-  pill: {
+  feature: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    backgroundColor: Colors.glass,
   },
-  pillText: {
+  featureText: {
     fontFamily: Fonts.semibold,
-    fontSize: 12,
+    fontSize: 12.5,
     lineHeight: 16,
-    color: Colors.onInk,
+    color: Colors.text,
   },
-  // The white sheet rides up over the bottom of the header.
-  sheet: {
-    flexGrow: 1,
-    width: '100%',
-    maxWidth: MaxContentWidth / 2,
-    alignSelf: 'center',
-    gap: Spacing.two,
-    marginTop: -Spacing.five,
-    padding: Spacing.four,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+  // The one raised thing on the page.
+  card: {
+    gap: Spacing.three,
+    padding: Spacing.four - 4,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    borderColor: Colors.hairline,
     backgroundColor: Colors.backgroundElement,
+    boxShadow: Shadows.raised,
   },
-  sheetFlat: {
-    marginTop: 0,
+  heading: {
+    gap: 4,
   },
   title: {
-    fontFamily: Fonts.display,
-    fontSize: 27,
-    lineHeight: 33,
+    fontFamily: Fonts.displaySemibold,
+    fontSize: 24,
+    lineHeight: 30,
+    letterSpacing: -0.4,
+    color: Colors.text,
   },
-  beforeFields: {
-    marginTop: Spacing.three,
+  subtitle: {
+    fontFamily: Fonts.medium,
+    fontSize: 14,
+    lineHeight: 20,
+    color: Colors.textSoft,
   },
   fields: {
     gap: Spacing.three,
-    marginTop: Spacing.three,
   },
-  fieldsAfterSlot: {
-    marginTop: Spacing.two,
+  error: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginTop: -Spacing.one,
   },
-  submit: {
-    marginTop: Spacing.two,
+  errorText: {
+    flex: 1,
+    marginTop: -1,
+    fontFamily: Fonts.semibold,
+    fontSize: 13.5,
+    lineHeight: 18,
+    color: Colors.high,
   },
   trust: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    marginTop: 'auto',
-    paddingTop: Spacing.four,
+  },
+  trustText: {
+    fontFamily: Fonts.medium,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: Colors.textFaint,
   },
 });

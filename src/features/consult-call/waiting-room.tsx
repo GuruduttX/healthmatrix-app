@@ -1,10 +1,11 @@
 import { CameraView } from 'expo-camera';
-import { Mic, MicOff, ShieldAlert, Video, VideoOff, X } from 'lucide-react-native';
+import { AlertCircle, Mic, MicOff, ShieldAlert, Video, VideoOff, X } from 'lucide-react-native';
 import { useEffect } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
   withRepeat,
   withTiming,
@@ -12,13 +13,15 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { IconTile } from '@/components/ui/icon-tile';
+import { Chevron } from '@/components/ui/list';
+import { PageBackground } from '@/components/ui/morning-light';
+import { HeaderIconButton } from '@/components/ui/stack-header';
+import { Colors, Fonts, Gutter, Radius, Shadows, Spacing } from '@/constants/theme';
 import { DoctorAvatar } from '@/features/doctors/doctor-avatar';
 import { formatSlot } from '@/features/doctors/time';
 
 import { CallControl } from './call-control';
-
-import { CallBackdrop } from './call-backdrop';
 
 /**
  * `connecting` until the member is in the Twilio room; `doctorHere` once the doctor has the consult
@@ -45,7 +48,9 @@ export type WaitingRoomProps = {
   onClose: () => void;
 };
 
-const AVATAR = 104;
+const AVATAR = 96;
+/** The photo in a white ring, like a framed picture on the warm page. */
+const RING = AVATAR + 8;
 
 /** A ring that grows out of the doctor's photo and fades, on a loop. */
 function Pulse({ delay }: { delay: number }) {
@@ -53,17 +58,16 @@ function Pulse({ delay }: { delay: number }) {
 
   useEffect(() => {
     const start = setTimeout(() => {
-      progress.value = withRepeat(
-        withTiming(1, { duration: 2400, easing: Easing.out(Easing.quad) }),
-        -1,
+      progress.set(
+        withRepeat(withTiming(1, { duration: 2400, easing: Easing.out(Easing.quad) }), -1),
       );
     }, delay);
     return () => clearTimeout(start);
   }, [delay, progress]);
 
   const style = useAnimatedStyle(() => ({
-    opacity: 0.45 * (1 - progress.value),
-    transform: [{ scale: 1 + progress.value * 0.9 }],
+    opacity: 0.9 * (1 - progress.get()),
+    transform: [{ scale: 1 + progress.get() * 0.7 }],
   }));
 
   return <Animated.View style={[styles.pulse, style]} />;
@@ -84,10 +88,18 @@ const STATUS_TEXT: Record<LobbyStatus, { title: string; detail: (doctor: string)
   },
 };
 
+/** The status line's dot: grey while connecting, amber while waiting, blue-teal once seen. */
+const STATUS_DOT: Record<LobbyStatus, string> = {
+  connecting: Colors.textMuted,
+  waiting: Colors.watch,
+  doctorHere: Colors.good,
+};
+
 /**
  * Where the member waits until the doctor admits them from the console. The call opens by itself
  * when they do; meanwhile the member can check how they look and set mic and camera. Nothing is
- * sent to the doctor from here: the camera preview stays on the phone.
+ * sent to the doctor from here: the camera preview stays on the phone. On the warm page, like the
+ * rest of the app; only the call itself is dark.
  */
 export function WaitingRoom({
   status,
@@ -105,110 +117,124 @@ export function WaitingRoom({
   onClose,
 }: WaitingRoomProps) {
   const insets = useSafeAreaInsets();
+  const reduceMotion = useReducedMotion();
   const missing = [!canUseCamera && 'camera', !canUseMic && 'microphone'].filter(Boolean);
   const senses = [!canUseCamera && 'see', !canUseMic && 'hear'].filter(Boolean);
+  const showCamera = cameraOn && canUseCamera;
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top + Spacing.two }]}>
-      <CallBackdrop />
-      <View style={styles.header}>
-        <ThemedText type="smallBold" style={styles.eyebrow}>
-          Waiting room
-        </ThemedText>
-        <Pressable
-          onPress={onClose}
-          accessibilityRole="button"
-          accessibilityLabel="Leave the waiting room"
-          hitSlop={10}
-          style={({ pressed }) => [styles.close, pressed && styles.pressed]}>
-          <X size={20} color={Colors.onInk} strokeWidth={2.4} />
-        </Pressable>
-      </View>
-
-      <View style={styles.doctor}>
-        <View style={styles.avatarWrap}>
-          <Pulse delay={0} />
-          <Pulse delay={1200} />
-          <DoctorAvatar name={doctorName} photoUrl={doctorPhotoUrl} size={AVATAR} />
-        </View>
-        <ThemedText type="subtitle" style={styles.onInk} numberOfLines={1}>
-          {doctorName}
-        </ThemedText>
-        <ThemedText type="small" style={styles.muted}>
-          {scheduledAt ? `Video consult · ${formatSlot(scheduledAt)}` : 'Video consult'}
-        </ThemedText>
-        <View style={styles.statusPill}>
-          <View
-            style={[
-              styles.dot,
-              status === 'doctorHere' && styles.dotHere,
-              status === 'connecting' && styles.dotConnecting,
-            ]}
+    <View style={styles.root}>
+      <PageBackground />
+      <View
+        style={[
+          styles.content,
+          { paddingTop: insets.top + Spacing.two, paddingBottom: insets.bottom + Spacing.three },
+        ]}>
+        <View style={styles.header}>
+          <HeaderIconButton
+            icon={<X size={21} color={Colors.text} strokeWidth={2.2} />}
+            label="Leave the waiting room"
+            onPress={onClose}
           />
-          <ThemedText type="smallBold" style={styles.onInk}>
-            {STATUS_TEXT[status].title}
+          <ThemedText style={styles.headerTitle} accessibilityRole="header" numberOfLines={1}>
+            Waiting room
           </ThemedText>
+          <View style={styles.headerSpacer} />
         </View>
-        <ThemedText type="caption" style={[styles.muted, styles.center]}>
-          {STATUS_TEXT[status].detail(doctorName)}
-        </ThemedText>
-        {connectionIssue ? (
-          <ThemedText type="caption" style={[styles.issue, styles.center]}>
-            {connectionIssue}
-          </ThemedText>
-        ) : null}
-      </View>
 
-      <View style={styles.preview}>
-        {cameraOn && canUseCamera ? (
-          <CameraView style={StyleSheet.absoluteFill} facing="front" mirror />
-        ) : (
-          <View style={styles.previewOff}>
-            <VideoOff size={28} color="rgba(255, 255, 255, 0.6)" strokeWidth={2} />
-            <ThemedText type="small" style={styles.muted}>
-              {canUseCamera ? 'Your camera is off' : 'Camera not allowed'}
+        <View style={styles.doctor}>
+          <View style={styles.avatarWrap}>
+            {reduceMotion ? null : (
+              <>
+                <Pulse delay={0} />
+                <Pulse delay={1200} />
+              </>
+            )}
+            <View style={styles.avatarRing}>
+              <DoctorAvatar name={doctorName} photoUrl={doctorPhotoUrl} size={AVATAR} />
+            </View>
+          </View>
+          <ThemedText style={styles.name} numberOfLines={1}>
+            {doctorName}
+          </ThemedText>
+          <ThemedText style={styles.slot} numberOfLines={1}>
+            {scheduledAt ? `Video consult · ${formatSlot(scheduledAt)}` : 'Video consult'}
+          </ThemedText>
+
+          <View style={styles.status} accessibilityLiveRegion="polite">
+            <View style={[styles.dot, { backgroundColor: STATUS_DOT[status] }]} />
+            <ThemedText style={styles.statusText} numberOfLines={1}>
+              {STATUS_TEXT[status].title}
             </ThemedText>
           </View>
-        )}
-        <View style={styles.previewLabel}>
-          <ThemedText style={styles.previewLabelText}>You</ThemedText>
-          {!micOn || !canUseMic ? (
-            <MicOff size={12} color={Colors.onInk} strokeWidth={2.4} />
+          <ThemedText style={[styles.detail, styles.center]}>
+            {STATUS_TEXT[status].detail(doctorName)}
+          </ThemedText>
+          {connectionIssue ? (
+            <View style={styles.issue}>
+              <AlertCircle size={14} color={Colors.high} strokeWidth={2.4} />
+              <ThemedText style={styles.issueText}>{connectionIssue}</ThemedText>
+            </View>
           ) : null}
         </View>
-      </View>
 
-      {missing.length > 0 && !permissionsPending ? (
-        <Pressable
-          onPress={() => {
-            if (Platform.OS !== 'web') void Linking.openSettings();
-          }}
-          accessibilityRole="button"
-          style={({ pressed }) => [styles.permission, pressed && styles.pressed]}>
-          <ShieldAlert size={18} color={Colors.warning} strokeWidth={2.4} />
-          <ThemedText type="caption" style={styles.permissionText}>
-            {Platform.OS === 'web'
-              ? `Allow your ${missing.join(' and ')} for this site in your browser so ${doctorName} can ${senses.join(' and ')} you.`
-              : `Allow your ${missing.join(' and ')} in Settings so ${doctorName} can ${senses.join(' and ')} you. Tap to open Settings.`}
-          </ThemedText>
-        </Pressable>
-      ) : null}
+        {/* The shadow sits outside the preview, which clips the camera to its corners. */}
+        <View style={styles.previewShadow}>
+          <View style={[styles.preview, showCamera && styles.previewLive]}>
+            {showCamera ? (
+              <CameraView style={StyleSheet.absoluteFill} facing="front" mirror />
+            ) : (
+              <View style={styles.previewOff}>
+                <IconTile icon={VideoOff} tone="neutral" size={52} />
+                <ThemedText style={styles.previewOffText}>
+                  {canUseCamera ? 'Your camera is off' : 'Camera not allowed'}
+                </ThemedText>
+              </View>
+            )}
+            <View style={styles.previewLabel}>
+              <ThemedText style={styles.previewLabelText}>You</ThemedText>
+              {!micOn || !canUseMic ? (
+                <MicOff size={12} color={Colors.text} strokeWidth={2.4} />
+              ) : null}
+            </View>
+          </View>
+        </View>
 
-      <View style={[styles.controls, { paddingBottom: insets.bottom + Spacing.three }]}>
-        <CallControl
-          icon={micOn ? Mic : MicOff}
-          label={micOn ? 'Mic on' : 'Mic off'}
-          tone={micOn ? 'on' : 'off'}
-          onPress={onToggleMic}
-          disabled={!canUseMic}
-        />
-        <CallControl
-          icon={cameraOn ? Video : VideoOff}
-          label={cameraOn ? 'Camera on' : 'Camera off'}
-          tone={cameraOn ? 'on' : 'off'}
-          onPress={onToggleCamera}
-          disabled={!canUseCamera}
-        />
+        {missing.length > 0 && !permissionsPending ? (
+          <Pressable
+            onPress={() => {
+              if (Platform.OS !== 'web') void Linking.openSettings();
+            }}
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.permission, pressed && styles.pressed]}>
+            <IconTile icon={ShieldAlert} tone="warning" size={36} />
+            <ThemedText style={styles.permissionText}>
+              {Platform.OS === 'web'
+                ? `Allow your ${missing.join(' and ')} for this site in your browser so ${doctorName} can ${senses.join(' and ')} you.`
+                : `Allow your ${missing.join(' and ')} in Settings so ${doctorName} can ${senses.join(' and ')} you. Tap to open Settings.`}
+            </ThemedText>
+            {Platform.OS === 'web' ? null : <Chevron />}
+          </Pressable>
+        ) : null}
+
+        <View style={styles.controls}>
+          <CallControl
+            icon={micOn ? Mic : MicOff}
+            label={micOn ? 'Mic on' : 'Mic off'}
+            tone={micOn ? 'on' : 'off'}
+            surface="light"
+            onPress={onToggleMic}
+            disabled={!canUseMic}
+          />
+          <CallControl
+            icon={cameraOn ? Video : VideoOff}
+            label={cameraOn ? 'Camera on' : 'Camera off'}
+            tone={cameraOn ? 'on' : 'off'}
+            surface="light"
+            onPress={onToggleCamera}
+            disabled={!canUseCamera}
+          />
+        </View>
       </View>
     </View>
   );
@@ -217,125 +243,196 @@ export function WaitingRoom({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: Colors.ink,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.three,
+    backgroundColor: Colors.canvas,
   },
+  content: {
+    flex: 1,
+    width: '100%',
+    maxWidth: 520,
+    alignSelf: 'center',
+    gap: Spacing.three,
+    paddingHorizontal: Gutter,
+  },
+  // StackHeader's shape, with the close button's own words for screen readers.
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: Spacing.two,
   },
-  eyebrow: {
-    color: Colors.primaryLight,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+  headerTitle: {
+    flex: 1,
+    textAlign: 'center',
+    fontFamily: Fonts.displaySemibold,
+    fontSize: 17,
+    lineHeight: 22,
+    letterSpacing: -0.2,
+    color: Colors.text,
   },
-  close: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  headerSpacer: {
+    width: 44,
   },
   doctor: {
     alignItems: 'center',
-    gap: Spacing.one,
-    paddingTop: Spacing.two,
   },
   avatarWrap: {
-    width: AVATAR,
-    height: AVATAR,
+    width: RING,
+    height: RING,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.three,
   },
   pulse: {
     position: 'absolute',
-    width: AVATAR,
-    height: AVATAR,
-    borderRadius: AVATAR / 2,
-    backgroundColor: Colors.primary,
+    width: RING,
+    height: RING,
+    borderRadius: RING / 2,
+    borderWidth: 1.5,
+    borderColor: Colors.primaryLight,
   },
-  onInk: {
-    color: Colors.onInk,
+  avatarRing: {
+    padding: 4,
+    borderRadius: RING / 2,
+    backgroundColor: Colors.backgroundElement,
+    boxShadow: Shadows.dish,
   },
-  muted: {
-    color: 'rgba(255, 255, 255, 0.7)',
+  name: {
+    fontFamily: Fonts.displaySemibold,
+    fontSize: 24,
+    lineHeight: 30,
+    letterSpacing: -0.4,
+    color: Colors.text,
+  },
+  slot: {
+    marginTop: 2,
+    fontFamily: Fonts.medium,
+    fontSize: 14,
+    lineHeight: 19,
+    color: Colors.textSoft,
+  },
+  // A white pill on the page: the dot and the words carry the state.
+  status: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    maxWidth: '100%',
+    marginTop: Spacing.three,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Colors.hairline,
+    backgroundColor: Colors.backgroundElement,
+    boxShadow: Shadows.soft,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusText: {
+    flexShrink: 1,
+    fontFamily: Fonts.bold,
+    fontSize: 13.5,
+    lineHeight: 18,
+    color: Colors.text,
+  },
+  detail: {
+    marginTop: Spacing.two,
+    fontFamily: Fonts.medium,
+    fontSize: 13,
+    lineHeight: 18,
+    color: Colors.textFaint,
   },
   center: {
     textAlign: 'center',
     maxWidth: 320,
   },
   issue: {
-    color: Colors.primaryLight,
-  },
-  statusPill: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    marginTop: Spacing.three,
-    marginBottom: Spacing.one,
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: Radius.pill,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'flex-start',
+    gap: 5,
+    maxWidth: 320,
+    marginTop: Spacing.two,
   },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.primaryMid,
+  issueText: {
+    flexShrink: 1,
+    marginTop: -2,
+    textAlign: 'center',
+    fontFamily: Fonts.semibold,
+    fontSize: 13,
+    lineHeight: 18,
+    color: Colors.high,
   },
-  dotHere: {
-    backgroundColor: '#4ADE80',
-  },
-  dotConnecting: {
-    backgroundColor: 'rgba(255, 255, 255, 0.4)',
-  },
-  preview: {
+  previewShadow: {
     flex: 1,
     minHeight: 160,
     borderRadius: Radius.xl,
+    boxShadow: Shadows.soft,
+  },
+  preview: {
+    flex: 1,
+    borderRadius: Radius.xl,
     overflow: 'hidden',
-    backgroundColor: Colors.inkMid,
+    borderWidth: 1,
+    borderColor: Colors.hairline,
+    backgroundColor: Colors.backgroundElement,
+  },
+  // Behind the camera while it starts: dark, like the video it is about to show.
+  previewLive: {
+    borderWidth: 0,
+    backgroundColor: Colors.ink,
   },
   previewOff: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.two,
+    gap: Spacing.two + 2,
   },
+  previewOffText: {
+    fontFamily: Fonts.semibold,
+    fontSize: 14,
+    lineHeight: 19,
+    color: Colors.textSoft,
+  },
+  // White, so it reads on the camera's picture and on the white card alike.
   previewLabel: {
     position: 'absolute',
-    left: Spacing.three,
-    bottom: Spacing.three,
+    left: Spacing.three - 4,
+    bottom: Spacing.three - 4,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingVertical: 3,
+    paddingVertical: 4,
     paddingHorizontal: 10,
     borderRadius: Radius.pill,
-    backgroundColor: 'rgba(14, 42, 51, 0.6)',
+    borderWidth: 1,
+    borderColor: Colors.hairline,
+    backgroundColor: Colors.backgroundElement,
   },
   previewLabelText: {
     fontFamily: Fonts.bold,
     fontSize: 12,
     lineHeight: 16,
-    color: Colors.onInk,
+    color: Colors.text,
   },
   permission: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
-    padding: Spacing.three - 4,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.warningSoft,
+    gap: Spacing.three - 4,
+    paddingVertical: Spacing.three - 4,
+    paddingHorizontal: Spacing.three - 2,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    borderColor: Colors.hairline,
+    backgroundColor: Colors.backgroundElement,
+    boxShadow: Shadows.soft,
   },
   permissionText: {
     flex: 1,
-    color: Colors.ink,
+    fontFamily: Fonts.medium,
+    fontSize: 13,
+    lineHeight: 18,
+    color: Colors.textSoft,
   },
   controls: {
     flexDirection: 'row',

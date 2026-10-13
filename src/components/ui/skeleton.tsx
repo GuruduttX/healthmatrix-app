@@ -150,7 +150,7 @@ export function SkeletonList({
       {Array.from({ length: rows }, (_, i) => (
         <View key={i} style={[styles.row, i > 0 && styles.divider]}>
           {leading === 'circle' ? <SkeletonCircle size={42} /> : null}
-          {leading === 'tile' ? <Skeleton width={42} height={42} radius={Radius.md} /> : null}
+          {leading === 'tile' ? <SkeletonCircle size={40} /> : null}
           <View style={styles.rowText}>
             <Skeleton height={13} width={i % 2 ? '55%' : '70%'} />
             <Skeleton height={10} width={i % 2 ? '80%' : '45%'} />
@@ -175,7 +175,7 @@ export function SkeletonCard({
   return (
     <SkeletonGroup label={label} style={[styles.card, styles.cardPad, style]}>
       <View style={styles.cardTop}>
-        <Skeleton width={42} height={42} radius={Radius.md} />
+        <SkeletonCircle size={40} />
         <View style={styles.rowText}>
           <Skeleton height={13} width="60%" />
           <Skeleton height={10} width="40%" />
@@ -191,13 +191,13 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.skeleton,
   },
   card: {
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: Spacing.three - 2,
     paddingVertical: Spacing.one,
-    borderRadius: Radius.lg + 4,
+    borderRadius: Radius.xl,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.hairline,
     backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.card,
+    boxShadow: Shadows.soft,
   },
   cardPad: {
     gap: Spacing.three,
@@ -215,8 +215,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   divider: {
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.hairline,
   },
   rowText: {
     flex: 1,

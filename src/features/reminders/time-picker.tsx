@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
 
 import { type TimeKey } from './types';
 
@@ -76,7 +76,7 @@ export function TimePicker({ value, onChange }: TimePickerProps) {
               option.active && styles.meridiemActive,
               pressed && styles.pressed,
             ]}>
-            <ThemedText type="smallBold" themeColor={option.active ? 'onInk' : 'textSecondary'}>
+            <ThemedText style={[styles.meridiemText, option.active && styles.meridiemTextActive]}>
               {option.label}
             </ThemedText>
           </Pressable>
@@ -125,6 +125,7 @@ function Column({ value, label, min, max, onType, onUp, onDown }: ColumnProps) {
         returnKeyType="done"
         maxLength={2}
         selectTextOnFocus
+        selectionColor={Colors.primary}
         accessibilityLabel={label === 'hour' ? 'Hour' : 'Minute'}
         style={[styles.value, styles.valueBox, draft !== null && styles.valueEditing]}
       />
@@ -141,8 +142,8 @@ function StepButton({ icon, label, onPress }: { icon: 'up' | 'down'; label: stri
       accessibilityRole="button"
       accessibilityLabel={label}
       hitSlop={4}
-      style={({ pressed }) => [styles.step, pressed && styles.pressed]}>
-      <Icon size={20} color={Colors.text} strokeWidth={2.4} />
+      style={({ pressed }) => [styles.step, pressed && styles.stepPressed]}>
+      <Icon size={20} color={Colors.textSoft} strokeWidth={2.4} />
     </Pressable>
   );
 }
@@ -153,60 +154,79 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.two,
-    paddingVertical: Spacing.two,
+    paddingVertical: Spacing.one,
   },
   column: {
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
   },
+  // Just the arrow: the number between them is the thing to look at.
   step: {
     width: 64,
-    height: 36,
+    height: 34,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: Radius.md,
-    backgroundColor: Colors.backgroundSelected,
+    borderRadius: Radius.pill,
   },
+  stepPressed: {
+    backgroundColor: Colors.well,
+  },
+  // Warm like a text field, ringed in ink while a number is typed.
   valueBox: {
-    width: 64,
-    paddingVertical: 2,
-    borderRadius: Radius.md,
+    width: 68,
+    paddingVertical: 4,
+    borderRadius: Radius.lg,
     borderWidth: 1.5,
     borderColor: Colors.border,
     backgroundColor: Colors.backgroundElement,
     textAlign: 'center',
+    // The box draws the focus; no second outline from the browser on web.
+    outlineStyle: 'solid',
+    outlineWidth: 0,
   },
   valueEditing: {
-    borderColor: Colors.ink,
+    borderColor: Colors.text,
   },
   value: {
-    fontFamily: Fonts.display,
+    fontFamily: Fonts.displaySemibold,
     fontSize: 32,
     lineHeight: 40,
     color: Colors.text,
+    fontVariant: ['tabular-nums'],
   },
   colon: {
-    fontFamily: Fonts.display,
+    fontFamily: Fonts.displaySemibold,
     fontSize: 32,
     lineHeight: 42,
+    color: Colors.textFaint,
   },
+  // AM and PM as a small segmented control: a warm track with the choice raised in white.
   meridiem: {
     marginLeft: Spacing.two,
-    gap: 6,
+    gap: 3,
+    padding: 3,
+    borderRadius: Radius.lg,
+    backgroundColor: Colors.backgroundSelected,
   },
   meridiemOption: {
-    width: 56,
-    height: 40,
+    width: 54,
+    height: 38,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.backgroundElement,
+    borderRadius: Radius.md + 1,
   },
   meridiemActive: {
-    borderColor: Colors.ink,
-    backgroundColor: Colors.ink,
+    backgroundColor: Colors.backgroundElement,
+    boxShadow: Shadows.soft,
+  },
+  meridiemText: {
+    fontFamily: Fonts.bold,
+    fontSize: 14,
+    lineHeight: 18,
+    color: Colors.textFaint,
+  },
+  meridiemTextActive: {
+    color: Colors.text,
   },
   pressed: {
     opacity: 0.7,

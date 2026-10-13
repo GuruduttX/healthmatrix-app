@@ -3,7 +3,9 @@ import { useEffect, useState } from 'react';
 import { AppState, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { IconTile } from '@/components/ui/icon-tile';
+import { LIST_LEAD } from '@/components/ui/list';
+import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
 
 import { getPermission, requestPermission, type PermissionState } from './notifications';
 
@@ -43,18 +45,16 @@ export function NotificationBanner() {
   if (state !== 'undetermined' && state !== 'denied') return null;
 
   const denied = state === 'denied';
-  const Icon = denied ? BellOff : BellRing;
 
   return (
-    <View style={styles.banner}>
-      <View style={styles.icon}>
-        <Icon size={18} color={Colors.warning} strokeWidth={2.3} />
-      </View>
+    // A white card like the rest of the page; the watch-tinted dish says it needs a look.
+    <View style={styles.card}>
+      <IconTile icon={denied ? BellOff : BellRing} tone="warning" size={LIST_LEAD} />
       <View style={styles.text}>
-        <ThemedText type="smallBold">
+        <ThemedText style={styles.title}>
           {denied ? 'Notifications are off' : 'Get reminded on time'}
         </ThemedText>
-        <ThemedText type="caption" themeColor="textSecondary">
+        <ThemedText style={styles.body}>
           {denied
             ? 'Turn them on in Settings, or your medicine reminders will not ring.'
             : 'Allow notifications so your phone alerts you when a dose is due.'}
@@ -63,44 +63,59 @@ export function NotificationBanner() {
       <Pressable
         onPress={request}
         accessibilityRole="button"
-        style={({ pressed }) => [styles.button, pressed && styles.pressed]}>
-        <ThemedText type="smallBold" themeColor="onInk">
-          {denied ? 'Settings' : 'Allow'}
-        </ThemedText>
+        hitSlop={8}
+        style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}>
+        <ThemedText style={styles.buttonText}>{denied ? 'Settings' : 'Allow'}</ThemedText>
       </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  banner: {
+  card: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three - 4,
-    padding: 14,
-    borderRadius: Radius.xl - 4,
+    paddingVertical: Spacing.three - 2,
+    paddingHorizontal: Spacing.three - 2,
+    borderRadius: Radius.xl,
     borderWidth: 1,
-    borderColor: 'rgba(181, 120, 10, 0.18)',
-    backgroundColor: Colors.warningSoft,
-  },
-  icon: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderColor: Colors.hairline,
     backgroundColor: Colors.backgroundElement,
+    boxShadow: Shadows.soft,
   },
   text: {
     flex: 1,
+    gap: 1,
   },
+  title: {
+    fontFamily: Fonts.bold,
+    fontSize: 14.5,
+    lineHeight: 19,
+    color: Colors.text,
+  },
+  body: {
+    fontFamily: Fonts.medium,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: Colors.textSoft,
+  },
+  // Home's small action pill: solid, since turning reminders on is the thing to do now.
   button: {
-    paddingVertical: 9,
-    paddingHorizontal: 16,
+    justifyContent: 'center',
+    height: 32,
+    paddingHorizontal: 14,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.ink,
+    backgroundColor: Colors.primaryDeep,
   },
-  pressed: {
-    opacity: 0.8,
+  buttonPressed: {
+    backgroundColor: Colors.primaryInk,
+    transform: [{ scale: 0.97 }],
+  },
+  buttonText: {
+    fontFamily: Fonts.bold,
+    fontSize: 13.5,
+    lineHeight: 18,
+    color: Colors.onInk,
   },
 });

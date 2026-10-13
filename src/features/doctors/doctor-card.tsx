@@ -1,20 +1,11 @@
-import {
-  BadgeCheck,
-  BriefcaseMedical,
-  CalendarPlus,
-  Languages,
-  MapPin,
-  ShieldCheck,
-  Video,
-  type LucideIcon,
-} from 'lucide-react-native';
-import { type ReactNode } from 'react';
+import { BadgeCheck, CalendarPlus, ShieldCheck } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Surface } from '@/components/ui/surface';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { Tag } from '@/components/ui/tag';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 
 import { DoctorAvatar } from './doctor-avatar';
 import { specialtyLabel } from './specialties';
@@ -28,65 +19,82 @@ type DoctorCardProps = {
   onBook: () => void;
 };
 
-/** A doctor in the list: who they are, their registration, and their next free slot. */
+/**
+ * A doctor in the list, as one white card: their photo and name, what they've done in one quiet
+ * line, their registration, then their next free slot beside the one action, Book.
+ */
 export function DoctorCard({ doctor, specialty, onBook }: DoctorCardProps) {
   const specialties = [...doctor.specialties].sort(
     (a, b) => Number(b === specialty) - Number(a === specialty),
   );
   const registration = [doctor.registrationNumber, doctor.council].filter(Boolean).join(' · ');
+  const facts = [
+    doctor.experienceYears
+      ? `${doctor.experienceYears} ${doctor.experienceYears === 1 ? 'year' : 'years'}`
+      : null,
+    doctor.languages.length ? doctor.languages.join(', ') : null,
+    doctor.location,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <Surface style={styles.card}>
       <View style={styles.header}>
-        <DoctorAvatar name={doctor.name} photoUrl={doctor.photoUrl} size={56} />
+        <DoctorAvatar name={doctor.name} photoUrl={doctor.photoUrl} size={52} />
         <View style={styles.flex}>
           <View style={styles.nameRow}>
-            <ThemedText numberOfLines={2} style={styles.name}>
+            <ThemedText numberOfLines={1} style={styles.name}>
               {doctor.name}
             </ThemedText>
-            <BadgeCheck size={17} color={Colors.success} strokeWidth={2.2} />
+            <BadgeCheck
+              size={16}
+              color={Colors.good}
+              strokeWidth={2.4}
+              accessibilityLabel="Verified"
+            />
           </View>
           {doctor.qualifications ? (
-            <ThemedText type="caption" themeColor="textSecondary">
+            <ThemedText style={styles.line} numberOfLines={1}>
               {doctor.qualifications}
             </ThemedText>
           ) : null}
-          <View style={styles.tags}>
-            {specialties.map((id) => (
-              <View key={id} style={[styles.tag, id === specialty && styles.tagActive]}>
-                <ThemedText style={[styles.tagText, id === specialty && styles.tagTextActive]}>
-                  {specialtyLabel(id)}
-                </ThemedText>
-              </View>
-            ))}
-          </View>
+          {facts ? (
+            <ThemedText style={styles.facts} numberOfLines={2}>
+              {facts}
+            </ThemedText>
+          ) : null}
         </View>
       </View>
 
-      <View style={styles.facts}>
-        {doctor.experienceYears ? (
-          <Fact icon={BriefcaseMedical}>
-            {doctor.experienceYears} {doctor.experienceYears === 1 ? 'year' : 'years'}
-          </Fact>
-        ) : null}
-        {doctor.languages.length ? <Fact icon={Languages}>{doctor.languages.join(', ')}</Fact> : null}
-        {doctor.location ? <Fact icon={MapPin}>{doctor.location}</Fact> : null}
-        <Fact icon={Video}>{doctor.slotMinutes} min video</Fact>
-      </View>
+      {/* On a specialty's own page its name is the title; tags only say what else they see. */}
+      {specialties.length > 1 ? (
+        <View style={styles.tags}>
+          {specialties.map((id) => (
+            <Tag key={id} label={specialtyLabel(id)} tone={id === specialty ? 'primary' : 'neutral'} />
+          ))}
+        </View>
+      ) : null}
 
-      <View style={styles.registration}>
-        <ShieldCheck size={13} color={Colors.textMuted} strokeWidth={2.2} />
-        <ThemedText type="caption" themeColor="textMuted" style={styles.flex} numberOfLines={1}>
-          Reg. {registration}
-        </ThemedText>
-      </View>
-
-      <View style={[styles.footer, !doctor.nextSlot && styles.footerNone]}>
-        <View style={styles.flex}>
-          <ThemedText type="caption" themeColor="textSecondary">
-            Next available
+      {registration ? (
+        <View style={styles.registration}>
+          <ShieldCheck size={13} color={Colors.textFaint} strokeWidth={2.2} />
+          <ThemedText style={[styles.flex, styles.registrationText]} numberOfLines={1}>
+            Reg. {registration}
           </ThemedText>
-          <ThemedText type="smallBold" themeColor={doctor.nextSlot ? 'success' : 'textMuted'}>
+        </View>
+      ) : null}
+
+      <View style={styles.rule} />
+
+      <View style={styles.footer}>
+        <View style={styles.flex}>
+          <ThemedText style={styles.caption} numberOfLines={1}>
+            Next available · {doctor.slotMinutes} min video
+          </ThemedText>
+          <ThemedText
+            style={[styles.next, !doctor.nextSlot && styles.nextNone]}
+            numberOfLines={1}>
             {doctor.nextSlot
               ? formatSlot(doctor.nextSlot)
               : `None in the next ${doctor.bookingWindowDays} ${doctor.bookingWindowDays === 1 ? 'day' : 'days'}`}
@@ -105,104 +113,86 @@ export function DoctorCard({ doctor, specialty, onBook }: DoctorCardProps) {
   );
 }
 
-function Fact({ icon: Icon, children }: { icon: LucideIcon; children: ReactNode }) {
-  return (
-    <View style={styles.fact}>
-      <Icon size={13} color={Colors.inkMid} strokeWidth={2.3} />
-      <ThemedText type="caption" style={styles.factText} numberOfLines={1}>
-        {children}
-      </ThemedText>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   card: {
-    gap: Spacing.three - 2,
-    borderRadius: Radius.xl,
+    gap: Spacing.three - 4,
+    paddingVertical: 14,
   },
   flex: {
     flex: 1,
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: Spacing.three - 4,
   },
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
   },
   name: {
     flexShrink: 1,
-    fontFamily: Fonts.display,
-    fontSize: 17,
+    fontFamily: Fonts.displaySemibold,
+    fontSize: 17.5,
     lineHeight: 22,
+    letterSpacing: -0.3,
+    color: Colors.text,
+  },
+  line: {
+    fontFamily: Fonts.medium,
+    fontSize: 13,
+    lineHeight: 18,
+    color: Colors.textSoft,
+  },
+  facts: {
+    marginTop: 1,
+    fontFamily: Fonts.medium,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: Colors.textFaint,
   },
   tags: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
-    marginTop: 8,
-  },
-  tag: {
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.backgroundSelected,
-  },
-  tagActive: {
-    backgroundColor: Colors.primarySoft,
-  },
-  tagText: {
-    fontFamily: Fonts.semibold,
-    fontSize: 11,
-    lineHeight: 14,
-    color: Colors.inkMid,
-  },
-  tagTextActive: {
-    color: Colors.primary,
-  },
-  facts: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  fact: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    maxWidth: '100%',
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.background,
-  },
-  factText: {
-    flexShrink: 1,
-    fontFamily: Fonts.semibold,
-    color: Colors.inkMid,
   },
   registration: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    marginTop: -4,
+  },
+  registrationText: {
+    fontFamily: Fonts.medium,
+    fontSize: 12,
+    lineHeight: 16,
+    color: Colors.textFaint,
+  },
+  // A hairline across the whole card, above the booking line.
+  rule: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: -Spacing.three,
+    backgroundColor: Colors.hairline,
   },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three - 4,
-    paddingVertical: 10,
-    paddingLeft: 14,
-    paddingRight: 10,
-    borderRadius: Radius.lg,
-    backgroundColor: Colors.successSoft,
   },
-  footerNone: {
-    backgroundColor: Colors.background,
+  caption: {
+    fontFamily: Fonts.semibold,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: Colors.textFaint,
+  },
+  next: {
+    fontFamily: Fonts.bold,
+    fontSize: 15,
+    lineHeight: 20,
+    color: Colors.text,
+  },
+  nextNone: {
+    fontFamily: Fonts.semibold,
+    color: Colors.textSoft,
   },
 });

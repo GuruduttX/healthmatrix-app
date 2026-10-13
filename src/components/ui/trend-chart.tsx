@@ -55,7 +55,7 @@ export function TrendChart({ points, normalMax, description }: TrendChartProps) 
               width={width}
               height={plotBottom - bandTop}
               rx={8}
-              fill={Colors.successSoft}
+              fill={Colors.goodSoft}
             />
             <Path
               d={smoothPath(plotted)}
@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.semibold,
     fontSize: 10,
     lineHeight: 14,
-    color: Colors.success,
+    color: Colors.good,
   },
   pointLabels: {
     position: 'absolute',
@@ -122,6 +122,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.medium,
     fontSize: 11,
     lineHeight: 14,
-    color: Colors.textMuted,
+    color: Colors.textFaint,
   },
 });

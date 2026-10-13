@@ -1,17 +1,32 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { CircleCheck, MessageSquareText } from 'lucide-react-native';
-import { useState } from 'react';
+import {
+  AlertCircle,
+  Check,
+  CircleCheck,
+  MessageSquareText,
+  type LucideIcon,
+} from 'lucide-react-native';
+import { useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
-import { IconTile } from '@/components/ui/icon-tile';
+import { PageBackground } from '@/components/ui/morning-light';
 import { StackHeader } from '@/components/ui/stack-header';
+import { Surface } from '@/components/ui/surface';
 import { TextField } from '@/components/ui/text-field';
-import { Colors, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
+import {
+  Colors,
+  Fonts,
+  Gradients,
+  Gutter,
+  MaxContentWidth,
+  Shadows,
+  Spacing,
+} from '@/constants/theme';
 import { aboutLine, RELATIONS } from '@/features/family/relations';
 import { type FamilyMember, type Relation } from '@/features/family/types';
 import { familyApi, useFamily } from '@/features/family/use-family';
@@ -22,6 +37,35 @@ type Step = 'details' | 'code' | 'done';
 /** "9876543210" -> "+91 98765 43210" */
 const formatPhone = (phone: string) => `+91 ${phone.slice(0, 5)} ${phone.slice(5)}`;
 
+const DISH = 52;
+const PHOTO = 84;
+
+/** A step's heading: an optional round picture, the question, and a quiet line under it. */
+function Intro({ lead, title, children }: { lead?: ReactNode; title: string; children: ReactNode }) {
+  return (
+    <View style={styles.intro}>
+      {lead}
+      <ThemedText style={styles.title} accessibilityRole="header">
+        {title}
+      </ThemedText>
+      <ThemedText style={styles.body}>{children}</ThemedText>
+    </View>
+  );
+}
+
+/** A line under the form: what went wrong, or that a new code is coming. Icon and words both. */
+function Message({ tone, children }: { tone: 'error' | 'ok'; children: ReactNode }) {
+  const Icon: LucideIcon = tone === 'error' ? AlertCircle : CircleCheck;
+  const color = tone === 'error' ? Colors.high : Colors.good;
+  return (
+    <View style={styles.message} accessibilityLiveRegion="polite">
+      <View style={styles.messageIcon}>
+        <Icon size={15} color={color} strokeWidth={2.4} />
+      </View>
+      <ThemedText style={[styles.messageText, { color }]}>{children}</ThemedText>
+    </View>
+  );
+}
 
 /**
  * Adds a family member: their name, how they're related and their number; then the code texted
@@ -89,283 +133,389 @@ export default function AddFamilyMemberScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <LinearGradient
-        colors={['rgba(254, 241, 234, 0.9)', 'rgba(243, 247, 247, 0)']}
-        style={styles.wash}
-        pointerEvents="none"
-      />
-      <StackHeader onBack={close} close title="Add family member" />
+    <View style={styles.screen}>
+      <PageBackground />
+      <SafeAreaView style={styles.flex}>
+        <StackHeader onBack={close} close title="Add family member" />
 
-      <KeyboardAvoidingView style={styles.flex} behavior="padding">
-        <ScrollView
-          style={styles.flex}
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}>
-          {step === 'details' ? (
-            <>
-              <View style={styles.intro}>
-                <ThemedText type="subtitle">Who are you adding?</ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">
+        <KeyboardAvoidingView style={styles.flex} behavior="padding">
+          <ScrollView
+            style={styles.flex}
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}>
+            {step === 'details' ? (
+              <>
+                <Intro title="Who are you adding?">
                   We’ll text a code to their phone. When they share it with you, you can see their
                   prescriptions, reports, vaccines and medicines. They can stop this at any time.
-                </ThemedText>
-              </View>
+                </Intro>
 
-              <TextField
-                label="Their name"
-                value={name}
-                onChangeText={(text) => {
-                  setName(text);
-                  setError(null);
-                }}
-                placeholder="Full name"
-                autoCapitalize="words"
-                autoComplete="off"
-                maxLength={60}
-                editable={!busy}
-                returnKeyType="next"
-              />
+                <Surface style={styles.card}>
+                  <TextField
+                    label="Their name"
+                    value={name}
+                    onChangeText={(text) => {
+                      setName(text);
+                      setError(null);
+                    }}
+                    placeholder="Full name"
+                    autoCapitalize="words"
+                    autoComplete="off"
+                    maxLength={60}
+                    editable={!busy}
+                    returnKeyType="next"
+                  />
 
-              <View style={styles.field}>
-                <ThemedText type="caption" themeColor="textSecondary" style={styles.label}>
-                  They are your
-                </ThemedText>
-                <View style={styles.relations}>
-                  {RELATIONS.map((option) => (
-                    <Chip
-                      key={option.id}
-                      label={option.label}
-                      selected={relation === option.id}
-                      onPress={() => {
-                        setRelation(option.id);
+                  <View style={styles.field}>
+                    <ThemedText style={styles.label}>They are your</ThemedText>
+                    <View style={styles.relations}>
+                      {RELATIONS.map((option) => (
+                        <Chip
+                          key={option.id}
+                          label={option.label}
+                          selected={relation === option.id}
+                          onPress={() => {
+                            setRelation(option.id);
+                            setError(null);
+                          }}
+                        />
+                      ))}
+                    </View>
+                  </View>
+
+                  {relation === 'other' ? (
+                    <TextField
+                      label="How are they related to you?"
+                      value={relationName}
+                      onChangeText={(text) => {
+                        setRelationName(text);
                         setError(null);
                       }}
+                      placeholder="e.g. Cousin, Uncle, Friend"
+                      autoCapitalize="words"
+                      autoComplete="off"
+                      autoFocus
+                      maxLength={30}
+                      editable={!busy}
+                      returnKeyType="next"
                     />
-                  ))}
-                </View>
-              </View>
+                  ) : null}
 
-              {relation === 'other' ? (
-                <TextField
-                  label="How are they related to you?"
-                  value={relationName}
-                  onChangeText={(text) => {
-                    setRelationName(text);
-                    setError(null);
-                  }}
-                  placeholder="e.g. Cousin, Uncle, Friend"
-                  autoCapitalize="words"
-                  autoComplete="off"
-                  autoFocus
-                  maxLength={30}
-                  editable={!busy}
-                  returnKeyType="next"
-                />
-              ) : null}
+                  <TextField
+                    label="Their mobile number"
+                    prefix="+91"
+                    value={phone}
+                    onChangeText={(text) => {
+                      setPhone(text.replace(/\D/g, ''));
+                      setError(null);
+                    }}
+                    placeholder="10-digit mobile number"
+                    keyboardType="number-pad"
+                    autoComplete="off"
+                    maxLength={10}
+                    editable={!busy}
+                    returnKeyType="done"
+                    onSubmitEditing={canSend ? send : undefined}
+                  />
+                </Surface>
 
-              <TextField
-                label="Their mobile number"
-                prefix="+91"
-                value={phone}
-                onChangeText={(text) => {
-                  setPhone(text.replace(/\D/g, ''));
-                  setError(null);
-                }}
-                placeholder="10-digit mobile number"
-                keyboardType="number-pad"
-                autoComplete="off"
-                maxLength={10}
-                editable={!busy}
-                returnKeyType="done"
-                onSubmitEditing={canSend ? send : undefined}
-              />
+                {error ? <Message tone="error">{error}</Message> : null}
 
-              {error ? (
-                <ThemedText type="small" themeColor="danger" accessibilityLiveRegion="polite">
-                  {error}
-                </ThemedText>
-              ) : null}
-
-              <Button label="Send code" onPress={send} disabled={!canSend} loading={busy} />
-            </>
-          ) : step === 'code' ? (
-            <>
-              <View style={styles.intro}>
-                <IconTile icon={MessageSquareText} tone="primary" size={48} />
-                <ThemedText type="subtitle">Enter {firstName}’s code</ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">
+                <Button label="Send code" onPress={send} disabled={!canSend} loading={busy} />
+              </>
+            ) : step === 'code' ? (
+              <>
+                <Intro
+                  lead={
+                    // The shadow sits outside; a plain View rounds and clips the tint below the icon.
+                    <View style={styles.dishShadow}>
+                      <View style={styles.dish}>
+                        <LinearGradient
+                          colors={Gradients.dish}
+                          start={{ x: 0.2, y: 0 }}
+                          end={{ x: 0.8, y: 1 }}
+                          style={StyleSheet.absoluteFill}
+                        />
+                        <View style={[StyleSheet.absoluteFill, styles.center]}>
+                          <MessageSquareText
+                            size={23}
+                            color={Colors.primaryDeep}
+                            strokeWidth={2.1}
+                          />
+                        </View>
+                      </View>
+                    </View>
+                  }
+                  title={`Enter ${firstName}’s code`}>
                   We sent a 6-digit code to {formatPhone(phone)}. Ask {firstName} to read it out to
                   you.
                   {hasAccount
                     ? ''
                     : ` ${firstName} isn’t on HealthMatrix yet, so this also makes an account for them that they can sign in to with this number.`}
-                </ThemedText>
-              </View>
+                </Intro>
 
-              <TextField
-                label="Their code"
-                value={code}
-                onChangeText={(text) => {
-                  setCode(text.replace(/\D/g, ''));
-                  setError(null);
-                }}
-                placeholder="6-digit code"
-                keyboardType="number-pad"
-                maxLength={6}
-                autoFocus
-                editable={!busy}
-                returnKeyType="done"
-                onSubmitEditing={code.length === 6 ? verify : undefined}
-                style={styles.code}
-              />
+                <Surface style={styles.card}>
+                  <TextField
+                    label="Their code"
+                    value={code}
+                    onChangeText={(text) => {
+                      setCode(text.replace(/\D/g, ''));
+                      setError(null);
+                    }}
+                    placeholder="6-digit code"
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    autoFocus
+                    editable={!busy}
+                    returnKeyType="done"
+                    onSubmitEditing={code.length === 6 ? verify : undefined}
+                    // Spaced digits once typed; the placeholder keeps normal spacing.
+                    style={code ? styles.code : undefined}
+                  />
+                  {devCode ? (
+                    <ThemedText style={styles.devCode}>
+                      Testing only, no SMS was sent: the code is {devCode}
+                    </ThemedText>
+                  ) : null}
+                </Surface>
 
-              {error ? (
-                <ThemedText type="small" themeColor="danger" accessibilityLiveRegion="polite">
-                  {error}
-                </ThemedText>
-              ) : null}
-              {notice ? (
-                <ThemedText type="small" themeColor="success">
-                  {notice}
-                </ThemedText>
-              ) : null}
-              {devCode ? (
-                <ThemedText type="caption" themeColor="textMuted">
-                  Testing only, no SMS was sent: the code is {devCode}
-                </ThemedText>
-              ) : null}
+                {error ? <Message tone="error">{error}</Message> : null}
+                {notice ? <Message tone="ok">{notice}</Message> : null}
 
-              <Button
-                label={`Add ${firstName}`}
-                onPress={verify}
-                disabled={code.length !== 6}
-                loading={busy}
-              />
+                <Button
+                  label={`Add ${firstName}`}
+                  onPress={verify}
+                  disabled={code.length !== 6}
+                  loading={busy}
+                />
 
-              <View style={styles.links}>
-                <Pressable onPress={send} disabled={busy} accessibilityRole="button" hitSlop={8}>
-                  <ThemedText type="smallBold" themeColor="primary">
-                    Resend code
-                  </ThemedText>
-                </Pressable>
-                <Pressable
-                  onPress={() => {
-                    setStep('details');
-                    setError(null);
-                    setNotice(null);
-                  }}
-                  disabled={busy}
-                  accessibilityRole="button"
-                  hitSlop={8}>
-                  <ThemedText type="smallBold" themeColor="textSecondary">
-                    Change number
-                  </ThemedText>
-                </Pressable>
-              </View>
-            </>
-          ) : member ? (
-            <View style={styles.done}>
-              <View style={styles.doneAvatar}>
-                <MemberAvatar name={member.name} photoUrl={member.photoUrl} size={88} />
-                <View style={styles.doneBadge}>
-                  <CircleCheck size={22} color={Colors.onInk} strokeWidth={2.4} />
+                <View style={styles.links}>
+                  <Pressable
+                    onPress={send}
+                    disabled={busy}
+                    accessibilityRole="button"
+                    hitSlop={8}
+                    style={({ pressed }) => [styles.link, pressed && styles.pressed]}>
+                    <ThemedText style={[styles.linkText, styles.linkPrimary]}>
+                      Resend code
+                    </ThemedText>
+                  </Pressable>
+                  <View style={styles.linkDot} />
+                  <Pressable
+                    onPress={() => {
+                      setStep('details');
+                      setError(null);
+                      setNotice(null);
+                    }}
+                    disabled={busy}
+                    accessibilityRole="button"
+                    hitSlop={8}
+                    style={({ pressed }) => [styles.link, pressed && styles.pressed]}>
+                    <ThemedText style={styles.linkText}>Change number</ThemedText>
+                  </Pressable>
                 </View>
-              </View>
-              <ThemedText type="subtitle" style={styles.center}>
-                {member.name} is in your family
-              </ThemedText>
-              <ThemedText type="small" themeColor="textSecondary" style={styles.center}>
-                {aboutLine(member)}. You can now see their prescriptions, reports, vaccines and
-                medicines from your Card.
-              </ThemedText>
-              <Button
-                label={`See ${member.name.split(/\s+/)[0]}’s records`}
-                onPress={() =>
-                  router.replace({ pathname: '/family/[id]', params: { id: member.id } })
-                }
-              />
-              <Button label="Done" variant="secondary" onPress={close} />
-            </View>
-          ) : null}
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+              </>
+            ) : member ? (
+              <>
+                <Surface style={styles.done}>
+                  <View style={styles.photoRing}>
+                    <MemberAvatar name={member.name} photoUrl={member.photoUrl} size={PHOTO} />
+                    <View style={styles.doneBadge}>
+                      <Check size={16} color={Colors.onInk} strokeWidth={3.2} />
+                    </View>
+                  </View>
+                  <ThemedText
+                    style={[styles.doneTitle, styles.centerText]}
+                    accessibilityRole="header">
+                    {member.name} is in your family
+                  </ThemedText>
+                  <ThemedText style={[styles.body, styles.centerText]}>
+                    {aboutLine(member)}. You can now see their prescriptions, reports, vaccines and
+                    medicines from your Card.
+                  </ThemedText>
+                </Surface>
+                <View style={styles.doneActions}>
+                  <Button
+                    label={`See ${member.name.split(/\s+/)[0]}’s records`}
+                    onPress={() =>
+                      router.replace({ pathname: '/family/[id]', params: { id: member.id } })
+                    }
+                  />
+                  <Button label="Done" variant="secondary" onPress={close} />
+                </View>
+              </>
+            ) : null}
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  screen: {
     flex: 1,
-    backgroundColor: Colors.background,
-  },
-  wash: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 280,
+    backgroundColor: Colors.canvas,
   },
   flex: {
     flex: 1,
+  },
+  center: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  centerText: {
+    textAlign: 'center',
+  },
+  pressed: {
+    opacity: 0.6,
   },
   content: {
     width: '100%',
     maxWidth: MaxContentWidth / 1.5,
     alignSelf: 'center',
-    gap: Spacing.three,
-    padding: Spacing.three,
-    paddingTop: Spacing.two,
+    gap: Spacing.four - 4,
+    paddingHorizontal: Gutter,
+    paddingTop: Spacing.one,
     paddingBottom: Spacing.six,
   },
   intro: {
-    gap: Spacing.two,
+    gap: Spacing.one + 2,
+  },
+  title: {
+    fontFamily: Fonts.displaySemibold,
+    fontSize: 26,
+    lineHeight: 32,
+    letterSpacing: -0.5,
+    color: Colors.text,
+  },
+  doneTitle: {
+    fontFamily: Fonts.displaySemibold,
+    fontSize: 22,
+    lineHeight: 28,
+    letterSpacing: -0.4,
+    color: Colors.text,
+  },
+  body: {
+    fontFamily: Fonts.medium,
+    fontSize: 14,
+    lineHeight: 20,
+    color: Colors.textSoft,
+  },
+  // The step's picture, lifted like Home's quick actions: a warm dish and a soft shadow, no rim.
+  dishShadow: {
+    alignSelf: 'flex-start',
+    marginBottom: Spacing.two,
+    borderRadius: DISH / 2,
+    boxShadow: Shadows.dish,
+  },
+  dish: {
+    width: DISH,
+    height: DISH,
+    borderRadius: DISH / 2,
+    overflow: 'hidden',
+  },
+  card: {
+    gap: Spacing.three + 2,
   },
   field: {
-    gap: 6,
+    gap: 8,
   },
+  // Matches the text fields' own labels.
   label: {
     fontFamily: Fonts.semibold,
-  },
-  code: {
-    letterSpacing: 6,
-    fontSize: 20,
+    fontSize: 13,
+    lineHeight: 17,
+    color: Colors.textSoft,
   },
   relations: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.two,
   },
-  pressed: {
-    opacity: 0.8,
+  code: {
+    letterSpacing: 6,
+    fontSize: 20,
+  },
+  devCode: {
+    marginTop: -Spacing.two,
+    fontFamily: Fonts.medium,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: Colors.textFaint,
+  },
+  message: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginVertical: -Spacing.one,
+  },
+  messageIcon: {
+    marginTop: 2,
+  },
+  messageText: {
+    flex: 1,
+    fontFamily: Fonts.semibold,
+    fontSize: 13.5,
+    lineHeight: 19,
   },
   links: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.three - 4,
+    marginTop: -Spacing.one,
+  },
+  link: {
+    minHeight: 40,
+    justifyContent: 'center',
+  },
+  linkText: {
+    fontFamily: Fonts.semibold,
+    fontSize: 14.5,
+    lineHeight: 19,
+    color: Colors.textSoft,
+  },
+  linkPrimary: {
+    color: Colors.primaryDeep,
+  },
+  linkDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: Colors.textMuted,
   },
   done: {
-    alignItems: 'stretch',
-    gap: Spacing.three,
-    paddingTop: Spacing.five,
+    alignItems: 'center',
+    gap: Spacing.two,
+    marginTop: Spacing.three,
+    paddingTop: Spacing.four,
+    paddingBottom: Spacing.four - 4,
+    paddingHorizontal: Spacing.four - 4,
   },
-  doneAvatar: {
-    alignSelf: 'center',
+  // A hairline ring around the photo, as on Home's family strip.
+  photoRing: {
+    marginBottom: Spacing.two,
+    padding: 3,
+    borderRadius: PHOTO / 2 + 4,
+    borderWidth: 1,
+    borderColor: Colors.hairline,
   },
   doneBadge: {
     position: 'absolute',
-    right: -4,
-    bottom: -4,
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    right: -2,
+    bottom: -2,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: Colors.background,
-    backgroundColor: Colors.success,
+    borderColor: Colors.backgroundElement,
+    backgroundColor: Colors.good,
   },
-  center: {
-    textAlign: 'center',
+  doneActions: {
+    gap: Spacing.two + 2,
   },
 });

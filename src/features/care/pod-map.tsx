@@ -1,9 +1,11 @@
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Activity } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Svg, { Line, Path } from 'react-native-svg';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Fonts, Radius, Shadows } from '@/constants/theme';
+import { Colors, Fonts, Gradients, Radius, Shadows } from '@/constants/theme';
 
 import { type MapPoint, type Pod } from './sample-data';
 
@@ -16,14 +18,18 @@ type PodMapProps = {
   onSelect: (id: string) => void;
 };
 
+/** A warm paper map: sand land, ivory blocks, muted sage parks, white roads, soft water. */
 const MAP = {
-  land: '#E6EDED',
-  block: '#F1F5F5',
-  park: '#D6E7D8',
+  land: '#EFE7DC',
+  block: '#F8F3EC',
+  park: '#E2E6D3',
   road: '#FFFFFF',
-  water: '#D2E2EA',
-  user: '#4A7C93',
+  water: '#D9E4E4',
 };
+
+/** The Arc pod from the HealthMatrix brochure; see assets/images/home/3d/LICENSE. */
+const POD_ART = require('@/assets/images/home/3d/pod.png');
+const POD_ASPECT = 274 / 420;
 
 /** City blocks as percentages of the stage; the gaps between them are the roads. */
 const BLOCKS = [
@@ -42,8 +48,22 @@ const BLOCKS = [
 
 const ROADS = { horizontal: [30, 62], vertical: [30, 62] };
 
-const PIN = 30;
-const PIN_SELECTED = 40;
+/**
+ * The chosen pod's name goes under its pin, where it covers the least, unless another pin sits
+ * just below; then it goes above. Numbers are percentages of the map, like the pins'.
+ */
+function labelBelow(pod: Pod, pods: Pod[]) {
+  return !pods.some(
+    (other) =>
+      other.id !== pod.id &&
+      Math.abs(other.map.x - pod.map.x) < 28 &&
+      other.map.y > pod.map.y &&
+      other.map.y - pod.map.y < 24,
+  );
+}
+
+const PIN = 26;
+const PIN_SELECTED = 46;
 const HIT = 48;
 
 /**
@@ -84,24 +104,28 @@ export function PodMap({ pods, selectedId, user, inset, onSelect }: PodMapProps)
         ))}
 
         {selected ? (
-          <Svg style={styles.route}>
+          // Sized to the stage, so the percentages land on the pins.
+          <Svg width="100%" height="100%" style={styles.route}>
             <Line
               x1={`${user.x}%`}
               y1={`${user.y}%`}
               x2={`${selected.map.x}%`}
               y2={`${selected.map.y}%`}
-              stroke={MAP.user}
-              strokeWidth={4}
-              strokeDasharray="7 5"
+              stroke={Colors.primary}
+              strokeWidth={3.5}
+              strokeLinecap="round"
+              strokeDasharray="0.1 8"
             />
           </Svg>
         ) : null}
 
-        <View style={[styles.user, { left: `${user.x}%`, top: `${user.y}%` }]} />
+        {/* You are here: an ink dot in a white ring on a faint halo. */}
+        <View style={[styles.userHalo, { left: `${user.x}%`, top: `${user.y}%` }]}>
+          <View style={styles.user} />
+        </View>
 
         {pods.map((pod) => {
           const isSelected = pod.id === selectedId;
-          const size = isSelected ? PIN_SELECTED : PIN;
           return (
             <Pressable
               key={pod.id}
@@ -118,26 +142,59 @@ export function PodMap({ pods, selectedId, user, inset, onSelect }: PodMapProps)
                 },
               ]}>
               {isSelected ? (
-                <View style={styles.labelWrap}>
-                  <View style={styles.label}>
-                    <ThemedText style={styles.labelText} numberOfLines={1}>
-                      {pod.name}, {pod.distanceKm} km
-                    </ThemedText>
+                <>
+                  <View
+                    style={[
+                      styles.labelWrap,
+                      labelBelow(pod, pods) ? styles.labelBelow : styles.labelAbove,
+                    ]}>
+                    <View style={styles.label}>
+                      <ThemedText style={styles.labelText} numberOfLines={1}>
+                        {pod.name} · {pod.distanceKm} km
+                      </ThemedText>
+                    </View>
                   </View>
+                  {/* The chosen pod: its picture in a white dish. The shadow sits outside. */}
+                  <View style={styles.pinSelectedShadow}>
+                    <View style={styles.pinSelected}>
+                      <LinearGradient
+                        colors={Gradients.dish}
+                        start={{ x: 0.2, y: 0 }}
+                        end={{ x: 0.8, y: 1 }}
+                        style={StyleSheet.absoluteFill}
+                      />
+                      <View style={[StyleSheet.absoluteFill, styles.center]}>
+                        <Image
+                          source={POD_ART}
+                          style={styles.podArt}
+                          contentFit="contain"
+                          accessibilityIgnoresInvertColors
+                          aria-hidden
+                        />
+                      </View>
+                    </View>
+                  </View>
+                </>
+              ) : (
+                <View style={styles.pin}>
+                  <Activity size={12} color={Colors.onInk} strokeWidth={2.8} />
                 </View>
-              ) : null}
-              <View style={[styles.pin, { width: size, height: size, borderRadius: size / 2 }]}>
-                <Activity size={size / 2} color={Colors.onInk} strokeWidth={2.4} />
-              </View>
+              )}
             </Pressable>
           );
         })}
       </View>
+
+      {/* The map melts into the page under the card instead of ending at an edge. */}
+      <LinearGradient
+        colors={['rgba(248, 245, 240, 0)', Colors.canvas]}
+        style={[styles.fade, { height: inset.bottom + 36 }]}
+      />
     </View>
   );
 }
 
-const LABEL_WIDTH = 220;
+const LABEL_WIDTH = 240;
 
 const styles = StyleSheet.create({
   map: {
@@ -154,9 +211,13 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
   },
+  center: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   block: {
     position: 'absolute',
-    borderRadius: Radius.sm,
+    borderRadius: Radius.md,
   },
   water: {
     position: 'absolute',
@@ -185,21 +246,28 @@ const styles = StyleSheet.create({
   route: {
     position: 'absolute',
     top: 0,
-    right: 0,
-    bottom: 0,
     left: 0,
     pointerEvents: 'none',
   },
-  user: {
+  userHalo: {
     position: 'absolute',
-    width: 18,
-    height: 18,
-    marginLeft: -9,
-    marginTop: -9,
-    borderRadius: 9,
+    width: 34,
+    height: 34,
+    marginLeft: -17,
+    marginTop: -17,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(58, 36, 22, 0.1)',
+  },
+  user: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     borderWidth: 3,
     borderColor: MAP.road,
-    backgroundColor: MAP.user,
+    backgroundColor: Colors.ink,
+    boxShadow: Shadows.dish,
   },
   pinHit: {
     position: 'absolute',
@@ -211,31 +279,67 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pin: {
+    width: PIN,
+    height: PIN,
+    borderRadius: PIN / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
+    borderWidth: 2.5,
     borderColor: MAP.road,
     backgroundColor: Colors.primary,
-    boxShadow: Shadows.card,
+    boxShadow: Shadows.dish,
+  },
+  pinSelectedShadow: {
+    borderRadius: PIN_SELECTED / 2,
+    boxShadow: Shadows.raised,
+  },
+  pinSelected: {
+    width: PIN_SELECTED,
+    height: PIN_SELECTED,
+    borderRadius: PIN_SELECTED / 2,
+    overflow: 'hidden',
+    borderWidth: 2.5,
+    borderColor: MAP.road,
+  },
+  // Framed like Home's pod: large and cut at the floor, so the arch and seat fill the dish.
+  podArt: {
+    width: PIN_SELECTED * 1.1 * POD_ASPECT,
+    height: PIN_SELECTED * 1.1,
+    transform: [{ translateY: PIN_SELECTED * 0.14 }],
   },
   labelWrap: {
     position: 'absolute',
-    bottom: HIT - 2,
     left: (HIT - LABEL_WIDTH) / 2,
     width: LABEL_WIDTH,
     alignItems: 'center',
     pointerEvents: 'none',
   },
+  labelBelow: {
+    top: HIT + 2,
+  },
+  labelAbove: {
+    bottom: HIT + 2,
+  },
   label: {
     paddingVertical: 5,
-    paddingHorizontal: 9,
-    borderRadius: Radius.sm,
-    backgroundColor: Colors.ink,
+    paddingHorizontal: 10,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Colors.hairline,
+    backgroundColor: Colors.backgroundElement,
+    boxShadow: Shadows.soft,
   },
   labelText: {
     fontFamily: Fonts.bold,
-    fontSize: 11,
-    lineHeight: 14,
-    color: Colors.onInk,
+    fontSize: 12,
+    lineHeight: 15,
+    color: Colors.text,
+  },
+  fade: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    pointerEvents: 'none',
   },
 });

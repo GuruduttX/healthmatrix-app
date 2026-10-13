@@ -19,7 +19,7 @@ type SegmentedProps<T extends string> = {
   disabled?: boolean;
 };
 
-/** A row of two to four mutually exclusive options on a grey track, the chosen one raised. */
+/** A row of two to four mutually exclusive options on a warm track, the chosen one raised white. */
 export function Segmented<T extends string>({
   options,
   value,
@@ -45,13 +45,13 @@ export function Segmented<T extends string>({
             {Icon ? (
               <Icon
                 size={15}
-                color={selected ? Colors.text : Colors.textSecondary}
+                color={selected ? Colors.text : Colors.textFaint}
                 strokeWidth={2.3}
               />
             ) : null}
             <ThemedText
               numberOfLines={1}
-              style={[styles.label, { color: selected ? Colors.text : Colors.textSecondary }]}>
+              style={[styles.label, { color: selected ? Colors.text : Colors.textFaint }]}>
               {label}
             </ThemedText>
             {count ? (
@@ -74,6 +74,8 @@ const styles = StyleSheet.create({
     gap: 4,
     padding: 4,
     borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Colors.hairline,
     backgroundColor: Colors.backgroundSelected,
   },
   segment: {
@@ -89,7 +91,7 @@ const styles = StyleSheet.create({
   },
   selected: {
     backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.card,
+    boxShadow: Shadows.soft,
   },
   pressed: {
     opacity: 0.7,
@@ -106,16 +108,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 1,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.border,
+    backgroundColor: Colors.hairline,
   },
   countSelected: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryDeep,
   },
   countText: {
     fontFamily: Fonts.bold,
     fontSize: 11,
     lineHeight: 15,
-    color: Colors.textSecondary,
+    color: Colors.textSoft,
+    fontVariant: ['tabular-nums'],
   },
   countTextSelected: {
     color: Colors.onInk,

@@ -2,19 +2,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { type NativeStackNavigationProp } from 'expo-router/native-stack';
 import {
+  AlertCircle,
   BellRing,
-  CalendarDays,
+  ChevronDown,
   Clock,
   Minus,
-  NotebookPen,
-  Pill,
   Plus,
-  Repeat,
   SearchX,
   Trash2,
-  UtensilsCrossed,
   X,
-  type LucideIcon,
 } from 'lucide-react-native';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
@@ -30,17 +26,23 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { EmptyState, ErrorState } from '@/components/ui/empty-state';
-import { IconTile, type Tone } from '@/components/ui/icon-tile';
+import { PageBackground } from '@/components/ui/morning-light';
+import { Section } from '@/components/ui/section';
 import { Skeleton, SkeletonGroup } from '@/components/ui/skeleton';
 import { StackHeader } from '@/components/ui/stack-header';
-import { Surface } from '@/components/ui/surface';
 import { TextField } from '@/components/ui/text-field';
-import { Colors, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
-import { formStyles } from '@/features/card/form-styles';
+import {
+  Colors,
+  Fonts,
+  Gutter,
+  MaxContentWidth,
+  Radius,
+  Shadows,
+  Spacing,
+} from '@/constants/theme';
 import { DatePicker } from '@/features/reminders/date-picker';
 import { getPermission, requestPermission } from '@/features/reminders/notifications';
 import {
@@ -95,6 +97,9 @@ const TIME_PRESETS: { label: string; time: TimeKey }[] = [
 
 /** Course lengths offered as one tap, in days. */
 const DURATIONS = [5, 7, 10, 14, 30];
+
+/** The Save button and the fade above it, which the end of the form scrolls clear of. */
+const FOOTER_HEIGHT = 48 + Spacing.four + Spacing.two;
 
 type Form = {
   name: string;
@@ -171,7 +176,7 @@ function joinWords(words: string[]) {
     : `${words.slice(0, -1).join(', ')} and ${words.at(-1)}`;
 }
 
-/** The plan in one sentence, shown above Save. */
+/** The plan in one sentence, shown at the end of the form. */
 function summarize(form: Form, today: DateKey) {
   const times = joinWords(form.times.map(formatTime));
   if (form.frequency === 'once') {
@@ -255,7 +260,9 @@ export default function MedicineFormScreen() {
   if (!form) {
     return (
       <Shell title="Edit medicine" onBack={close}>
-        <View style={styles.content}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[styles.content, { paddingBottom: clearance + Spacing.four }]}>
           {reminders && !existing ? (
             <EmptyState
               icon={SearchX}
@@ -269,7 +276,7 @@ export default function MedicineFormScreen() {
           ) : (
             <FormSkeleton />
           )}
-        </View>
+        </ScrollView>
       </Shell>
     );
   }
@@ -295,6 +302,8 @@ export default function MedicineFormScreen() {
     const issue = problem(form);
     if (issue) {
       setError(issue);
+      // Save stays at the bottom while the name is at the top: take the member to it.
+      if (issue === NAME_MISSING) nameInput.current?.focus();
       return;
     }
     setBusy(true);
@@ -337,279 +346,320 @@ export default function MedicineFormScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={[styles.content, { paddingBottom: clearance + Spacing.three }]}>
-          <Section title="Medicine" icon={Pill} tone="primary">
-            <TextField
-              ref={nameInput}
-              label="Name"
-              value={form.name}
-              onChangeText={(name) => edit({ name })}
-              placeholder="e.g. Metformin"
-              autoCapitalize="words"
-              maxLength={60}
-              editable={!busy}
-              error={error === NAME_MISSING ? error : null}
-            />
-            <TextField
-              label="Dose (optional)"
-              value={form.dose}
-              onChangeText={(dose) => edit({ dose })}
-              placeholder="e.g. 500 mg"
-              maxLength={40}
-              editable={!busy}
-            />
-            <View style={styles.wrapRow}>
-              {DOSE_SUGGESTIONS.map((dose) => (
-                <SmallChip
-                  key={dose}
-                  label={dose}
-                  selected={form.dose === dose}
-                  onPress={() => edit({ dose: form.dose === dose ? '' : dose })}
+          contentContainerStyle={[
+            styles.content,
+            { paddingBottom: clearance + FOOTER_HEIGHT + Spacing.three },
+          ]}>
+          <Section title="Medicine" index={0}>
+            <Card>
+              <TextField
+                ref={nameInput}
+                label="Name"
+                value={form.name}
+                onChangeText={(name) => edit({ name })}
+                placeholder="e.g. Metformin"
+                autoCapitalize="words"
+                maxLength={60}
+                editable={!busy}
+                error={error === NAME_MISSING ? error : null}
+              />
+              <View style={styles.field}>
+                <TextField
+                  label="Dose (optional)"
+                  value={form.dose}
+                  onChangeText={(dose) => edit({ dose })}
+                  placeholder="e.g. 500 mg"
+                  maxLength={40}
+                  editable={!busy}
                 />
-              ))}
-            </View>
+                <View style={styles.wrapRow}>
+                  {DOSE_SUGGESTIONS.map((dose) => (
+                    <SmallChip
+                      key={dose}
+                      label={dose}
+                      selected={form.dose === dose}
+                      onPress={() => edit({ dose: form.dose === dose ? '' : dose })}
+                    />
+                  ))}
+                </View>
+              </View>
+
+              <Rule />
+
+              <Group title="With food?">
+                <View style={styles.wrapRow}>
+                  {MEAL_OPTIONS.map((option) => (
+                    <Chip
+                      key={option.label}
+                      label={option.label}
+                      selected={form.mealTiming === option.id}
+                      onPress={() => edit({ mealTiming: option.id })}
+                    />
+                  ))}
+                </View>
+              </Group>
+            </Card>
           </Section>
 
-          <Section title="With food?" icon={UtensilsCrossed} tone="warning">
-            <View style={styles.wrapRow}>
-              {MEAL_OPTIONS.map((option) => (
-                <Chip
-                  key={option.label}
-                  label={option.label}
-                  selected={form.mealTiming === option.id}
-                  onPress={() => edit({ mealTiming: option.id })}
-                />
-              ))}
-            </View>
-          </Section>
-
-          <Section title="Times" hint="You get a reminder at each time." icon={Clock} tone="success">
-            <View style={styles.wrapRow}>
-              {form.times.map((time, index) => (
-                <View
-                  key={time}
-                  style={[styles.timePill, timeEditor?.index === index && styles.timePillActive]}>
-                  <Pressable
-                    onPress={() => setTimeEditor({ index, value: time })}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Change ${formatTime(time)}`}
-                    style={styles.timePillMain}>
-                    <Clock size={15} color={Colors.text} strokeWidth={2.2} />
-                    <ThemedText type="smallBold">{formatTime(time)}</ThemedText>
-                  </Pressable>
-                  {form.times.length > 1 ? (
+          <Section title="Reminders" index={1}>
+            <Card>
+              <Group title="Times" hint="You get a reminder at each time.">
+                <View style={styles.wrapRow}>
+                  {form.times.map((time, index) => {
+                    const active = timeEditor?.index === index;
+                    return (
+                      <View key={time} style={[styles.timePill, active && styles.timePillActive]}>
+                        <Pressable
+                          onPress={() => setTimeEditor({ index, value: time })}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Change ${formatTime(time)}`}
+                          style={({ pressed }) => [styles.timePillMain, pressed && styles.pressed]}>
+                          <Clock
+                            size={15}
+                            color={active ? Colors.onInk : Colors.textSoft}
+                            strokeWidth={2.3}
+                          />
+                          <ThemedText style={[styles.timeText, active && styles.onInk]}>
+                            {formatTime(time)}
+                          </ThemedText>
+                        </Pressable>
+                        {form.times.length > 1 ? (
+                          <Pressable
+                            onPress={() => {
+                              edit({ times: form.times.filter((other) => other !== time) });
+                              setTimeEditor(null);
+                            }}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Remove ${formatTime(time)}`}
+                            hitSlop={8}
+                            style={({ pressed }) => [styles.timeRemove, pressed && styles.pressed]}>
+                            <X
+                              size={14}
+                              color={active ? Colors.onInkMuted : Colors.textMuted}
+                              strokeWidth={2.4}
+                            />
+                          </Pressable>
+                        ) : null}
+                      </View>
+                    );
+                  })}
+                  {!timeEditor && form.times.length < 8 ? (
                     <Pressable
-                      onPress={() => {
-                        edit({ times: form.times.filter((other) => other !== time) });
-                        setTimeEditor(null);
-                      }}
+                      onPress={() =>
+                        setTimeEditor({ index: null, value: suggestNextTime(form.times) })
+                      }
                       accessibilityRole="button"
-                      accessibilityLabel={`Remove ${formatTime(time)}`}
-                      hitSlop={8}>
-                      <X size={14} color={Colors.textSecondary} strokeWidth={2.4} />
+                      style={({ pressed }) => [styles.addTime, pressed && styles.addTimePressed]}>
+                      <Plus size={15} color={Colors.primaryDeep} strokeWidth={2.6} />
+                      <ThemedText style={styles.addTimeText}>Add a time</ThemedText>
                     </Pressable>
                   ) : null}
                 </View>
-              ))}
-            </View>
 
-            {timeEditor ? (
-              <View style={styles.editor}>
-                <TimePicker
-                  value={timeEditor.value}
-                  onChange={(value) => setTimeEditor({ ...timeEditor, value })}
-                />
-                <View style={styles.editorActions}>
-                  <View style={styles.flex}>
-                    <Button
-                      label="Cancel"
-                      variant="secondary"
-                      size="sm"
-                      onPress={() => setTimeEditor(null)}
+                {timeEditor ? (
+                  <View style={styles.editor}>
+                    <TimePicker
+                      value={timeEditor.value}
+                      onChange={(value) => setTimeEditor({ ...timeEditor, value })}
                     />
+                    <View style={styles.editorActions}>
+                      <View style={styles.flex}>
+                        <Button
+                          label="Cancel"
+                          variant="secondary"
+                          size="sm"
+                          onPress={() => setTimeEditor(null)}
+                        />
+                      </View>
+                      <View style={styles.editorPrimary}>
+                        <Button
+                          label={timeEditor.index === null ? 'Add time' : 'Update time'}
+                          size="sm"
+                          shadow={false}
+                          onPress={saveTime}
+                        />
+                      </View>
+                    </View>
                   </View>
-                  <View style={styles.editorPrimary}>
-                    <Button
-                      label={timeEditor.index === null ? 'Add time' : 'Update time'}
-                      size="sm"
-                      onPress={saveTime}
-                    />
+                ) : form.times.length < 8 ? (
+                  <View style={styles.wrapRow}>
+                    {TIME_PRESETS.filter((preset) => !form.times.includes(preset.time)).map(
+                      (preset) => (
+                        <SmallChip
+                          key={preset.time}
+                          label={`${preset.label} ${formatTime(preset.time)}`}
+                          icon
+                          onPress={() => edit({ times: [...form.times, preset.time].sort() })}
+                        />
+                      ),
+                    )}
                   </View>
-                </View>
-              </View>
-            ) : form.times.length < 8 ? (
-              <>
-                <Pressable
-                  onPress={() => setTimeEditor({ index: null, value: suggestNextTime(form.times) })}
-                  accessibilityRole="button"
-                  style={({ pressed }) => [styles.dashed, pressed && formStyles.pressed]}>
-                  <Plus size={16} color={Colors.text} strokeWidth={2.4} />
-                  <ThemedText type="smallBold">Add a time</ThemedText>
-                </Pressable>
+                ) : null}
+              </Group>
+
+              <Rule />
+
+              <Group title="How often">
                 <View style={styles.wrapRow}>
-                  {TIME_PRESETS.filter((preset) => !form.times.includes(preset.time)).map(
-                    (preset) => (
-                      <SmallChip
-                        key={preset.time}
-                        label={`${preset.label} ${formatTime(preset.time)}`}
-                        icon
-                        onPress={() => edit({ times: [...form.times, preset.time].sort() })}
-                      />
-                    ),
-                  )}
-                </View>
-              </>
-            ) : null}
-          </Section>
-
-          <Section title="How often" icon={Repeat} tone="neutral">
-            <View style={styles.wrapRow}>
-              {FREQUENCIES.map((option) => (
-                <Chip
-                  key={option.id}
-                  label={option.label}
-                  selected={form.frequency === option.id}
-                  onPress={() => edit({ frequency: option.id })}
-                />
-              ))}
-            </View>
-
-            {form.frequency === 'weekdays' ? (
-              <>
-                <View style={styles.weekdays}>
-                  {WEEKDAY_LETTERS.map((letter, day) => {
-                    const on = form.weekdays.includes(day);
-                    return (
-                      <Pressable
-                        key={day}
-                        onPress={() =>
-                          edit({
-                            weekdays: on
-                              ? form.weekdays.filter((other) => other !== day)
-                              : [...form.weekdays, day].sort(),
-                          })
-                        }
-                        accessibilityRole="checkbox"
-                        accessibilityState={{ checked: on }}
-                        accessibilityLabel={WEEKDAY_NAMES[day]}
-                        style={({ pressed }) => [
-                          styles.weekday,
-                          on && styles.weekdayOn,
-                          pressed && formStyles.pressed,
-                        ]}>
-                        <ThemedText type="smallBold" themeColor={on ? 'onInk' : 'textSecondary'}>
-                          {letter}
-                        </ThemedText>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-                <View style={styles.wrapRow}>
-                  <SmallChip label="Weekdays" onPress={() => edit({ weekdays: [1, 2, 3, 4, 5] })} />
-                  <SmallChip label="Weekends" onPress={() => edit({ weekdays: [0, 6] })} />
-                  <SmallChip label="Mon, Wed, Fri" onPress={() => edit({ weekdays: [1, 3, 5] })} />
-                </View>
-              </>
-            ) : null}
-
-            {form.frequency === 'interval' ? (
-              <View style={styles.stepper}>
-                <StepButton
-                  label="Fewer days"
-                  icon={Minus}
-                  disabled={form.everyDays <= 2}
-                  onPress={() => edit({ everyDays: form.everyDays - 1 })}
-                />
-                <ThemedText type="bodyBold" style={styles.stepperText}>
-                  Every {form.everyDays} days
-                </ThemedText>
-                <StepButton
-                  label="More days"
-                  icon={Plus}
-                  disabled={form.everyDays >= 90}
-                  onPress={() => edit({ everyDays: form.everyDays + 1 })}
-                />
-              </View>
-            ) : null}
-
-            {form.frequency === 'monthly' || form.frequency === 'once' ? (
-              <ThemedText type="caption" themeColor="textSecondary">
-                {form.frequency === 'monthly'
-                  ? `${describeRepeat(form)}, counted from the start date.`
-                  : 'One reminder on the day below.'}
-              </ThemedText>
-            ) : null}
-          </Section>
-
-          <Section title={form.frequency === 'once' ? 'Date' : 'Dates'} icon={CalendarDays} tone="primary">
-            <DateRow
-              label={form.frequency === 'once' ? 'On' : 'Starts'}
-              value={formatDay(form.startsOn, today)}
-              open={calendar === 'start'}
-              onPress={() => setCalendar(calendar === 'start' ? null : 'start')}
-            />
-            {calendar === 'start' ? (
-              <DatePicker value={form.startsOn} onChange={setStart} today={today} />
-            ) : null}
-
-            {form.frequency !== 'once' ? (
-              <>
-                <ThemedText type="caption" themeColor="textSecondary" style={styles.label}>
-                  For how long
-                </ThemedText>
-                <View style={styles.wrapRow}>
-                  <Chip
-                    label="Ongoing"
-                    selected={!form.endsOn}
-                    onPress={() => {
-                      edit({ endsOn: null });
-                      setCalendar(null);
-                    }}
-                  />
-                  {DURATIONS.map((days) => (
+                  {FREQUENCIES.map((option) => (
                     <Chip
-                      key={days}
-                      label={`${days} days`}
-                      selected={courseDays === days}
-                      onPress={() => {
-                        edit({ endsOn: addDays(form.startsOn, days - 1) });
-                        setCalendar(null);
-                      }}
+                      key={option.id}
+                      label={option.label}
+                      selected={form.frequency === option.id}
+                      onPress={() => edit({ frequency: option.id })}
                     />
                   ))}
-                  <Chip
-                    label="Pick end date"
-                    selected={customEnd}
-                    onPress={() => {
-                      if (!form.endsOn) edit({ endsOn: addDays(form.startsOn, 6) });
-                      setCalendar('end');
-                    }}
-                  />
                 </View>
-                {form.endsOn ? (
-                  <DateRow
-                    label="Last day"
-                    value={formatDay(form.endsOn, today)}
-                    open={calendar === 'end'}
-                    onPress={() => setCalendar(calendar === 'end' ? null : 'end')}
-                  />
+
+                {form.frequency === 'weekdays' ? (
+                  <>
+                    <View style={styles.weekdays}>
+                      {WEEKDAY_LETTERS.map((letter, day) => {
+                        const on = form.weekdays.includes(day);
+                        return (
+                          <Pressable
+                            key={day}
+                            onPress={() =>
+                              edit({
+                                weekdays: on
+                                  ? form.weekdays.filter((other) => other !== day)
+                                  : [...form.weekdays, day].sort(),
+                              })
+                            }
+                            accessibilityRole="checkbox"
+                            accessibilityState={{ checked: on }}
+                            accessibilityLabel={WEEKDAY_NAMES[day]}
+                            style={({ pressed }) => [
+                              styles.weekday,
+                              on && styles.weekdayOn,
+                              pressed && styles.pressed,
+                            ]}>
+                            <ThemedText style={[styles.weekdayText, on && styles.onInk]}>
+                              {letter}
+                            </ThemedText>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                    <View style={styles.wrapRow}>
+                      <SmallChip
+                        label="Weekdays"
+                        onPress={() => edit({ weekdays: [1, 2, 3, 4, 5] })}
+                      />
+                      <SmallChip label="Weekends" onPress={() => edit({ weekdays: [0, 6] })} />
+                      <SmallChip
+                        label="Mon, Wed, Fri"
+                        onPress={() => edit({ weekdays: [1, 3, 5] })}
+                      />
+                    </View>
+                  </>
                 ) : null}
-                {calendar === 'end' && form.endsOn ? (
-                  <DatePicker
-                    value={form.endsOn}
-                    minDate={form.startsOn}
-                    onChange={(endsOn) => {
-                      edit({ endsOn });
-                      setCalendar(null);
-                    }}
-                    today={today}
-                  />
+
+                {form.frequency === 'interval' ? (
+                  <View style={styles.stepper}>
+                    <StepButton
+                      label="Fewer days"
+                      icon={Minus}
+                      disabled={form.everyDays <= 2}
+                      onPress={() => edit({ everyDays: form.everyDays - 1 })}
+                    />
+                    <ThemedText style={styles.stepperText}>
+                      Every {form.everyDays} days
+                    </ThemedText>
+                    <StepButton
+                      label="More days"
+                      icon={Plus}
+                      disabled={form.everyDays >= 90}
+                      onPress={() => edit({ everyDays: form.everyDays + 1 })}
+                    />
+                  </View>
                 ) : null}
-              </>
-            ) : null}
+
+                {form.frequency === 'monthly' || form.frequency === 'once' ? (
+                  <ThemedText style={styles.hint}>
+                    {form.frequency === 'monthly'
+                      ? `${describeRepeat(form)}, counted from the start date.`
+                      : 'One reminder on the day below.'}
+                  </ThemedText>
+                ) : null}
+              </Group>
+            </Card>
           </Section>
 
-          <Section title="Note" hint="Optional. Shown with the reminder." icon={NotebookPen} tone="neutral">
+          <Section title={form.frequency === 'once' ? 'Date' : 'Dates'} index={2}>
+            <Card>
+              <DateRow
+                label={form.frequency === 'once' ? 'On' : 'Starts'}
+                value={formatDay(form.startsOn, today)}
+                open={calendar === 'start'}
+                onPress={() => setCalendar(calendar === 'start' ? null : 'start')}
+              />
+              {calendar === 'start' ? (
+                <DatePicker value={form.startsOn} onChange={setStart} today={today} />
+              ) : null}
+
+              {form.frequency !== 'once' ? (
+                <>
+                  <Rule />
+                  <Group title="For how long">
+                    <View style={styles.wrapRow}>
+                      <Chip
+                        label="Ongoing"
+                        selected={!form.endsOn}
+                        onPress={() => {
+                          edit({ endsOn: null });
+                          setCalendar(null);
+                        }}
+                      />
+                      {DURATIONS.map((days) => (
+                        <Chip
+                          key={days}
+                          label={`${days} days`}
+                          selected={courseDays === days}
+                          onPress={() => {
+                            edit({ endsOn: addDays(form.startsOn, days - 1) });
+                            setCalendar(null);
+                          }}
+                        />
+                      ))}
+                      <Chip
+                        label="Pick end date"
+                        selected={customEnd}
+                        onPress={() => {
+                          if (!form.endsOn) edit({ endsOn: addDays(form.startsOn, 6) });
+                          setCalendar('end');
+                        }}
+                      />
+                    </View>
+                  </Group>
+                  {form.endsOn ? (
+                    <>
+                      <Rule />
+                      <DateRow
+                        label="Last day"
+                        value={formatDay(form.endsOn, today)}
+                        open={calendar === 'end'}
+                        onPress={() => setCalendar(calendar === 'end' ? null : 'end')}
+                      />
+                    </>
+                  ) : null}
+                  {calendar === 'end' && form.endsOn ? (
+                    <DatePicker
+                      value={form.endsOn}
+                      minDate={form.startsOn}
+                      onChange={(endsOn) => {
+                        edit({ endsOn });
+                        setCalendar(null);
+                      }}
+                      today={today}
+                    />
+                  ) : null}
+                </>
+              ) : null}
+            </Card>
+          </Section>
+
+          <Section title="Note" caption="Optional. Shown with the reminder." index={3}>
             <TextField
               value={form.note}
               onChangeText={(note) => edit({ note })}
@@ -621,25 +671,11 @@ export default function MedicineFormScreen() {
             />
           </Section>
 
+          {/* The plan in words, so the member can check it before saving. */}
           <View style={styles.summary}>
-            <BellRing size={18} color={Colors.primary} strokeWidth={2.2} />
-            <ThemedText type="small" style={styles.flex}>
-              {summarize(form, today)}
-            </ThemedText>
+            <BellRing size={16} color={Colors.primaryDeep} strokeWidth={2.3} />
+            <ThemedText style={styles.summaryText}>{summarize(form, today)}</ThemedText>
           </View>
-
-          {error ? (
-            <ThemedText type="small" themeColor="danger" accessibilityLiveRegion="polite">
-              {error}
-            </ThemedText>
-          ) : null}
-
-          <Button
-            label={isNew ? 'Save medicine' : 'Save changes'}
-            icon={BellRing}
-            loading={busy}
-            onPress={save}
-          />
 
           {!isNew ? (
             <Button
@@ -652,6 +688,27 @@ export default function MedicineFormScreen() {
           ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Save stays in reach above the tab bar, on a fade of the page rather than a hard bar. */}
+      <View style={[styles.footer, { paddingBottom: clearance + Spacing.two }]}>
+        <LinearGradient
+          colors={['rgba(248, 245, 240, 0)', Colors.canvas]}
+          locations={[0, 0.4]}
+          style={[StyleSheet.absoluteFill, styles.noTouch]}
+        />
+        {error ? (
+          <View style={styles.error} accessibilityLiveRegion="polite">
+            <AlertCircle size={15} color={Colors.high} strokeWidth={2.4} />
+            <ThemedText style={styles.errorText}>{error}</ThemedText>
+          </View>
+        ) : null}
+        <Button
+          label={isNew ? 'Save medicine' : 'Save changes'}
+          icon={BellRing}
+          loading={busy}
+          onPress={save}
+        />
+      </View>
     </Shell>
   );
 }
@@ -664,7 +721,7 @@ function suggestNextTime(times: TimeKey[]): TimeKey {
   return `${String(hour).padStart(2, '0')}:${last.slice(3)}`;
 }
 
-/** The page around the form: a warm wash, then a back bar. */
+/** The page around the form: the warm canvas and morning light, then a back bar. */
 function Shell({
   title,
   onBack,
@@ -675,70 +732,61 @@ function Shell({
   children: ReactNode;
 }) {
   return (
-    <ThemedView style={styles.container}>
-      <LinearGradient
-        colors={['rgba(254, 241, 234, 0.9)', 'rgba(243, 247, 247, 0)']}
-        style={styles.wash}
-        pointerEvents="none"
-      />
+    <View style={styles.screen}>
+      <PageBackground />
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         <StackHeader onBack={onBack} backLabel="Medicines" title={title} />
         {children}
       </SafeAreaView>
-    </ThemedView>
+    </View>
   );
 }
 
-/** One part of the form on a white card, with an icon beside its title. */
-function Section({
-  title,
-  hint,
-  icon,
-  tone = 'primary',
-  children,
-}: {
-  title: string;
-  hint?: string;
-  icon?: LucideIcon;
-  tone?: Tone;
-  children: ReactNode;
-}) {
+/** A white card holding a few fields, a hairline between each group. */
+function Card({ children }: { children: ReactNode }) {
+  return <View style={styles.card}>{children}</View>;
+}
+
+/** Edge to edge across the card, between its groups of fields. */
+function Rule() {
+  return <View style={styles.rule} />;
+}
+
+/** One question inside a card: its name, a quiet hint, then the choices. */
+function Group({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
   return (
-    <Surface style={styles.section}>
-      <View style={styles.sectionHeader}>
-        {icon ? <IconTile icon={icon} tone={tone} size={36} /> : null}
-        <View style={styles.flex}>
-          <ThemedText type="bodyBold">{title}</ThemedText>
-          {hint ? (
-            <ThemedText type="caption" themeColor="textSecondary">
-              {hint}
-            </ThemedText>
-          ) : null}
-        </View>
+    <View style={styles.field}>
+      <View>
+        <ThemedText style={styles.groupTitle} accessibilityRole="header">
+          {title}
+        </ThemedText>
+        {hint ? <ThemedText style={styles.hint}>{hint}</ThemedText> : null}
       </View>
       {children}
-    </Surface>
+    </View>
   );
 }
 
-/** Three of the form's cards while the medicine loads. */
+/** The form's shape while the medicine loads. */
 function FormSkeleton() {
   return (
     <SkeletonGroup label="Loading this medicine" style={styles.skeletonStack}>
-      {[0, 1, 2].map((i) => (
-        <Surface key={i} style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Skeleton width={36} height={36} radius={Radius.md} />
-            <Skeleton width={120} height={15} />
+      {[0, 1].map((i) => (
+        <View key={i} style={styles.skeletonSection}>
+          <Skeleton width={110} height={18} />
+          <View style={styles.card}>
+            <Skeleton width={60} height={12} />
+            <Skeleton height={52} radius={Radius.lg} />
+            <Skeleton width={90} height={12} />
+            <Skeleton height={52} radius={Radius.lg} />
           </View>
-          <Skeleton height={52} radius={Radius.md + 2} />
-          {i === 0 ? <Skeleton height={52} radius={Radius.md + 2} /> : null}
-        </Surface>
+        </View>
       ))}
     </SkeletonGroup>
   );
 }
 
+/** A small suggestion: white with a hairline, solid ink once chosen. */
 function SmallChip({
   label,
   selected,
@@ -758,12 +806,10 @@ function SmallChip({
       style={({ pressed }) => [
         styles.smallChip,
         selected && styles.smallChipOn,
-        pressed && formStyles.pressed,
+        pressed && styles.pressed,
       ]}>
-      {icon ? <Plus size={12} color={Colors.textSecondary} strokeWidth={2.4} /> : null}
-      <ThemedText type="caption" themeColor={selected ? 'onInk' : 'textSecondary'}>
-        {label}
-      </ThemedText>
+      {icon ? <Plus size={12} color={Colors.textFaint} strokeWidth={2.6} /> : null}
+      <ThemedText style={[styles.smallChipText, selected && styles.onInk]}>{label}</ThemedText>
     </Pressable>
   );
 }
@@ -788,13 +834,14 @@ function StepButton({
       style={({ pressed }) => [
         styles.stepButton,
         disabled && styles.disabled,
-        pressed && formStyles.pressed,
+        pressed && styles.stepButtonPressed,
       ]}>
       <Icon size={18} color={Colors.text} strokeWidth={2.4} />
     </Pressable>
   );
 }
 
+/** A date as a line of the card: what it is, the day, and an arrow that opens the calendar. */
 function DateRow({
   label,
   value,
@@ -812,24 +859,21 @@ function DateRow({
       accessibilityRole="button"
       accessibilityState={{ expanded: open }}
       accessibilityLabel={`${label}: ${value}`}
-      style={({ pressed }) => [
-        styles.dateRow,
-        open && styles.dateRowOpen,
-        pressed && formStyles.pressed,
-      ]}>
-      <CalendarDays size={18} color={Colors.textSecondary} strokeWidth={2.2} />
-      <ThemedText type="small" themeColor="textSecondary" style={styles.flex}>
-        {label}
-      </ThemedText>
-      <ThemedText type="smallBold">{value}</ThemedText>
+      style={({ pressed }) => [styles.dateRow, pressed && styles.pressed]}>
+      <ThemedText style={[styles.groupTitle, styles.flex]}>{label}</ThemedText>
+      <ThemedText style={[styles.dateValue, open && styles.dateValueOpen]}>{value}</ThemedText>
+      <View style={open && styles.flipped}>
+        <ChevronDown size={18} color={Colors.textMuted} strokeWidth={2.4} />
+      </View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
     alignItems: 'center',
+    backgroundColor: Colors.canvas,
   },
   safeArea: {
     flex: 1,
@@ -839,31 +883,48 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
-  wash: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 280,
+  noTouch: {
+    pointerEvents: 'none',
   },
-  skeletonStack: {
-    gap: Spacing.three,
+  pressed: {
+    opacity: 0.7,
+  },
+  onInk: {
+    color: Colors.onInk,
   },
   content: {
-    gap: Spacing.three,
-    padding: Spacing.three,
+    gap: Spacing.four - 4,
+    paddingHorizontal: Gutter,
     paddingTop: Spacing.one,
   },
-  section: {
+  card: {
     gap: Spacing.three - 2,
+    padding: Spacing.three,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    borderColor: Colors.hairline,
+    backgroundColor: Colors.backgroundElement,
+    boxShadow: Shadows.soft,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two + 4,
+  rule: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: -Spacing.three,
+    backgroundColor: Colors.hairline,
   },
-  label: {
-    marginTop: Spacing.one,
+  field: {
+    gap: Spacing.two + 2,
+  },
+  groupTitle: {
+    fontFamily: Fonts.bold,
+    fontSize: 14.5,
+    lineHeight: 19,
+    color: Colors.text,
+  },
+  hint: {
+    fontFamily: Fonts.medium,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: Colors.textFaint,
   },
   wrapRow: {
     flexDirection: 'row',
@@ -875,43 +936,87 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     paddingVertical: 6,
-    paddingHorizontal: 10,
+    paddingHorizontal: 11,
     borderRadius: Radius.pill,
     borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: Colors.border,
+    borderColor: Colors.hairline,
+    backgroundColor: Colors.backgroundElement,
   },
   smallChipOn: {
-    borderStyle: 'solid',
-    borderColor: Colors.ink,
-    backgroundColor: Colors.ink,
+    borderColor: Colors.text,
+    backgroundColor: Colors.text,
   },
+  smallChipText: {
+    fontFamily: Fonts.semibold,
+    fontSize: 12.5,
+    lineHeight: 16,
+    color: Colors.textSoft,
+  },
+  // A set time: white with a hairline like a chip, solid ink while it is being changed.
   timePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingRight: 12,
+    minHeight: 38,
     borderRadius: Radius.pill,
-    borderWidth: 1.5,
-    borderColor: Colors.successSoft,
-    backgroundColor: Colors.successSoft,
+    borderWidth: 1,
+    borderColor: Colors.hairline,
+    backgroundColor: Colors.backgroundElement,
+    boxShadow: Shadows.soft,
   },
   timePillActive: {
-    borderColor: Colors.success,
-    backgroundColor: Colors.backgroundElement,
+    borderColor: Colors.text,
+    backgroundColor: Colors.text,
   },
   timePillMain: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingVertical: 8,
-    paddingLeft: 12,
+    paddingLeft: 13,
+    paddingRight: 13,
   },
+  timeText: {
+    fontFamily: Fonts.bold,
+    fontSize: 14,
+    lineHeight: 18,
+    color: Colors.text,
+    fontVariant: ['tabular-nums'],
+  },
+  timeRemove: {
+    marginLeft: -5,
+    paddingVertical: 8,
+    paddingRight: 12,
+  },
+  // White with a peach edge and orange words, like Home's add button.
+  addTime: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    minHeight: 38,
+    paddingVertical: 8,
+    paddingLeft: 12,
+    paddingRight: 15,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Colors.primaryTintStrong,
+    backgroundColor: Colors.backgroundElement,
+  },
+  addTimePressed: {
+    backgroundColor: Colors.primaryTint,
+    transform: [{ scale: 0.97 }],
+  },
+  addTimeText: {
+    fontFamily: Fonts.bold,
+    fontSize: 13.5,
+    lineHeight: 18,
+    color: Colors.primaryDeep,
+  },
+  // The picker opens in the card itself, under a hairline: no box inside the box.
   editor: {
     gap: Spacing.three - 4,
-    padding: Spacing.three - 4,
-    borderRadius: Radius.lg,
-    backgroundColor: Colors.background,
+    paddingTop: Spacing.two,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.hairline,
   },
   editorActions: {
     flexDirection: 'row',
@@ -920,36 +1025,30 @@ const styles = StyleSheet.create({
   editorPrimary: {
     flex: 1.4,
   },
-  dashed: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    minHeight: 46,
-    borderRadius: Radius.pill,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: Colors.primaryLight,
-    backgroundColor: Colors.primarySoft,
-  },
   weekdays: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 4,
   },
   weekday: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.hairline,
+    backgroundColor: Colors.backgroundElement,
   },
   weekdayOn: {
-    borderColor: Colors.ink,
-    backgroundColor: Colors.ink,
-    boxShadow: '0 6px 14px rgba(14, 42, 51, 0.22)',
+    borderColor: Colors.text,
+    backgroundColor: Colors.text,
+  },
+  weekdayText: {
+    fontFamily: Fonts.bold,
+    fontSize: 14,
+    lineHeight: 18,
+    color: Colors.textSoft,
   },
   stepper: {
     flexDirection: 'row',
@@ -959,40 +1058,88 @@ const styles = StyleSheet.create({
   stepperText: {
     flex: 1,
     textAlign: 'center',
+    fontFamily: Fonts.displaySemibold,
+    fontSize: 18,
+    lineHeight: 23,
+    letterSpacing: -0.2,
+    color: Colors.text,
+    fontVariant: ['tabular-nums'],
   },
   stepButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.backgroundSelected,
+    borderWidth: 1,
+    borderColor: Colors.hairline,
+    backgroundColor: Colors.backgroundElement,
+    boxShadow: Shadows.soft,
+  },
+  stepButtonPressed: {
+    backgroundColor: Colors.well,
+    transform: [{ scale: 0.96 }],
   },
   disabled: {
     opacity: 0.35,
+    boxShadow: 'none',
   },
   dateRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two + 2,
-    minHeight: 52,
-    paddingHorizontal: 14,
-    borderRadius: Radius.md + 2,
-    borderWidth: 1.5,
-    borderColor: Colors.border,
+    gap: Spacing.two,
+    minHeight: 28,
   },
-  dateRowOpen: {
-    borderColor: Colors.primary,
-    boxShadow: '0 0 0 4px rgba(221, 67, 1, 0.12)',
+  dateValue: {
+    fontFamily: Fonts.semibold,
+    fontSize: 14.5,
+    lineHeight: 19,
+    color: Colors.text,
+  },
+  dateValueOpen: {
+    color: Colors.primaryDeep,
+  },
+  flipped: {
+    transform: [{ rotate: '180deg' }],
   },
   summary: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: Spacing.two + 2,
-    padding: 14,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(221, 67, 1, 0.14)',
-    backgroundColor: Colors.primarySoft,
+    paddingHorizontal: Spacing.one,
+  },
+  summaryText: {
+    flex: 1,
+    fontFamily: Fonts.medium,
+    fontSize: 13.5,
+    lineHeight: 19,
+    color: Colors.textSoft,
+  },
+  footer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    gap: Spacing.two,
+    paddingTop: Spacing.four,
+    paddingHorizontal: Gutter,
+  },
+  error: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  errorText: {
+    flex: 1,
+    fontFamily: Fonts.semibold,
+    fontSize: 13,
+    lineHeight: 18,
+    color: Colors.high,
+  },
+  skeletonStack: {
+    gap: Spacing.four - 4,
+  },
+  skeletonSection: {
+    gap: Spacing.three - 2,
   },
 });

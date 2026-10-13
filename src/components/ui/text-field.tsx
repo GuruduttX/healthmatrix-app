@@ -19,8 +19,8 @@ type TextFieldProps = TextInputProps & {
 };
 
 /**
- * A labelled text input: white, rounded, and ringed in orange while it has focus. Pass
- * `multiline` for notes.
+ * A labelled text input on the warm page: white, rounded, a warm outline, and ringed in orange
+ * while it has focus. Pass `multiline` for notes.
  */
 export function TextField({
   ref,
@@ -41,7 +41,7 @@ export function TextField({
   return (
     <View style={styles.field}>
       {label ? (
-        <ThemedText type="caption" themeColor="textSecondary" style={styles.label}>
+        <ThemedText style={styles.label}>
           {label}
         </ThemedText>
       ) : null}
@@ -63,6 +63,7 @@ export function TextField({
           ref={ref}
           accessibilityLabel={label}
           placeholderTextColor={Colors.textMuted}
+          selectionColor={Colors.primary}
           editable={editable}
           {...input}
           onFocus={(event) => {
@@ -78,13 +79,9 @@ export function TextField({
         {trailing}
       </View>
       {error ? (
-        <ThemedText type="caption" themeColor="danger">
-          {error}
-        </ThemedText>
+        <ThemedText style={[styles.note, styles.error]}>{error}</ThemedText>
       ) : hint ? (
-        <ThemedText type="caption" themeColor="textMuted">
-          {hint}
-        </ThemedText>
+        <ThemedText style={styles.note}>{hint}</ThemedText>
       ) : null}
     </View>
   );
@@ -96,6 +93,19 @@ const styles = StyleSheet.create({
   },
   label: {
     fontFamily: Fonts.semibold,
+    fontSize: 13,
+    lineHeight: 17,
+    color: Colors.textSoft,
+  },
+  note: {
+    fontFamily: Fonts.medium,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: Colors.textFaint,
+  },
+  error: {
+    fontFamily: Fonts.semibold,
+    color: Colors.high,
   },
   box: {
     flexDirection: 'row',
@@ -103,7 +113,7 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     minHeight: 52,
     paddingHorizontal: 14,
-    borderRadius: Radius.md + 2,
+    borderRadius: Radius.lg,
     borderWidth: 1.5,
     borderColor: Colors.border,
     backgroundColor: Colors.backgroundElement,
@@ -117,15 +127,16 @@ const styles = StyleSheet.create({
     boxShadow: '0 0 0 4px rgba(221, 67, 1, 0.12)',
   },
   invalid: {
-    borderColor: Colors.danger,
+    borderColor: Colors.high,
   },
   readOnly: {
-    backgroundColor: Colors.background,
+    borderColor: Colors.hairline,
+    backgroundColor: Colors.well,
   },
   prefix: {
     fontFamily: Fonts.semibold,
     fontSize: 16,
-    color: Colors.textSecondary,
+    color: Colors.textSoft,
   },
   input: {
     flex: 1,

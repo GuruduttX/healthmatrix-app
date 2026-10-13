@@ -1,9 +1,10 @@
 import { useLocalSearchParams } from 'expo-router';
+import { CircleCheck } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { Colors, Fonts } from '@/constants/theme';
 import { authApi, type AuthIntent } from '@/features/auth/auth-api';
 import { useAuth } from '@/features/auth/auth-context';
 import { AuthForm } from '@/features/auth/auth-form';
@@ -66,7 +67,7 @@ export default function VerifyOtpScreen() {
           autoFocus: true,
           autoComplete: 'sms-otp',
           textContentType: 'oneTimeCode',
-          style: { letterSpacing: 4 },
+          otp: true,
         },
       ]}
       buttonLabel="Verify"
@@ -77,12 +78,13 @@ export default function VerifyOtpScreen() {
       footer={
         <>
           {notice ? (
-            <ThemedText type="small" themeColor="success">
-              {notice}
-            </ThemedText>
+            <View style={styles.notice} accessibilityLiveRegion="polite">
+              <CircleCheck size={15} color={Colors.good} strokeWidth={2.4} />
+              <ThemedText style={styles.noticeText}>{notice}</ThemedText>
+            </View>
           ) : null}
           {devCode ? (
-            <ThemedText type="caption" themeColor="textMuted">
+            <ThemedText style={styles.devCode}>
               Testing only, no SMS was sent: your code is {devCode}
             </ThemedText>
           ) : null}
@@ -91,10 +93,8 @@ export default function VerifyOtpScreen() {
             disabled={busy}
             accessibilityRole="button"
             hitSlop={8}
-            style={styles.resend}>
-            <ThemedText type="smallBold" themeColor="primary">
-              Resend code
-            </ThemedText>
+            style={({ pressed }) => [styles.resend, pressed && styles.pressed]}>
+            <ThemedText style={styles.resendText}>Resend code</ThemedText>
           </Pressable>
         </>
       }
@@ -103,8 +103,34 @@ export default function VerifyOtpScreen() {
 }
 
 const styles = StyleSheet.create({
+  notice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  noticeText: {
+    flex: 1,
+    fontFamily: Fonts.semibold,
+    fontSize: 13.5,
+    lineHeight: 18,
+    color: Colors.good,
+  },
+  devCode: {
+    fontFamily: Fonts.medium,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: Colors.textFaint,
+  },
   resend: {
     alignSelf: 'center',
-    marginTop: Spacing.two,
+  },
+  resendText: {
+    fontFamily: Fonts.bold,
+    fontSize: 14,
+    lineHeight: 18,
+    color: Colors.primaryDeep,
+  },
+  pressed: {
+    opacity: 0.6,
   },
 });

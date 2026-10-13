@@ -1,8 +1,9 @@
 import { Plus, X } from 'lucide-react-native';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { TextField } from '@/components/ui/text-field';
+import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 
 import { formStyles } from './form-styles';
 
@@ -13,6 +14,8 @@ type ListEditorProps = {
   draft: string;
   onDraftChange: (draft: string) => void;
   placeholder: string;
+  /** What the list is, for screen readers: "Allergies". */
+  label?: string;
   /** Common entries, offered as one-tap adds. */
   suggestions?: string[];
   max?: number;
@@ -35,12 +38,14 @@ export function ListEditor({
   draft,
   onDraftChange,
   placeholder,
+  label,
   suggestions = [],
   max = 20,
   editable = true,
 }: ListEditorProps) {
   const full = items.length >= max;
   const offered = suggestions.filter((suggestion) => !has(items, suggestion));
+  const canAdd = editable && !!draft.trim();
 
   const add = (value: string) => {
     onChange(addItem(items, value));
@@ -52,17 +57,16 @@ export function ListEditor({
       {items.length ? (
         <View style={styles.pills}>
           {items.map((item) => (
-            <View key={item} style={styles.pill}>
-              <ThemedText type="smallBold" themeColor="onInk" style={styles.pillText}>
-                {item}
-              </ThemedText>
+            <View key={item} style={formStyles.pill}>
+              <ThemedText style={formStyles.pillText}>{item}</ThemedText>
               <Pressable
                 onPress={() => onChange(items.filter((other) => other !== item))}
                 disabled={!editable}
                 accessibilityRole="button"
                 accessibilityLabel={`Remove ${item}`}
-                hitSlop={8}>
-                <X size={14} color={Colors.onInkMuted} strokeWidth={2.6} />
+                hitSlop={10}
+                style={({ pressed }) => [styles.remove, pressed && styles.removePressed]}>
+                <X size={13} color={Colors.textSoft} strokeWidth={2.6} />
               </Pressable>
             </View>
           ))}
@@ -70,32 +74,34 @@ export function ListEditor({
       ) : null}
 
       {full ? null : (
-        <View style={styles.inputRow}>
-          <TextInput
-            value={draft}
-            onChangeText={onDraftChange}
-            onSubmitEditing={() => add(draft)}
-            submitBehavior="submit"
-            returnKeyType="done"
-            placeholder={placeholder}
-            placeholderTextColor={Colors.textMuted}
-            maxLength={80}
-            editable={editable}
-            style={[formStyles.input, styles.input]}
-          />
-          <Pressable
-            onPress={() => add(draft)}
-            disabled={!editable || !draft.trim()}
-            accessibilityRole="button"
-            accessibilityLabel="Add"
-            style={({ pressed }) => [
-              styles.add,
-              !draft.trim() && styles.addDisabled,
-              pressed && formStyles.pressed,
-            ]}>
-            <Plus size={20} color={Colors.onInk} strokeWidth={2.4} />
-          </Pressable>
-        </View>
+        <TextField
+          value={draft}
+          onChangeText={onDraftChange}
+          onSubmitEditing={() => add(draft)}
+          submitBehavior="submit"
+          returnKeyType="done"
+          placeholder={placeholder}
+          accessibilityLabel={label ? `Add to ${label.toLowerCase()}` : undefined}
+          maxLength={80}
+          editable={editable}
+          trailing={
+            <Pressable
+              onPress={() => add(draft)}
+              disabled={!canAdd}
+              accessibilityRole="button"
+              accessibilityLabel="Add"
+              accessibilityState={{ disabled: !canAdd }}
+              hitSlop={6}
+              style={({ pressed }) => [
+                formStyles.roundButton,
+                styles.add,
+                !canAdd && formStyles.roundButtonDisabled,
+                pressed && formStyles.roundButtonPressed,
+              ]}>
+              <Plus size={18} color={Colors.primaryDeep} strokeWidth={2.4} />
+            </Pressable>
+          }
+        />
       )}
 
       {!full && offered.length ? (
@@ -107,11 +113,10 @@ export function ListEditor({
               disabled={!editable}
               accessibilityRole="button"
               accessibilityLabel={`Add ${suggestion}`}
-              style={({ pressed }) => [styles.suggestion, pressed && formStyles.pressed]}>
-              <Plus size={12} color={Colors.textSecondary} strokeWidth={2.4} />
-              <ThemedText type="caption" themeColor="textSecondary">
-                {suggestion}
-              </ThemedText>
+              hitSlop={4}
+              style={({ pressed }) => [styles.suggestion, pressed && styles.suggestionPressed]}>
+              <Plus size={12} color={Colors.textSoft} strokeWidth={2.6} />
+              <ThemedText style={styles.suggestionText}>{suggestion}</ThemedText>
             </Pressable>
           ))}
         </View>
@@ -122,54 +127,49 @@ export function ListEditor({
 
 const styles = StyleSheet.create({
   wrap: {
-    gap: Spacing.two,
+    gap: Spacing.three - 4,
   },
   pills: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.two,
   },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    maxWidth: '100%',
-    paddingVertical: 7,
-    paddingLeft: 12,
-    paddingRight: 10,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.ink,
-  },
-  pillText: {
-    flexShrink: 1,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-  },
-  input: {
-    flex: 1,
-    minWidth: 0,
-  },
-  add: {
-    width: 52,
+  remove: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 26,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.well,
   },
-  addDisabled: {
-    opacity: 0.35,
+  removePressed: {
+    backgroundColor: Colors.backgroundSelected,
   },
+  // Sits at the field's right edge, inside its outline.
+  add: {
+    marginRight: -6,
+  },
+  // Offered, not yet added: a dashed outline and a plus.
   suggestion: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
+    height: 30,
+    paddingLeft: 9,
+    paddingRight: 11,
     borderRadius: Radius.pill,
     borderWidth: 1,
     borderStyle: 'dashed',
     borderColor: Colors.border,
+  },
+  suggestionPressed: {
+    backgroundColor: Colors.well,
+    transform: [{ scale: 0.97 }],
+  },
+  suggestionText: {
+    fontFamily: Fonts.semibold,
+    fontSize: 12.5,
+    lineHeight: 16,
+    color: Colors.textSoft,
   },
 });

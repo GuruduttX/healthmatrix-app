@@ -1,31 +1,50 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import { SearchX, Syringe } from 'lucide-react-native';
+import { SearchX } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/screen';
-import { ThemedText } from '@/components/themed-text';
 import { EmptyState, ErrorState } from '@/components/ui/empty-state';
-import { IconTile } from '@/components/ui/icon-tile';
-import { Skeleton, SkeletonGroup, SkeletonList } from '@/components/ui/skeleton';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { Skeleton, SkeletonCircle, SkeletonGroup } from '@/components/ui/skeleton';
+import { Surface } from '@/components/ui/surface';
+import { Colors, Radius, Spacing } from '@/constants/theme';
 import { VaccineDetail } from '@/features/vaccines/vaccine-detail';
 import { useVaccinations } from '@/features/vaccines/use-vaccinations';
 
 const vaccineTitle = (name: string) => (/vaccin/i.test(name) ? name : `${name} vaccine`);
 
-/** The header, progress card and doses while the vaccines load. */
+/** The title, the doses card and how it's given while the vaccines load. */
 function VaccineSkeleton() {
   return (
     <SkeletonGroup label="Loading this vaccine" style={styles.stack}>
-      <View style={styles.header}>
-        <Skeleton width={52} height={52} radius={Radius.md + 2} />
-        <Skeleton width={80} height={11} />
-        <Skeleton width="70%" height={24} />
-      </View>
-      <Skeleton height={96} radius={Radius.xl} />
-      <Skeleton width={90} height={18} />
-      <SkeletonList rows={3} trailing />
+      <Skeleton width="65%" height={28} />
+      <Surface style={styles.skeletonCard}>
+        <View style={styles.skeletonRow}>
+          <SkeletonCircle size={40} />
+          <View style={styles.skeletonText}>
+            <Skeleton width="55%" height={15} />
+            <Skeleton width="40%" height={11} />
+          </View>
+          <Skeleton width={52} height={20} radius={Radius.pill} />
+        </View>
+        <View style={styles.skeletonRule} />
+        <View style={styles.skeletonRow}>
+          <SkeletonCircle size={30} style={styles.skeletonDot} />
+          <View style={styles.skeletonText}>
+            <Skeleton width="35%" height={13} />
+            <Skeleton width="30%" height={10} />
+          </View>
+          <Skeleton width={104} height={32} radius={Radius.pill} />
+        </View>
+      </Surface>
+      <Skeleton width={130} height={20} />
+      <Surface style={styles.skeletonFacts}>
+        {[0, 1, 2].map((i) => (
+          <View key={i} style={[styles.skeletonFact, i > 0 && styles.skeletonDivider]}>
+            <Skeleton width={56} height={12} />
+            <Skeleton width={i ? 110 : 60} height={13} />
+          </View>
+        ))}
+      </Surface>
     </SkeletonGroup>
   );
 }
@@ -44,25 +63,10 @@ export default function CareVaccineScreen() {
       onBack={() => (router.canGoBack() ? router.back() : router.dismissTo('/care'))}
       backLabel="Care"
       barTitle="Vaccine"
+      title={vaccination ? vaccineTitle(vaccination.name) : undefined}
       onRefresh={refresh}>
       {vaccination ? (
-        <View style={styles.stack}>
-          {/* Tinted like a vaccine record on the Records timeline. */}
-          <View style={styles.header}>
-            <LinearGradient
-              colors={[Colors.primarySoft, Colors.backgroundElement]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0.9, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
-            <IconTile icon={Syringe} tone="primary" size={52} />
-            <ThemedText style={styles.kicker}>Vaccine</ThemedText>
-            <ThemedText style={styles.title} accessibilityRole="header">
-              {vaccineTitle(vaccination.name)}
-            </ThemedText>
-          </View>
-          <VaccineDetail vaccination={vaccination} />
-        </View>
+        <VaccineDetail vaccination={vaccination} />
       ) : vaccinations ? (
         <EmptyState
           icon={SearchX}
@@ -82,29 +86,41 @@ export default function CareVaccineScreen() {
 
 const styles = StyleSheet.create({
   stack: {
-    gap: Spacing.three,
+    gap: Spacing.four - 4,
   },
-  header: {
-    gap: Spacing.two,
-    padding: Spacing.three + 2,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.backgroundElement,
-    overflow: 'hidden',
+  skeletonCard: {
+    paddingHorizontal: Spacing.three - 2,
   },
-  kicker: {
-    marginTop: Spacing.one,
-    fontFamily: Fonts.bold,
-    fontSize: 11,
-    lineHeight: 14,
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    color: Colors.primary,
+  skeletonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three - 4,
   },
-  title: {
-    fontFamily: Fonts.display,
-    fontSize: 25,
-    lineHeight: 31,
+  skeletonDot: {
+    marginHorizontal: 5,
+  },
+  skeletonText: {
+    flex: 1,
+    gap: 8,
+  },
+  skeletonFacts: {
+    paddingHorizontal: Spacing.three - 2,
+    paddingVertical: Spacing.one,
+  },
+  skeletonFact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 48,
+  },
+  skeletonDivider: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.hairline,
+  },
+  skeletonRule: {
+    height: StyleSheet.hairlineWidth,
+    marginVertical: Spacing.three - 2,
+    marginHorizontal: -(Spacing.three - 2),
+    backgroundColor: Colors.hairline,
   },
 });

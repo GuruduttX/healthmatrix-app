@@ -6,15 +6,14 @@ import { Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
+import { GLOW_TOP, MorningLight } from '@/components/ui/morning-light';
 import { Section } from '@/components/ui/section';
-import { Plans } from '@/constants/plans';
 import { Colors, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-context';
 import { refreshAppointments } from '@/features/doctors/use-appointments';
 import { refreshConsultRequests } from '@/features/doctors/use-consult-requests';
-import { suggestedQuestions } from '@/features/ekaay/sample-data';
 import { refreshFamily } from '@/features/family/use-family';
-import { AskEkaay } from '@/features/home/ask-ekaay';
+import { CareBanner } from '@/features/home/care-banner';
 import { EkaayInsightCard } from '@/features/home/ekaay-insight-card';
 import { FamilyStrip } from '@/features/home/family-strip';
 import { HealthCard } from '@/features/home/health-card';
@@ -23,7 +22,7 @@ import { GUTTER } from '@/features/home/layout';
 import { QuickActions, type QuickActionId } from '@/features/home/quick-actions';
 import { sampleHome } from '@/features/home/sample-data';
 import { TodayPlan } from '@/features/home/today-plan';
-import { VitalCard } from '@/features/home/vital-card';
+import { VitalsCard } from '@/features/home/vital-card';
 import { useNotifications } from '@/features/notifications/use-notifications';
 import { refreshReminders } from '@/features/reminders/use-reminders';
 import { refreshVaccinations } from '@/features/vaccines/use-vaccinations';
@@ -47,33 +46,6 @@ const findGeneralPhysician = () =>
     pathname: '/care/doctors/[specialty]',
     params: { specialty: 'general_medicine' },
   });
-
-/** The colour at the very top of the page, where the morning light is strongest. */
-const GLOW_TOP = '#F9EBE1';
-
-/**
- * Warm light behind the top of Home that scrolls away with the greeting: a pale peach wash fading
- * into the page, a touch brighter in the top right. Both are gradient layers that fade out well
- * inside their box, so no edge ever shows.
- */
-function MorningLight() {
-  return (
-    <View style={styles.light}>
-      <LinearGradient
-        colors={[GLOW_TOP, 'rgba(250, 239, 231, 0.7)', 'rgba(248, 245, 240, 0)']}
-        locations={[0, 0.45, 1]}
-        style={StyleSheet.absoluteFill}
-      />
-      <LinearGradient
-        colors={['rgba(240, 128, 72, 0.14)', 'rgba(240, 128, 72, 0)']}
-        locations={[0, 0.5]}
-        start={{ x: 1, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-    </View>
-  );
-}
 
 export default function HomeScreen() {
   const { member, refreshMember } = useAuth();
@@ -116,8 +88,6 @@ export default function HomeScreen() {
     }, [memberId]),
   );
 
-  const planName = member ? Plans[member.plan]?.name : undefined;
-
   return (
     <View style={styles.screen}>
       {/* Peach behind the page, so pulling down shows the light's colour above the greeting. */}
@@ -132,20 +102,15 @@ export default function HomeScreen() {
             styles.content,
             { paddingTop: insets.top + Spacing.three, paddingBottom: clearance + Spacing.four },
           ]}>
-          <View style={styles.top}>
-            <HomeHeader
-              name={member?.name ?? ''}
-              photoUrl={member?.photoUrl}
-              planName={planName}
-              abhaLinked={member?.abhaLinked}
-              hasUnread={hasUnread}
-              onPressProfile={() => router.push('/profile')}
-              onPressNotifications={() => router.push('/notifications')}
-            />
-            <AskEkaay suggestions={suggestedQuestions.slice(0, 3)} onAsk={askEkaay} />
-          </View>
+          <HomeHeader
+            name={member?.name ?? ''}
+            abhaLinked={member?.abhaLinked}
+            hasUnread={hasUnread}
+            onPressProfile={() => router.push('/profile')}
+            onPressNotifications={() => router.push('/notifications')}
+          />
 
-          {/* Closer to the greeting above and the Today card below than the page's other sections. */}
+          {/* Closer to the greeting above and the banner below than the page's other sections. */}
           <View style={styles.services}>
             <Section index={0}>
               <QuickActions onPress={(id) => router.navigate(ACTION_ROUTES[id])} />
@@ -153,7 +118,7 @@ export default function HomeScreen() {
           </View>
 
           <Section index={1}>
-            <TodayPlan />
+            <CareBanner onPress={() => askEkaay()} />
           </Section>
 
           <Section
@@ -161,14 +126,14 @@ export default function HomeScreen() {
             actionLabel="See all"
             onAction={() => router.navigate('/records')}
             index={2}>
-            <View style={styles.grid}>
-              {readings.map((reading) => (
-                <VitalCard key={reading.id} reading={reading} />
-              ))}
-            </View>
+            <VitalsCard readings={readings} />
           </Section>
 
           <Section index={3}>
+            <TodayPlan />
+          </Section>
+
+          <Section index={4}>
             <EkaayInsightCard
               insight={insight}
               primaryLabel="Book HbA1c"
@@ -179,9 +144,9 @@ export default function HomeScreen() {
             />
           </Section>
 
-          <FamilyStrip index={4} />
+          <FamilyStrip index={5} />
 
-          <Section title="Safety" index={5}>
+          <Section title="Safety" index={6}>
             <HealthCard
               memberId={member?.memberId}
               abhaLinked={member?.abhaLinked}
@@ -216,14 +181,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.canvas,
   },
-  light: {
-    pointerEvents: 'none',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 420,
-  },
   scroll: {
     flex: 1,
     backgroundColor: GLOW_TOP,
@@ -244,20 +201,12 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
-    gap: Spacing.four + 4,
-    paddingHorizontal: GUTTER,
-  },
-  top: {
     gap: Spacing.four - 4,
+    paddingHorizontal: GUTTER,
   },
   services: {
     marginTop: -Spacing.two,
     marginBottom: -Spacing.one,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.three - 4,
   },
   trust: {
     flexDirection: 'row',

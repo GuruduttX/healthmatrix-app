@@ -15,27 +15,26 @@ type Action = {
   art: ImageSource;
   /** The art's width over its height. */
   aspect?: number;
-  /** The dish behind the art, light to deep, in a tint that sets the art off. */
-  tint: readonly [string, string];
   /** The art's height as a share of the dish, and how far it sits below centre (a share too). */
   fill: number;
   drop?: number;
 };
 
 /**
- * The pod is Cloudspital's Arc pod from the HealthMatrix brochure; the rest is Microsoft Fluent
- * Emoji, MIT licence. Both are noted in assets/images/home/3d/LICENSE.
+ * The pod is Cloudspital's Arc pod from the HealthMatrix brochure (assets/images/home/3d/LICENSE);
+ * the doctor, medicines and records are AI-generated images the team supplied
+ * (assets/images/home/CREDITS).
  */
 const ACTIONS: Action[] = [
   {
     id: 'video-consult',
     label: 'Consult',
     spoken: 'Video consult',
-    art: require('@/assets/images/home/3d/doctor.png'),
-    tint: ['#F2F8FB', '#D6E8F1'],
-    // A portrait: sits low, so the dish crops the coat like a photo frame.
-    fill: 1,
-    drop: 0.1,
+    art: require('@/assets/images/home/actions/consult.png'),
+    aspect: 300 / 291,
+    // A portrait: large and low, so the face fills the dish and its edge crops the coat.
+    fill: 1.25,
+    drop: 0.17,
   },
   {
     id: 'book-pod',
@@ -43,7 +42,6 @@ const ACTIONS: Action[] = [
     spoken: 'Book a screening pod',
     art: require('@/assets/images/home/3d/pod.png'),
     aspect: 274 / 420,
-    tint: ['#F3FAF5', '#D8EEDF'],
     // Framed like the doctor: large, cut at the floor, so the arch, screen and seat fill the dish.
     fill: 1.16,
     drop: 0.15,
@@ -52,27 +50,34 @@ const ACTIONS: Action[] = [
     id: 'medicines',
     label: 'Medicines',
     spoken: 'Medicines',
-    art: require('@/assets/images/home/3d/medicine.png'),
-    tint: ['#FFF6F2', '#FADDD3'],
-    fill: 0.74,
+    art: require('@/assets/images/home/actions/medicines.png'),
+    aspect: 256 / 250,
+    fill: 0.8,
   },
   {
     id: 'add-records',
     label: 'Records',
     spoken: 'Records',
-    art: require('@/assets/images/home/3d/records.png'),
-    tint: ['#FFFAF2', '#F3E4CE'],
-    fill: 0.82,
+    art: require('@/assets/images/home/actions/records.png'),
+    aspect: 221 / 256,
+    fill: 0.8,
   },
 ];
 
-const DISH = 70;
+const DISH = 64;
+/** How far a name may run past its dish on each side, so "Medicines" is never cut short. */
+const LABEL_SPILL = 14;
+/**
+ * One dish for all four, so the row reads as a set: white in the light, warming to a soft apricot,
+ * a step deeper than the page so the dishes never melt into it.
+ */
+const DISH_TINT = ['#FFFFFF', '#FBE3D4'] as const;
 
 /** The four everyday services on Home: a 3D picture of each in a round tinted dish, the name under it. */
 export function QuickActions({ onPress }: { onPress: (id: QuickActionId) => void }) {
   return (
     <View style={styles.row}>
-      {ACTIONS.map(({ id, label, spoken, art, aspect = 1, tint, fill, drop = 0 }) => (
+      {ACTIONS.map(({ id, label, spoken, art, aspect = 1, fill, drop = 0 }) => (
         <Pressable
           key={id}
           onPress={() => onPress(id)}
@@ -83,7 +88,7 @@ export function QuickActions({ onPress }: { onPress: (id: QuickActionId) => void
           <View style={styles.dishShadow}>
             <View style={styles.dish}>
               <LinearGradient
-                colors={tint}
+                colors={DISH_TINT}
                 start={{ x: 0.2, y: 0 }}
                 end={{ x: 0.8, y: 1 }}
                 style={StyleSheet.absoluteFill}
@@ -103,9 +108,11 @@ export function QuickActions({ onPress }: { onPress: (id: QuickActionId) => void
               </View>
             </View>
           </View>
-          <ThemedText style={styles.label} numberOfLines={1}>
-            {label}
-          </ThemedText>
+          <View style={styles.labelBox}>
+            <ThemedText style={styles.label} numberOfLines={1}>
+              {label}
+            </ThemedText>
+          </View>
         </Pressable>
       ))}
     </View>
@@ -119,30 +126,34 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   item: {
-    width: DISH + 4,
+    width: DISH,
     alignItems: 'center',
-    gap: Spacing.two + 2,
+    gap: Spacing.two,
   },
   pressed: {
     opacity: 0.85,
     transform: [{ scale: 0.95 }],
   },
+  // No rim or ring: the dish is lifted by its shadow alone, close and soft, then wide and faint.
   dishShadow: {
     borderRadius: DISH / 2,
-    boxShadow: '0 6px 14px rgba(58, 36, 22, 0.1)',
+    boxShadow: '0 1px 2px rgba(58, 36, 22, 0.06), 0 8px 18px rgba(58, 36, 22, 0.09)',
   },
-  // A thin white rim, like light catching the edge of a bowl.
   dish: {
     width: DISH,
     height: DISH,
     borderRadius: DISH / 2,
-    borderWidth: 1.5,
-    borderColor: Colors.backgroundElement,
     overflow: 'hidden',
   },
   center: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // Wider than the dish and centred under it; the row's spacing still follows the dishes.
+  labelBox: {
+    width: DISH + LABEL_SPILL * 2,
+    marginHorizontal: -LABEL_SPILL,
+    alignItems: 'center',
   },
   label: {
     maxWidth: '100%',

@@ -1,13 +1,12 @@
 import { router } from 'expo-router';
 import { CalendarCheck, CalendarPlus, Stethoscope } from 'lucide-react-native';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
 
 import { EmptyState } from '@/components/ui/empty-state';
-import { SectionHeader } from '@/components/ui/section-header';
+import { ListCard } from '@/components/ui/list';
+import { Section } from '@/components/ui/section';
 import { Segmented } from '@/components/ui/segmented';
 import { SkeletonList } from '@/components/ui/skeleton';
-import { Spacing } from '@/constants/theme';
 
 import { UpcomingList } from './appointments-card';
 import { ConsultRequestsList } from './consult-requests-list';
@@ -18,6 +17,8 @@ import { useConsultRequests } from './use-consult-requests';
 
 type Tab = 'upcoming' | 'past';
 
+const TITLE = 'Your consults';
+
 const findADoctor = () =>
   router.push({ pathname: '/care/doctors/[specialty]', params: { specialty: 'general_medicine' } });
 
@@ -25,19 +26,18 @@ const findADoctor = () =>
  * "Your consults" on the Care tab, with Upcoming and Past tabs. Opens on Upcoming when there is
  * one, otherwise on Past; placeholder rows while they load, and hidden once loaded if the member
  * has never booked a consult. `past` comes from `usePastConsults`, held by the Care screen so
- * pull-to-refresh reloads it.
+ * pull-to-refresh reloads it. `index` is its place on the page, for the section's ease-in.
  */
-export function ConsultsSection({ past }: { past: PastConsult[] | null }) {
+export function ConsultsSection({ past, index }: { past: PastConsult[] | null; index?: number }) {
   const { appointments } = useAppointments();
   const { requests } = useConsultRequests();
   const [chosen, setChosen] = useState<Tab | null>(null);
 
   if (appointments === null && past === null) {
     return (
-      <View style={styles.section}>
-        <SectionHeader title="Your consults" />
+      <Section title={TITLE} index={index}>
         <SkeletonList rows={2} label="Loading your consults" />
-      </View>
+      </Section>
     );
   }
 
@@ -50,8 +50,7 @@ export function ConsultsSection({ past }: { past: PastConsult[] | null }) {
   const tab = chosen ?? (upcomingCount > 0 ? 'upcoming' : 'past');
 
   return (
-    <View style={styles.section}>
-      <SectionHeader title="Your consults" />
+    <Section title={TITLE} index={index}>
       <Segmented
         value={tab}
         onChange={setChosen}
@@ -63,10 +62,11 @@ export function ConsultsSection({ past }: { past: PastConsult[] | null }) {
 
       {tab === 'upcoming' ? (
         upcomingCount ? (
-          <View style={styles.lists}>
+          // Requests and booked consults share one card, a hairline between them.
+          <ListCard>
             {asked.length ? <ConsultRequestsList requests={asked} /> : null}
             {upcoming.length ? <UpcomingList appointments={upcoming} /> : null}
-          </View>
+          </ListCard>
         ) : (
           <EmptyState
             icon={CalendarPlus}
@@ -80,20 +80,10 @@ export function ConsultsSection({ past }: { past: PastConsult[] | null }) {
       ) : (
         <EmptyState
           icon={CalendarCheck}
-          tone="success"
           title="No finished consults yet"
           body="Consults you finish will show here, with their prescriptions."
         />
       )}
-    </View>
+    </Section>
   );
 }
-
-const styles = StyleSheet.create({
-  section: {
-    gap: Spacing.three - 4,
-  },
-  lists: {
-    gap: Spacing.three - 4,
-  },
-});

@@ -1,4 +1,4 @@
-import { Spacing } from '@/constants/theme';
+import { Gutter } from '@/constants/theme';
 
-/** Home's side margins. Rows that scroll sideways bleed by this much to reach the screen edges. */
-export const GUTTER = Spacing.four - 4;
+/** Home's side margins, shared by every page. Rows that scroll sideways bleed by this much. */
+export const GUTTER = Gutter;

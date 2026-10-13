@@ -1,39 +1,46 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { SearchX, Stethoscope, UserRound } from 'lucide-react-native';
+import { SearchX, Stethoscope } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/screen';
-import { ThemedText } from '@/components/themed-text';
 import { EmptyState, ErrorState } from '@/components/ui/empty-state';
-import { TONES } from '@/components/ui/icon-tile';
+import { Section } from '@/components/ui/section';
 import { Skeleton, SkeletonCircle, SkeletonGroup } from '@/components/ui/skeleton';
-import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Surface } from '@/components/ui/surface';
+import { Colors, Gradients, Radius, Shadows, Spacing } from '@/constants/theme';
 import { DoctorCard } from '@/features/doctors/doctor-card';
 import { specialtyInfo } from '@/features/doctors/specialties';
 import { type Doctor } from '@/features/doctors/types';
 import { api } from '@/services/api';
 
+const DISH = 52;
+
 /** Two doctor cards' shape while the list loads. */
 function DoctorsSkeleton() {
   return (
     <SkeletonGroup label="Loading doctors" style={styles.list}>
+      <Skeleton width={140} height={20} style={styles.skeletonTitle} />
       {[0, 1].map((i) => (
-        <View key={i} style={styles.skeletonCard}>
+        <Surface key={i} style={styles.skeletonCard}>
           <View style={styles.skeletonHeader}>
-            <SkeletonCircle size={56} />
+            <SkeletonCircle size={52} />
             <View style={styles.flex}>
               <Skeleton width="60%" height={16} />
-              <Skeleton width="40%" height={11} style={styles.gap} />
+              <Skeleton width="45%" height={11} style={styles.gap} />
+              <Skeleton width="70%" height={10} style={styles.gap} />
             </View>
           </View>
-          <View style={styles.skeletonPills}>
-            <Skeleton width={90} height={26} radius={Radius.pill} />
-            <Skeleton width={110} height={26} radius={Radius.pill} />
+          <View style={styles.skeletonRule} />
+          <View style={styles.skeletonHeader}>
+            <View style={styles.flex}>
+              <Skeleton width="40%" height={10} />
+              <Skeleton width="55%" height={14} style={styles.gap} />
+            </View>
+            <Skeleton width={84} height={40} radius={Radius.pill} />
           </View>
-          <Skeleton height={64} radius={Radius.md + 2} />
-        </View>
+        </Surface>
       ))}
     </SkeletonGroup>
   );
@@ -78,7 +85,6 @@ export default function SpecialtyDoctorsScreen() {
   );
 
   const Icon = info?.icon ?? Stethoscope;
-  const tone = info?.tone ?? 'primary';
   const count = doctors?.length ?? 0;
 
   return (
@@ -86,77 +92,69 @@ export default function SpecialtyDoctorsScreen() {
       onBack={() => router.dismissTo('/care')}
       backLabel="Care"
       barTitle="Doctors"
-      onRefresh={() => load(() => true)}>
-      <View style={styles.stack}>
-        {info ? (
-          // Tinted in the specialty's colour, like its tile on the Care tab.
-          <View style={styles.intro}>
-            <LinearGradient
-              colors={[TONES[tone].soft, Colors.backgroundElement]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
-            <View style={styles.introIcon}>
-              <Icon size={24} color={TONES[tone].color} strokeWidth={2.1} />
-            </View>
-            <View style={styles.introText}>
-              <ThemedText style={styles.title} accessibilityRole="header" numberOfLines={2}>
-                {info.label}
-              </ThemedText>
-              <ThemedText type="caption" themeColor="textSecondary" numberOfLines={2}>
-                {info.blurb}
-              </ThemedText>
-              {doctors?.length ? (
-                <View style={styles.count}>
-                  <UserRound size={12} color={TONES[tone].color} strokeWidth={2.4} />
-                  <ThemedText style={[styles.countText, { color: TONES[tone].color }]}>
-                    {count} {count === 1 ? 'doctor' : 'doctors'} · Video consults
-                  </ThemedText>
-                </View>
-              ) : null}
+      title={info?.label}
+      subtitle={info?.blurb}
+      headerRight={
+        info ? (
+          // The specialty's icon in Home's round warm dish, one tint for every specialty.
+          <View style={styles.dishShadow}>
+            <View style={styles.dish}>
+              <LinearGradient
+                colors={Gradients.dish}
+                start={{ x: 0.2, y: 0 }}
+                end={{ x: 0.8, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <View style={[StyleSheet.absoluteFill, styles.center]}>
+                <Icon size={24} color={Colors.primaryDeep} strokeWidth={2.1} />
+              </View>
             </View>
           </View>
-        ) : null}
-
-        {!info ? (
-          <EmptyState
-            icon={SearchX}
-            tone="neutral"
-            title="Unknown specialty"
-            body="Go back and pick a specialty from the Care tab."
-          />
-        ) : !doctors ? (
-          error ? (
-            <ErrorState
-              title="Couldn’t load doctors"
-              message={error}
-              onRetry={() => void load(() => true)}
-            />
-          ) : (
-            <DoctorsSkeleton />
-          )
-        ) : !doctors.length ? (
-          <EmptyState
-            icon={SearchX}
-            tone="neutral"
-            title={`No ${info.label.toLowerCase()} doctors yet`}
-            body="We’re adding doctors every week. A general physician can help in the meantime and refer you on."
-            action={
-              info.id === 'general_medicine'
-                ? undefined
-                : {
-                    label: 'See general physicians',
-                    icon: Stethoscope,
-                    onPress: () =>
-                      router.replace({
-                        pathname: '/care/doctors/[specialty]',
-                        params: { specialty: 'general_medicine' },
-                      }),
-                  }
-            }
+        ) : undefined
+      }
+      onRefresh={() => load(() => true)}>
+      {!info ? (
+        <EmptyState
+          icon={SearchX}
+          tone="neutral"
+          title="Unknown specialty"
+          body="Go back and pick a specialty from the Care tab."
+        />
+      ) : !doctors ? (
+        error ? (
+          <ErrorState
+            title="Couldn’t load doctors"
+            message={error}
+            onRetry={() => void load(() => true)}
           />
         ) : (
+          <DoctorsSkeleton />
+        )
+      ) : !doctors.length ? (
+        <EmptyState
+          icon={SearchX}
+          tone="neutral"
+          title={`No ${info.label.toLowerCase()} doctors yet`}
+          body="We’re adding doctors every week. A general physician can help in the meantime and refer you on."
+          action={
+            info.id === 'general_medicine'
+              ? undefined
+              : {
+                  label: 'See general physicians',
+                  icon: Stethoscope,
+                  onPress: () =>
+                    router.replace({
+                      pathname: '/care/doctors/[specialty]',
+                      params: { specialty: 'general_medicine' },
+                    }),
+                }
+          }
+        />
+      ) : (
+        <Section
+          title="Video consults"
+          meta={`${count} ${count === 1 ? 'doctor' : 'doctors'}`}
+          index={0}>
           <View style={styles.list}>
             {doctors.map((doctor) => (
               <DoctorCard
@@ -172,88 +170,50 @@ export default function SpecialtyDoctorsScreen() {
               />
             ))}
           </View>
-        )}
-      </View>
+        </Section>
+      )}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  stack: {
-    gap: Spacing.three + 4,
-  },
   flex: {
     flex: 1,
+  },
+  center: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   gap: {
     marginTop: 8,
   },
-  // One compact row: the specialty's tile, then its name, what it covers and the count.
-  intro: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three - 4,
-    padding: 14,
-    borderRadius: Radius.lg + 4,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.backgroundElement,
+  dishShadow: {
+    borderRadius: DISH / 2,
+    boxShadow: Shadows.dish,
+  },
+  dish: {
+    width: DISH,
+    height: DISH,
+    borderRadius: DISH / 2,
     overflow: 'hidden',
   },
-  // White, so it stands out from the card's tint.
-  introIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.card,
-  },
-  introText: {
-    flex: 1,
-    gap: 2,
-  },
-  title: {
-    fontFamily: Fonts.display,
-    fontSize: 18,
-    lineHeight: 23,
-  },
-  count: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 4,
-    marginTop: 4,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.backgroundElement,
-  },
-  countText: {
-    fontFamily: Fonts.bold,
-    fontSize: 11,
-    lineHeight: 14,
-  },
   list: {
-    gap: Spacing.three,
+    gap: Spacing.three - 4,
+  },
+  skeletonTitle: {
+    marginBottom: 2,
   },
   skeletonCard: {
-    gap: Spacing.three,
-    padding: Spacing.three,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.card,
+    gap: Spacing.three - 4,
   },
   skeletonHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three - 4,
   },
-  skeletonPills: {
-    flexDirection: 'row',
-    gap: Spacing.two,
+  skeletonRule: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: -Spacing.three,
+    backgroundColor: Colors.hairline,
   },
 });

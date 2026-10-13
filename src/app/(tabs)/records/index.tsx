@@ -4,11 +4,12 @@ import { useCallback, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { Screen } from '@/components/screen';
-import { ThemedText } from '@/components/themed-text';
 import { Chip } from '@/components/ui/chip';
 import { EmptyState, ErrorState } from '@/components/ui/empty-state';
+import { ListCard } from '@/components/ui/list';
+import { Section } from '@/components/ui/section';
 import { Skeleton, SkeletonGroup } from '@/components/ui/skeleton';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Gutter, Radius, Shadows, Spacing } from '@/constants/theme';
 import { RecordRow, RecordRowSkeleton } from '@/features/records/record-row';
 import { type RecordSummary } from '@/features/records/types';
 import { api } from '@/services/api';
@@ -69,16 +70,16 @@ function groupByMonth(records: RecordSummary[]) {
   return groups;
 }
 
-/** The timeline's shape while it loads: a month heading and four rows. */
+/** The timeline's shape while it loads: a month heading and a card of four rows. */
 function TimelineSkeleton() {
   return (
     <SkeletonGroup label="Loading your records" style={styles.group}>
-      <Skeleton width={130} height={16} />
-      <View>
+      <Skeleton width={150} height={20} />
+      <ListCard>
         {[0, 1, 2, 3].map((i) => (
-          <RecordRowSkeleton key={i} isLast={i === 3} wide={i % 2 === 0} />
+          <RecordRowSkeleton key={i} wide={i % 2 === 0} />
         ))}
-      </View>
+      </ListCard>
     </SkeletonGroup>
   );
 }
@@ -86,6 +87,7 @@ function TimelineSkeleton() {
 /** The member's records timeline: prescriptions for now; reports and vaccines are coming. */
 export default function RecordsScreen() {
   const [query, setQuery] = useState('');
+  const [searching, setSearching] = useState(false);
   const [filterId, setFilterId] = useState('all');
   const [records, setRecords] = useState<RecordSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -172,27 +174,23 @@ export default function RecordsScreen() {
       />
     );
   } else {
-    body = groups.map((group) => (
-      <View key={group.heading} style={styles.group}>
-        <View style={styles.groupHeader}>
-          <ThemedText style={styles.groupTitle} accessibilityRole="header">
-            {group.heading}
-          </ThemedText>
-          <ThemedText type="caption" themeColor="textMuted">
-            {group.records.length === 1 ? '1 record' : `${group.records.length} records`}
-          </ThemedText>
-        </View>
-        <View>
-          {group.records.map((record, index) => (
+    // A month per card, as on Home: the heading names it, the card holds its records.
+    body = groups.map((group, index) => (
+      <Section
+        key={group.heading}
+        title={group.heading}
+        meta={group.records.length === 1 ? '1 record' : `${group.records.length} records`}
+        index={index}>
+        <ListCard>
+          {group.records.map((record) => (
             <RecordRow
               key={record.id}
               record={record}
-              isLast={index === group.records.length - 1}
               onPress={() => router.push({ pathname: '/records/[id]', params: { id: record.id } })}
             />
           ))}
-        </View>
-      </View>
+        </ListCard>
+      </Section>
     ));
   }
 
@@ -203,14 +201,17 @@ export default function RecordsScreen() {
       subtitle="Prescriptions, reports and vaccines, in one timeline."
       onRefresh={() => load(() => true)}
       heroContent={
-        <>
-          <View style={styles.search}>
-            <Search size={18} color={Colors.textMuted} strokeWidth={2.2} />
+        <View style={styles.tools}>
+          <View style={[styles.search, searching && styles.searchFocused]}>
+            <Search size={18} color={Colors.textFaint} strokeWidth={2.2} />
             <TextInput
               value={query}
               onChangeText={setQuery}
+              onFocus={() => setSearching(true)}
+              onBlur={() => setSearching(false)}
               placeholder="Search reports, doctors, medicines"
               placeholderTextColor={Colors.textMuted}
+              selectionColor={Colors.primary}
               returnKeyType="search"
               autoCorrect={false}
               accessibilityLabel="Search records"
@@ -222,8 +223,8 @@ export default function RecordsScreen() {
                 hitSlop={10}
                 accessibilityRole="button"
                 accessibilityLabel="Clear search"
-                style={styles.clear}>
-                <X size={14} color={Colors.textSecondary} strokeWidth={2.6} />
+                style={({ pressed }) => [styles.clear, pressed && styles.pressed]}>
+                <X size={13} color={Colors.textSoft} strokeWidth={2.8} />
               </Pressable>
             ) : null}
           </View>
@@ -234,42 +235,51 @@ export default function RecordsScreen() {
             keyboardShouldPersistTaps="handled"
             style={styles.filters}
             contentContainerStyle={styles.filtersContent}>
-            {FILTERS.map((item) => {
-              const count = records ? countOf(item.types) : 0;
-              return (
-                <Chip
-                  key={item.id}
-                  variant="glass"
-                  label={count ? `${item.label}  ${count}` : item.label}
-                  selected={item.id === filterId}
-                  onPress={() => setFilterId(item.id)}
-                />
-              );
-            })}
+            {FILTERS.map((item) => (
+              <Chip
+                key={item.id}
+                label={item.label}
+                count={records ? countOf(item.types) : undefined}
+                selected={item.id === filterId}
+                onPress={() => setFilterId(item.id)}
+              />
+            ))}
           </ScrollView>
-        </>
+        </View>
       }>
-      <View style={styles.body}>{body}</View>
+      {body}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  tools: {
+    gap: Spacing.three - 4,
+  },
+  // A white field with a hairline, lifted as little as Home's round header buttons.
   search: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two + 2,
-    minHeight: 52,
-    marginTop: Spacing.one,
-    paddingHorizontal: Spacing.three,
-    borderRadius: Radius.lg + 2,
+    minHeight: 48,
+    paddingLeft: Spacing.three,
+    paddingRight: Spacing.three - 4,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Colors.hairline,
     backgroundColor: Colors.backgroundElement,
-    boxShadow: '0 12px 30px rgba(0, 0, 0, 0.22)',
+    boxShadow: Shadows.soft,
+  },
+  searchFocused: {
+    borderColor: Colors.primaryLight,
   },
   searchInput: {
     flex: 1,
     minWidth: 0,
-    paddingVertical: 14,
+    // The field draws its own focus edge; no second outline from the browser on web.
+    outlineStyle: 'solid',
+    outlineWidth: 0,
+    paddingVertical: 12,
     color: Colors.text,
     fontFamily: Fonts.medium,
     fontSize: 15,
@@ -280,32 +290,24 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.backgroundSelected,
+    backgroundColor: Colors.well,
   },
-  // Bleed to the screen edges so chips scroll under the page padding.
+  pressed: {
+    opacity: 0.6,
+  },
+  // Bleeds to the screen edges so the chips scroll under the page's gutters; the vertical padding
+  // leaves room for the chips' shadows, which the scroll view would otherwise clip.
   filters: {
     flexGrow: 0,
-    marginHorizontal: -Spacing.three,
+    marginHorizontal: -Gutter,
+    marginVertical: -Spacing.one - 2,
   },
   filtersContent: {
     gap: Spacing.two,
-    paddingHorizontal: Spacing.three,
-  },
-  body: {
-    gap: Spacing.four,
-    marginTop: Spacing.one,
+    paddingHorizontal: Gutter,
+    paddingVertical: Spacing.one + 2,
   },
   group: {
-    gap: Spacing.three - 4,
-  },
-  groupHeader: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-  },
-  groupTitle: {
-    fontFamily: Fonts.display,
-    fontSize: 18,
-    lineHeight: 24,
+    gap: Spacing.three - 2,
   },
 });

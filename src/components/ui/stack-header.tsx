@@ -3,9 +3,10 @@ import { type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Gutter, Radius, Shadows, Spacing } from '@/constants/theme';
 
-const BUTTON = 42;
+/** Home's header buttons are 46; a screen's bar is a touch quieter. */
+const BUTTON = 44;
 
 type StackHeaderProps = {
   onBack: () => void;
@@ -15,22 +16,15 @@ type StackHeaderProps = {
   title?: string;
   /** A close (×) instead of a back arrow, for screens opened as a modal. */
   close?: boolean;
-  /** One small action at the right, e.g. a header button. */
+  /** One small action at the right, e.g. a `HeaderIconButton`. */
   right?: ReactNode;
-  /** `dark` on an ink background: glass button, white title. */
-  tone?: 'light' | 'dark';
 };
 
-/** The bar at the top of a screen opened from a tab: a round back button, title, one action. */
-export function StackHeader({
-  onBack,
-  backLabel,
-  title,
-  close = false,
-  right,
-  tone = 'light',
-}: StackHeaderProps) {
-  const dark = tone === 'dark';
+/**
+ * The bar at the top of a screen opened from a tab, on the warm page: a white round back button
+ * like Home's bell, a centred title, and one action.
+ */
+export function StackHeader({ onBack, backLabel, title, close = false, right }: StackHeaderProps) {
   const Icon = close ? X : ChevronLeft;
 
   return (
@@ -40,15 +34,11 @@ export function StackHeader({
         accessibilityRole="button"
         accessibilityLabel={backLabel ? `Back to ${backLabel}` : close ? 'Close' : 'Back'}
         hitSlop={6}
-        style={({ pressed }) => [styles.button, dark && styles.buttonDark, pressed && styles.pressed]}>
-        <Icon size={21} color={dark ? Colors.onInk : Colors.text} strokeWidth={2.3} />
+        style={({ pressed }) => [styles.button, pressed && styles.pressed]}>
+        <Icon size={21} color={Colors.text} strokeWidth={2.2} />
       </Pressable>
 
-      <ThemedText
-        type="bodyBold"
-        numberOfLines={1}
-        accessibilityRole="header"
-        style={[styles.title, dark && styles.titleDark]}>
+      <ThemedText numberOfLines={1} accessibilityRole="header" style={styles.title}>
         {title ?? ''}
       </ThemedText>
 
@@ -57,17 +47,21 @@ export function StackHeader({
   );
 }
 
-/** A round icon button that matches the back button, for `right`. */
+/**
+ * A white round button that matches the back button, for `right` or a tab page's `headerRight`.
+ * With `text`, a white pill with the icon and a word: "Share", "Add".
+ */
 export function HeaderIconButton({
   icon,
   label,
+  text,
   onPress,
-  tone = 'light',
 }: {
   icon: ReactNode;
+  /** What a screen reader says. */
   label: string;
-  onPress: () => void;
-  tone?: 'light' | 'dark';
+  text?: string;
+  onPress?: () => void;
 }) {
   return (
     <Pressable
@@ -75,12 +69,9 @@ export function HeaderIconButton({
       accessibilityRole="button"
       accessibilityLabel={label}
       hitSlop={6}
-      style={({ pressed }) => [
-        styles.button,
-        tone === 'dark' && styles.buttonDark,
-        pressed && styles.pressed,
-      ]}>
+      style={({ pressed }) => [styles.button, text ? styles.pill : null, pressed && styles.pressed]}>
       {icon}
+      {text ? <ThemedText style={styles.pillText}>{text}</ThemedText> : null}
     </Pressable>
   );
 }
@@ -92,7 +83,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.two,
     minHeight: BUTTON + Spacing.three,
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: Gutter,
     paddingVertical: Spacing.two,
   },
   button: {
@@ -102,24 +93,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.hairline,
     backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.card,
+    boxShadow: Shadows.soft,
   },
-  buttonDark: {
-    borderColor: Colors.glassBorder,
-    backgroundColor: Colors.glass,
-    boxShadow: 'none',
+  pill: {
+    width: 'auto',
+    flexDirection: 'row',
+    gap: 6,
+    paddingLeft: 13,
+    paddingRight: 16,
+    borderRadius: Radius.pill,
+  },
+  pillText: {
+    fontFamily: Fonts.bold,
+    fontSize: 14,
+    lineHeight: 18,
+    color: Colors.text,
   },
   pressed: {
     opacity: 0.7,
+    transform: [{ scale: 0.96 }],
   },
   title: {
     flex: 1,
     textAlign: 'center',
-  },
-  titleDark: {
-    color: Colors.onInk,
+    fontFamily: Fonts.displaySemibold,
+    fontSize: 17,
+    lineHeight: 22,
+    letterSpacing: -0.2,
+    color: Colors.text,
   },
   // Same width as the back button, so the title stays centred.
   right: {

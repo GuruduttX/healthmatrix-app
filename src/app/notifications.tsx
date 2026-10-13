@@ -1,56 +1,56 @@
 import { router } from 'expo-router';
-import { BellRing, ChevronRight } from 'lucide-react-native';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { BellRing } from 'lucide-react-native';
+import { StyleSheet } from 'react-native';
 
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { EmptyState } from '@/components/ui/empty-state';
 import { IconTile } from '@/components/ui/icon-tile';
-import { SectionHeader } from '@/components/ui/section-header';
+import { Chevron, LIST_LEAD, ListCard, ListRow } from '@/components/ui/list';
+import { Section } from '@/components/ui/section';
 import { SkeletonList } from '@/components/ui/skeleton';
-import { Surface } from '@/components/ui/surface';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Fonts } from '@/constants/theme';
 import { type Notice, useNotifications } from '@/features/notifications/use-notifications';
 
 /** One notice: what it is, a line of detail, when, and where tapping goes. */
-function NoticeRow({ notice, first }: { notice: Notice; first: boolean }) {
+function NoticeRow({ notice }: { notice: Notice }) {
   return (
-    <Pressable
-      onPress={() => router.push(notice.href)}
-      accessibilityRole="button"
-      accessibilityLabel={`${notice.title}. ${notice.body}${notice.when ? `. ${notice.when}` : ''}`}
-      style={({ pressed }) => [styles.row, !first && styles.divider, pressed && styles.pressed]}>
-      <IconTile icon={notice.icon} tone={notice.tone} size={42} />
-      <View style={styles.text}>
-        <View style={styles.titleRow}>
-          <ThemedText type="smallBold" style={styles.title} numberOfLines={2}>
-            {notice.title}
+    <ListRow
+      leading={<IconTile icon={notice.icon} tone={notice.tone} size={LIST_LEAD} />}
+      title={notice.title}
+      subtitle={notice.body}
+      // When it is for, as a quiet line of its own, so the title keeps the row's width.
+      meta={
+        notice.when ? (
+          <ThemedText style={styles.when} numberOfLines={1}>
+            {notice.when}
           </ThemedText>
-          {notice.when ? (
-            <ThemedText type="caption" themeColor="textMuted" numberOfLines={1}>
-              {notice.when}
-            </ThemedText>
-          ) : null}
-        </View>
-        <ThemedText type="caption" themeColor="textSecondary" numberOfLines={2}>
-          {notice.body}
-        </ThemedText>
-      </View>
-      <ChevronRight size={18} color={Colors.textMuted} strokeWidth={2.2} />
-    </Pressable>
+        ) : null
+      }
+      trailing={<Chevron />}
+      onPress={() => router.push(notice.href)}
+      accessibilityLabel={`${notice.title}. ${notice.body}${notice.when ? `. ${notice.when}` : ''}`}
+    />
   );
 }
 
-function NoticeSection({ title, notices }: { title: string; notices: Notice[] }) {
+function NoticeSection({
+  title,
+  notices,
+  index,
+}: {
+  title: string;
+  notices: Notice[];
+  index: number;
+}) {
   return (
-    <View style={styles.section}>
-      <SectionHeader title={title} meta={`${notices.length}`} />
-      <Surface style={styles.list}>
-        {notices.map((notice, index) => (
-          <NoticeRow key={notice.id} notice={notice} first={index === 0} />
+    <Section title={title} meta={`${notices.length}`} index={index}>
+      <ListCard>
+        {notices.map((notice) => (
+          <NoticeRow key={notice.id} notice={notice} />
         ))}
-      </Surface>
-    </View>
+      </ListCard>
+    </Section>
   );
 }
 
@@ -69,60 +69,34 @@ export default function NotificationsScreen() {
       backLabel="Home"
       barTitle="Notifications"
       onRefresh={refresh}>
-      <View style={styles.stack}>
-        {!notices ? (
-          <SkeletonList rows={4} leading="tile" trailing={false} label="Loading your notifications" />
-        ) : !notices.length ? (
-          <EmptyState
-            icon={BellRing}
-            tone="success"
-            title="You’re all caught up"
-            body="Medicine reminders, consult updates and vaccine doses will show up here."
-          />
-        ) : (
-          <>
-            {urgent.length ? <NoticeSection title="Needs attention" notices={urgent} /> : null}
-            {updates.length ? <NoticeSection title="Updates" notices={updates} /> : null}
-          </>
-        )}
-      </View>
+      {!notices ? (
+        <SkeletonList rows={4} leading="tile" trailing={false} label="Loading your notifications" />
+      ) : !notices.length ? (
+        <EmptyState
+          icon={BellRing}
+          tone="success"
+          title="You’re all caught up"
+          body="Medicine reminders, consult updates and vaccine doses will show up here."
+        />
+      ) : (
+        <>
+          {urgent.length ? (
+            <NoticeSection title="Needs attention" notices={urgent} index={0} />
+          ) : null}
+          {updates.length ? (
+            <NoticeSection title="Updates" notices={updates} index={urgent.length ? 1 : 0} />
+          ) : null}
+        </>
+      )}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  stack: {
-    gap: Spacing.four,
-  },
-  section: {
-    gap: Spacing.three - 4,
-  },
-  list: {
-    paddingVertical: Spacing.one,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three - 4,
-    paddingVertical: 12,
-  },
-  divider: {
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-  text: {
-    flex: 1,
-    gap: 2,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.two,
-  },
-  title: {
-    flex: 1,
+  when: {
+    fontFamily: Fonts.semibold,
+    fontSize: 12.5,
+    lineHeight: 16,
+    color: Colors.textFaint,
   },
 });

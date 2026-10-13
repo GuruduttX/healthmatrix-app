@@ -1,14 +1,12 @@
-import { Check, EyeOff, Lock, Pencil, Plus, ShieldPlus } from 'lucide-react-native';
+import { AlertCircle, Check, EyeOff, Lock, Pencil, Plus, ShieldPlus } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Button } from '@/components/ui/button';
 import { ErrorState } from '@/components/ui/empty-state';
 import { IconTile } from '@/components/ui/icon-tile';
-import { Skeleton, SkeletonGroup } from '@/components/ui/skeleton';
+import { Skeleton, SkeletonCircle, SkeletonGroup } from '@/components/ui/skeleton';
 import { Surface } from '@/components/ui/surface';
-import { Tag } from '@/components/ui/tag';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
 
 import {
   EMERGENCY_FIELDS,
@@ -27,9 +25,14 @@ type EmergencyProfileCardProps = {
   onRetry?: () => void;
 };
 
-const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+const LEAD = 40;
+/** The card's side padding; the rules run through it to the edges. */
+const PAD = Spacing.three - 2;
 
-/** Shorter names where the full one would not fit half the card's width. */
+/** "2 contacts", kept on one line so the summary only breaks between items. */
+const count = (n: number, one: string, many = `${one}s`) => `${n}\u00A0${n === 1 ? one : many}`;
+
+/** Shorter names, so the pills stay short. */
 const SHORT_LABELS: Partial<Record<EmergencyFieldId, string>> = {
   emergencyContacts: 'Contacts',
 };
@@ -53,20 +56,57 @@ function ProfileSkeleton() {
     <SkeletonGroup label="Loading your emergency profile">
       <Surface style={styles.card}>
         <View style={styles.header}>
-          <Skeleton width={40} height={40} radius={Radius.md} />
-          <View style={styles.flex}>
+          <SkeletonCircle size={LEAD} />
+          <View style={[styles.flex, styles.skeletonText]}>
             <Skeleton width="55%" height={15} />
-            <Skeleton width="40%" height={11} style={styles.gap} />
+            <Skeleton width="75%" height={11} />
           </View>
+          <Skeleton width={64} height={32} radius={Radius.pill} />
         </View>
-        <Skeleton height={48} radius={Radius.pill} />
-        <View style={styles.grid}>
-          {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
-            <Skeleton key={i} height={38} radius={Radius.md} style={styles.cellSkeleton} />
+        <View style={styles.rule} />
+        <Skeleton width="62%" height={11} />
+        <View style={styles.pills}>
+          {[64, 96, 78, 88, 82, 76, 100, 84].map((width, i) => (
+            <Skeleton key={i} width={width} height={34} radius={Radius.pill} />
           ))}
         </View>
       </Surface>
     </SkeletonGroup>
+  );
+}
+
+/** One detail a scan can show: a white pill with a tick when shown, a quiet one when hidden. */
+function FieldToggle({
+  label,
+  shown,
+  onPress,
+}: {
+  label: string;
+  shown: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: shown }}
+      accessibilityLabel={label}
+      accessibilityHint="Shows or hides it when someone scans your QR"
+      hitSlop={4}
+      style={({ pressed }) => [
+        styles.pill,
+        shown ? styles.pillOn : styles.pillOff,
+        pressed && styles.pillPressed,
+      ]}>
+      {shown ? (
+        <Check size={13} color={Colors.good} strokeWidth={3} />
+      ) : (
+        <EyeOff size={13} color={Colors.textMuted} strokeWidth={2.4} />
+      )}
+      <ThemedText style={[styles.pillText, !shown && styles.pillTextOff]} numberOfLines={1}>
+        {label}
+      </ThemedText>
+    </Pressable>
   );
 }
 
@@ -92,82 +132,78 @@ export function EmergencyProfileCard({
   return (
     <Surface style={styles.card}>
       <View style={styles.header}>
-        <IconTile icon={ShieldPlus} tone="danger" size={40} />
+        <IconTile icon={ShieldPlus} size={LEAD} />
         <View style={styles.flex}>
-          <ThemedText type="bodyBold">Emergency profile</ThemedText>
-          <ThemedText type="caption" themeColor="textSecondary" numberOfLines={2}>
+          <ThemedText style={styles.title} accessibilityRole="header" numberOfLines={1}>
+            Emergency profile
+          </ThemedText>
+          <ThemedText style={styles.subtitle} numberOfLines={2}>
             {empty ? 'Nothing added yet' : summary(profile)}
           </ThemedText>
         </View>
-        <Tag
-          label={`${shown} of ${EMERGENCY_FIELDS.length} shown`}
-          tone={shown ? 'success' : 'neutral'}
-        />
+        {/* One small action at the top right: solid while there is nothing to show yet. */}
+        <Pressable
+          onPress={onEdit}
+          accessibilityRole="button"
+          accessibilityLabel={empty ? 'Add emergency details' : 'Edit emergency details'}
+          hitSlop={8}
+          style={({ pressed }) => [
+            styles.action,
+            empty ? styles.actionSolid : styles.actionSoft,
+            pressed && (empty ? styles.actionSolidPressed : styles.actionSoftPressed),
+          ]}>
+          {empty ? (
+            <Plus size={15} color={Colors.onInk} strokeWidth={2.6} />
+          ) : (
+            <Pencil size={13} color={Colors.primaryDeep} strokeWidth={2.4} />
+          )}
+          <ThemedText style={[styles.actionText, empty && styles.actionTextSolid]}>
+            {empty ? 'Add' : 'Edit'}
+          </ThemedText>
+        </Pressable>
       </View>
 
       {empty ? (
-        <View style={styles.nudge}>
-          <ThemedText type="small">
-            Add your blood group, allergies and an emergency contact, so whoever scans your card
-            knows how to help.
-          </ThemedText>
-        </View>
+        <ThemedText style={styles.nudge}>
+          Add your blood group, allergies and an emergency contact, so whoever scans your card
+          knows how to help.
+        </ThemedText>
       ) : null}
 
-      <Button
-        label={empty ? 'Add emergency details' : 'Edit emergency details'}
-        variant={empty ? 'primary' : 'secondary'}
-        icon={empty ? Plus : Pencil}
-        onPress={onEdit}
-      />
+      <View style={styles.rule} />
 
-      <ThemedText type="caption" themeColor="textSecondary">
-        Shown when someone scans your QR. Tap to show or hide.
-      </ThemedText>
+      <View style={styles.shownRow}>
+        <ThemedText style={[styles.flex, styles.caption]} numberOfLines={1}>
+          Shown when someone scans your QR
+        </ThemedText>
+        <ThemedText style={styles.meta}>
+          {shown} of {EMERGENCY_FIELDS.length}
+        </ThemedText>
+      </View>
 
-      <View style={styles.grid}>
-        {EMERGENCY_FIELDS.map((field) => {
-          const isHidden = !profile.visibleFields.includes(field.id);
-          return (
-            <Pressable
-              key={field.id}
-              onPress={() => onToggle(field.id)}
-              accessibilityRole="switch"
-              accessibilityState={{ checked: !isHidden }}
-              accessibilityLabel={field.label}
-              style={({ pressed }) => [
-                styles.cell,
-                isHidden ? styles.cellHidden : styles.cellShown,
-                pressed && styles.pressed,
-              ]}>
-              <View style={[styles.cellIcon, isHidden ? styles.iconHidden : styles.iconShown]}>
-                {isHidden ? (
-                  <EyeOff size={11} color={Colors.textMuted} strokeWidth={2.6} />
-                ) : (
-                  <Check size={11} color={Colors.onInk} strokeWidth={3} />
-                )}
-              </View>
-              <ThemedText
-                style={[styles.cellText, { color: isHidden ? Colors.textMuted : Colors.text }]}
-                numberOfLines={1}>
-                {SHORT_LABELS[field.id] ?? field.label}
-              </ThemedText>
-            </Pressable>
-          );
-        })}
+      <View style={styles.pills}>
+        {EMERGENCY_FIELDS.map((field) => (
+          <FieldToggle
+            key={field.id}
+            label={SHORT_LABELS[field.id] ?? field.label}
+            shown={profile.visibleFields.includes(field.id)}
+            onPress={() => onToggle(field.id)}
+          />
+        ))}
       </View>
 
       {error ? (
-        <ThemedText type="caption" themeColor="danger" accessibilityLiveRegion="polite">
-          {error}
-        </ThemedText>
+        <View style={styles.error} accessibilityLiveRegion="polite">
+          <AlertCircle size={15} color={Colors.high} strokeWidth={2.4} />
+          <ThemedText style={styles.errorText}>{error}</ThemedText>
+        </View>
       ) : null}
 
+      <View style={styles.rule} />
+
       <View style={styles.note}>
-        <Lock size={13} color={Colors.textSecondary} strokeWidth={2.2} />
-        <ThemedText type="caption" themeColor="textSecondary">
-          Full records open only with your OTP
-        </ThemedText>
+        <Lock size={13} color={Colors.textFaint} strokeWidth={2.2} />
+        <ThemedText style={styles.noteText}>Full records open only with your OTP</ThemedText>
       </View>
     </Surface>
   );
@@ -176,81 +212,159 @@ export function EmergencyProfileCard({
 const styles = StyleSheet.create({
   card: {
     gap: Spacing.three - 4,
+    paddingHorizontal: PAD,
+    paddingVertical: PAD,
   },
   flex: {
     flex: 1,
   },
-  gap: {
-    marginTop: 8,
+  skeletonText: {
+    gap: 8,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three - 4,
   },
+  title: {
+    fontFamily: Fonts.displaySemibold,
+    fontSize: 17,
+    lineHeight: 22,
+    letterSpacing: -0.3,
+    color: Colors.text,
+  },
+  subtitle: {
+    marginTop: 1,
+    fontFamily: Fonts.medium,
+    fontSize: 13,
+    lineHeight: 18,
+    color: Colors.textSoft,
+  },
   nudge: {
-    padding: Spacing.two + 4,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.primarySoft,
+    fontFamily: Fonts.medium,
+    fontSize: 13.5,
+    lineHeight: 19,
+    color: Colors.textSoft,
   },
-  // Two toggles to a row: grow from a 40% basis so the gap never forces a wrap.
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
+  // A hairline across the whole card, as under the header of Home's Today card.
+  rule: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: -PAD,
+    backgroundColor: Colors.hairline,
   },
-  cell: {
-    flexGrow: 1,
-    flexBasis: '40%',
-    minWidth: 0,
+  action: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    minHeight: 38,
-    paddingHorizontal: 10,
-    borderRadius: Radius.md,
+    gap: 5,
+    height: 32,
+    paddingHorizontal: 12,
+    borderRadius: Radius.pill,
+  },
+  // White, with a peach edge, like Home's add button.
+  actionSoft: {
     borderWidth: 1,
+    borderColor: Colors.primaryTintStrong,
+    backgroundColor: Colors.backgroundElement,
+    boxShadow: Shadows.soft,
   },
-  cellSkeleton: {
-    flexGrow: 1,
-    flexBasis: '40%',
+  actionSoftPressed: {
+    backgroundColor: Colors.primaryTint,
+    transform: [{ scale: 0.97 }],
   },
-  cellShown: {
-    borderColor: 'rgba(16, 128, 109, 0.16)',
-    backgroundColor: Colors.successSoft,
+  actionSolid: {
+    backgroundColor: Colors.primaryDeep,
   },
-  cellHidden: {
-    borderColor: Colors.border,
-    backgroundColor: Colors.background,
+  actionSolidPressed: {
+    backgroundColor: Colors.primaryInk,
+    transform: [{ scale: 0.97 }],
   },
-  cellIcon: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+  actionText: {
+    fontFamily: Fonts.bold,
+    fontSize: 13.5,
+    lineHeight: 18,
+    color: Colors.primaryDeep,
+  },
+  actionTextSolid: {
+    color: Colors.onInk,
+  },
+  shownRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: Spacing.two,
   },
-  iconShown: {
-    backgroundColor: Colors.success,
-  },
-  iconHidden: {
-    backgroundColor: Colors.backgroundSelected,
-  },
-  cellText: {
-    flexShrink: 1,
+  caption: {
     fontFamily: Fonts.semibold,
     fontSize: 13,
     lineHeight: 17,
+    color: Colors.textSoft,
   },
-  pressed: {
-    opacity: 0.6,
+  meta: {
+    fontFamily: Fonts.semibold,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: Colors.textFaint,
+    fontVariant: ['tabular-nums'],
+  },
+  pills: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
+  },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    height: 34,
+    paddingLeft: 9,
+    paddingRight: 12,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+  },
+  pillOn: {
+    borderColor: Colors.border,
+    backgroundColor: Colors.backgroundElement,
+  },
+  pillOff: {
+    borderColor: Colors.well,
+    backgroundColor: Colors.well,
+  },
+  pillPressed: {
+    opacity: 0.7,
+    transform: [{ scale: 0.97 }],
+  },
+  pillText: {
+    flexShrink: 1,
+    fontFamily: Fonts.bold,
+    fontSize: 13,
+    lineHeight: 17,
+    color: Colors.text,
+  },
+  pillTextOff: {
+    fontFamily: Fonts.semibold,
+    color: Colors.textFaint,
+  },
+  error: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  errorText: {
+    flex: 1,
+    fontFamily: Fonts.semibold,
+    fontSize: 13,
+    lineHeight: 18,
+    color: Colors.high,
   },
   note: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingTop: Spacing.three - 4,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    marginBottom: -2,
+  },
+  noteText: {
+    fontFamily: Fonts.medium,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: Colors.textFaint,
   },
 });

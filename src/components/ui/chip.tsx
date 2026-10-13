@@ -1,36 +1,32 @@
 import { type LucideIcon } from 'lucide-react-native';
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Radius } from '@/constants/theme';
+import { Colors, Fonts, Radius, Shadows } from '@/constants/theme';
 
 type ChipProps = {
   label: string;
   selected?: boolean;
   onPress?: () => void;
   icon?: LucideIcon;
-  /** `glass` for chips on a dark header: see-through, and white once selected. */
-  variant?: 'default' | 'glass';
+  /** A small number after the label, e.g. how many records a filter shows. */
+  count?: number;
   disabled?: boolean;
 };
 
-/** Pill used for filters and time slots. */
+/**
+ * Pill used for filters and time slots: white with a hairline on the warm page, solid ink once
+ * chosen, so the choice reads without adding more orange.
+ */
 export function Chip({
   label,
   selected = false,
   onPress,
   icon: Icon,
-  variant = 'default',
+  count,
   disabled = false,
 }: ChipProps) {
-  const glass = variant === 'glass';
-  const color = glass
-    ? selected
-      ? Colors.ink
-      : Colors.onInk
-    : selected
-      ? Colors.onInk
-      : Colors.textSecondary;
+  const color = selected ? Colors.onInk : Colors.text;
 
   return (
     <Pressable
@@ -38,17 +34,24 @@ export function Chip({
       disabled={disabled}
       accessibilityRole="button"
       accessibilityState={{ selected, disabled }}
+      accessibilityLabel={count ? `${label}, ${count}` : undefined}
       style={({ pressed }) => [
         styles.chip,
-        glass && styles.glass,
-        selected && (glass ? styles.glassSelected : styles.selected),
+        selected && styles.selected,
         disabled && styles.disabled,
         pressed && styles.pressed,
       ]}>
       {Icon ? <Icon size={14} color={color} strokeWidth={2.4} /> : null}
-      <ThemedText type="smallBold" style={{ color }}>
+      <ThemedText style={[styles.label, { color }]} numberOfLines={1}>
         {label}
       </ThemedText>
+      {count ? (
+        <View style={[styles.count, selected && styles.countSelected]}>
+          <ThemedText style={[styles.countText, selected && styles.countTextSelected]}>
+            {count}
+          </ThemedText>
+        </View>
+      ) : null}
     </Pressable>
   );
 }
@@ -59,29 +62,52 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
+    minHeight: 38,
     paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: 15,
     borderRadius: Radius.pill,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.hairline,
     backgroundColor: Colors.backgroundElement,
+    boxShadow: Shadows.soft,
   },
   selected: {
-    borderColor: Colors.ink,
-    backgroundColor: Colors.ink,
-  },
-  glass: {
-    borderColor: Colors.glassBorder,
-    backgroundColor: Colors.glass,
-  },
-  glassSelected: {
-    borderColor: Colors.onInk,
-    backgroundColor: Colors.onInk,
+    borderColor: Colors.text,
+    backgroundColor: Colors.text,
   },
   disabled: {
     opacity: 0.4,
+    boxShadow: 'none',
   },
   pressed: {
-    opacity: 0.75,
+    opacity: 0.8,
+    transform: [{ scale: 0.97 }],
+  },
+  label: {
+    fontFamily: Fonts.bold,
+    fontSize: 13.5,
+    lineHeight: 18,
+  },
+  count: {
+    minWidth: 20,
+    alignItems: 'center',
+    marginRight: -6,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.well,
+  },
+  countSelected: {
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+  },
+  countText: {
+    fontFamily: Fonts.bold,
+    fontSize: 11.5,
+    lineHeight: 15,
+    color: Colors.textSoft,
+    fontVariant: ['tabular-nums'],
+  },
+  countTextSelected: {
+    color: Colors.onInk,
   },
 });

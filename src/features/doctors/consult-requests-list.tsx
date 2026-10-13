@@ -1,13 +1,14 @@
 import { router } from 'expo-router';
-import { CalendarSearch, Clock, XCircle } from 'lucide-react-native';
+import { AlertCircle, CalendarSearch, Clock, XCircle } from 'lucide-react-native';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Platform, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Surface } from '@/components/ui/surface';
+import { Divided, LIST_LEAD, ListRow, listText } from '@/components/ui/list';
 import { Tag } from '@/components/ui/tag';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 
+import { PillButton, TextButton } from './consult-actions';
 import { DoctorAvatar } from './doctor-avatar';
 import { specialtyLabel } from './specialties';
 import { formatSlot } from './time';
@@ -38,8 +39,8 @@ function bookAnother(request: ConsultRequest) {
 }
 
 /**
- * Custom-time requests at the top of the Upcoming tab: waiting for the doctor (with Withdraw),
- * or declined or unanswered (with a way to book an open slot instead).
+ * Custom-time requests at the top of the Upcoming tab, as rows for a `ListCard`: waiting for the
+ * doctor (with Withdraw), or declined or unanswered (with a way to book an open slot instead).
  */
 export function ConsultRequestsList({ requests }: { requests: ConsultRequest[] }) {
   const { withdraw } = useConsultRequests();
@@ -60,155 +61,113 @@ export function ConsultRequestsList({ requests }: { requests: ConsultRequest[] }
   };
 
   return (
-    <Surface style={styles.card}>
-      {requests.map((request, index) => {
-        const doctor = request.doctor?.name ?? 'Doctor';
-        const pending = request.status === 'pending';
-        return (
-          <View key={request.id} style={[styles.row, index > 0 && styles.divider]}>
-            <DoctorAvatar name={doctor} photoUrl={request.doctor?.photoUrl} size={44} />
-            <View style={styles.flex}>
-              <ThemedText type="smallBold" numberOfLines={1}>
-                {doctor}
-              </ThemedText>
-              <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1}>
-                {specialtyLabel(request.specialty)} · Custom time
-              </ThemedText>
-              <View style={styles.when}>
-                <Clock
-                  size={13}
-                  color={pending ? Colors.warning : Colors.textMuted}
-                  strokeWidth={2.4}
-                />
-                <ThemedText
-                  type="caption"
-                  themeColor={pending ? 'warning' : 'textMuted'}
-                  style={[styles.whenText, !pending && styles.struck]}>
-                  {formatSlot(request.requestedAt)}
-                </ThemedText>
-              </View>
-              <View style={styles.status}>
-                {pending ? (
-                  <Tag label="Waiting for the doctor" tone="warning" icon={Clock} />
-                ) : request.status === 'declined' ? (
-                  <Tag label="Doctor not available" tone="danger" icon={XCircle} />
-                ) : (
-                  <Tag label="No reply in time" tone="neutral" />
-                )}
-              </View>
-              {request.status === 'declined' ? (
-                <ThemedText type="caption" themeColor="textSecondary">
-                  {request.declineReason ??
-                    `${doctor} can’t do this time. Pick one of their open slots instead.`}
-                </ThemedText>
-              ) : request.status === 'expired' ? (
-                <ThemedText type="caption" themeColor="textSecondary">
-                  {doctor} didn’t answer before this time. Pick one of their open slots.
-                </ThemedText>
-              ) : null}
-            </View>
-            {pending ? (
-              <Pressable
-                onPress={() => withdrawOne(request)}
-                disabled={busyId === request.id}
-                accessibilityRole="button"
-                accessibilityLabel={`Withdraw request to ${doctor}`}
-                hitSlop={8}
-                style={({ pressed }) => [
-                  styles.action,
-                  styles.withdraw,
-                  pressed && styles.pressed,
-                ]}>
-                {busyId === request.id ? (
-                  <ActivityIndicator size="small" color={Colors.danger} />
-                ) : (
-                  <ThemedText type="caption" themeColor="danger" style={styles.bold}>
-                    Withdraw
+    <>
+      <Divided>
+        {requests.map((request) => {
+          const doctor = request.doctor?.name ?? 'Doctor';
+          const pending = request.status === 'pending';
+          const note =
+            request.status === 'declined'
+              ? (request.declineReason ??
+                `${doctor} can’t do this time. Pick one of their open slots instead.`)
+              : request.status === 'expired'
+                ? `${doctor} didn’t answer before this time. Pick one of their open slots.`
+                : null;
+
+          return (
+            <ListRow
+              key={request.id}
+              leading={
+                <DoctorAvatar name={doctor} photoUrl={request.doctor?.photoUrl} size={LIST_LEAD} />
+              }
+              title={doctor}
+              subtitle={
+                <>
+                  <ThemedText style={listText.subtitle} numberOfLines={1}>
+                    {specialtyLabel(request.specialty)} · Custom time
                   </ThemedText>
-                )}
-              </Pressable>
-            ) : (
-              <Pressable
-                onPress={() => bookAnother(request)}
-                accessibilityRole="button"
-                accessibilityLabel={`Book another time with ${doctor}`}
-                hitSlop={8}
-                style={({ pressed }) => [styles.action, styles.another, pressed && styles.pressed]}>
-                <CalendarSearch size={13} color={Colors.onInk} strokeWidth={2.4} />
-                <ThemedText type="caption" style={[styles.bold, styles.onInk]}>
-                  Book a slot
-                </ThemedText>
-              </Pressable>
-            )}
-          </View>
-        );
-      })}
+                  <ThemedText style={[styles.when, !pending && styles.struck]} numberOfLines={1}>
+                    {formatSlot(request.requestedAt)}
+                  </ThemedText>
+                  <View style={styles.status}>
+                    {pending ? (
+                      <Tag label="Waiting for the doctor" tone="warning" icon={Clock} />
+                    ) : request.status === 'declined' ? (
+                      <Tag label="Doctor not available" tone="danger" icon={XCircle} />
+                    ) : (
+                      <Tag label="No reply in time" tone="neutral" icon={Clock} />
+                    )}
+                  </View>
+                  {note ? <ThemedText style={styles.note}>{note}</ThemedText> : null}
+                </>
+              }
+              trailing={
+                pending ? (
+                  <TextButton
+                    label="Withdraw"
+                    tone="danger"
+                    busy={busyId === request.id}
+                    onPress={() => withdrawOne(request)}
+                    accessibilityLabel={`Withdraw request to ${doctor}`}
+                  />
+                ) : (
+                  <PillButton
+                    label="Book a slot"
+                    icon={CalendarSearch}
+                    onPress={() => bookAnother(request)}
+                    accessibilityLabel={`Book another time with ${doctor}`}
+                  />
+                )
+              }
+            />
+          );
+        })}
+      </Divided>
       {error ? (
-        <ThemedText type="caption" themeColor="danger">
-          {error}
-        </ThemedText>
+        <View style={styles.error} accessibilityRole="alert">
+          <AlertCircle size={15} color={Colors.high} strokeWidth={2.4} />
+          <ThemedText style={styles.errorText}>{error}</ThemedText>
+        </View>
       ) : null}
-    </Surface>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    paddingVertical: Spacing.one,
-  },
-  flex: {
-    flex: 1,
-    gap: 1,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.two + 4,
-    paddingVertical: 12,
-  },
-  divider: {
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-  },
+  // The time asked for: a step stronger than the line above it, struck once it no longer stands.
   when: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 2,
-  },
-  whenText: {
     fontFamily: Fonts.semibold,
+    fontSize: 13,
+    lineHeight: 18,
+    color: Colors.text,
+    fontVariant: ['tabular-nums'],
   },
   struck: {
+    color: Colors.textFaint,
     textDecorationLine: 'line-through',
   },
   status: {
-    marginTop: 6,
+    flexDirection: 'row',
+    marginTop: 5,
   },
-  action: {
+  note: {
+    marginTop: 4,
+    fontFamily: Fonts.medium,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: Colors.textSoft,
+  },
+  error: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    minWidth: 76,
-    justifyContent: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: Radius.pill,
+    gap: 6,
+    paddingBottom: Spacing.three - 4,
   },
-  withdraw: {
-    borderWidth: 1,
-    borderColor: Colors.dangerSoft,
-  },
-  another: {
-    backgroundColor: Colors.primary,
-  },
-  onInk: {
-    color: Colors.onInk,
-  },
-  bold: {
-    fontFamily: Fonts.bold,
-  },
-  pressed: {
-    opacity: 0.7,
+  errorText: {
+    flex: 1,
+    fontFamily: Fonts.semibold,
+    fontSize: 13,
+    lineHeight: 18,
+    color: Colors.high,
   },
 });

@@ -1,19 +1,26 @@
-import { LinearGradient } from 'expo-linear-gradient';
-import { ArrowUpRight, CalendarPlus, Info, MessageCircle, Sparkles } from 'lucide-react-native';
+import { ArrowUpRight, CalendarPlus, ChevronRight, Info, MessageCircle } from 'lucide-react-native';
 import { useId, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import Svg, { Circle, Defs, Path, Rect, Stop, LinearGradient as SvgGradient } from 'react-native-svg';
+import Svg, {
+  Circle,
+  Defs,
+  Path,
+  Rect,
+  Stop,
+  LinearGradient as SvgGradient,
+} from 'react-native-svg';
 
 import { ThemedText } from '@/components/themed-text';
+import { EkaayMark } from '@/components/ui/ekaay-mark';
 import { smoothPath } from '@/components/ui/sparkline';
 import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
 
 import { type Insight } from './sample-data';
 
-const CHART_HEIGHT = 66;
-const TOP = 16; // room for value labels
-const BOTTOM = 16; // room for date labels
-const SIDE = 24;
+const CHART_HEIGHT = 74;
+const TOP = 18; // room for value labels
+const BOTTOM = 17; // room for date labels
+const SIDE = 26;
 
 /** The insight's readings as a slim line over the normal range, labelled at each point. */
 function MiniTrend({ insight }: { insight: Insight }) {
@@ -48,28 +55,31 @@ function MiniTrend({ insight }: { insight: Insight }) {
           <Svg width={width} height={CHART_HEIGHT}>
             <Defs>
               <SvgGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0" stopColor={Colors.primary} stopOpacity={0.2} />
+                <Stop offset="0" stopColor={Colors.primary} stopOpacity={0.16} />
                 <Stop offset="1" stopColor={Colors.primary} stopOpacity={0} />
               </SvgGradient>
             </Defs>
+            {/* The normal range, as a band along the bottom. */}
             <Rect
               x={0}
               y={bandTop}
               width={width}
               height={plotBottom - bandTop}
               rx={6}
-              fill={Colors.successSoft}
+              fill={Colors.goodSoft}
             />
             <Path
               d={`${line} L ${last.x} ${plotBottom} L ${first.x} ${plotBottom} Z`}
               fill={`url(#${fillId})`}
             />
-            <Path d={line} stroke={Colors.primary} strokeWidth={2.2} strokeLinecap="round" fill="none" />
-            {plotted.map((point) =>
-              point === last ? (
-                <Circle key={point.label} cx={point.x} cy={point.y} r={8} fill={Colors.primary} fillOpacity={0.16} />
-              ) : null,
-            )}
+            <Path
+              d={line}
+              stroke={Colors.primary}
+              strokeWidth={2.4}
+              strokeLinecap="round"
+              fill="none"
+            />
+            <Circle cx={last.x} cy={last.y} r={9} fill={Colors.primary} fillOpacity={0.14} />
             {plotted.map((point) => (
               <Circle
                 key={point.label}
@@ -86,7 +96,11 @@ function MiniTrend({ insight }: { insight: Insight }) {
           {plotted.map((point) => (
             <View key={point.label} style={[styles.pointLabels, { left: point.x - SIDE }]}>
               <ThemedText
-                style={[styles.valueLabel, { top: point.y - 17 }, point === last && styles.valueLabelLast]}>
+                style={[
+                  styles.valueLabel,
+                  { top: point.y - 19 },
+                  point === last && styles.valueLabelLast,
+                ]}>
                 {point.value}
               </ThemedText>
               <ThemedText style={styles.dateLabel} numberOfLines={1}>
@@ -106,183 +120,158 @@ type EkaayInsightCardProps = {
   onPrimary: () => void;
   secondaryLabel: string;
   onSecondary: () => void;
+  /** The way to a person, always offered next to the AI's reading. */
+  onTalkToDoctor: () => void;
 };
 
-/** "Ekaay noticed": one trend, its latest value and the next sensible step, in one compact card. */
+/**
+ * "Ekaay noticed": one trend in plain words, the readings behind it with where they came from,
+ * one next step, and a doctor one tap away.
+ */
 export function EkaayInsightCard({
   insight,
   primaryLabel,
   onPrimary,
   secondaryLabel,
   onSecondary,
+  onTalkToDoctor,
 }: EkaayInsightCardProps) {
   const first = insight.points[0];
   const latest = insight.points[insight.points.length - 1];
   const change = first && latest ? latest.value - first.value : 0;
 
   return (
-    // Gradients are background layers inside plain Views that do the rounding and clipping,
-    // which renders the same on iOS, Android and web. The shadow sits outside the clip.
-    <View style={styles.shadow}>
-      <View style={styles.frame}>
-        {/* A thin gradient frame marks the card as Ekaay's. */}
-        <LinearGradient
-          colors={[Colors.primaryMid, Colors.primaryLight, FRAME_END]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-        <View style={styles.card}>
-          {/* Warm light from the top-right corner, gone before the chart. */}
-          <LinearGradient
-            colors={[GLOW, 'rgba(246, 175, 145, 0)']}
-            start={{ x: 1, y: 0 }}
-            end={{ x: 0.35, y: 0.6 }}
-            style={StyleSheet.absoluteFill}
-            pointerEvents="none"
-          />
-
-          <View style={styles.header}>
-            <LinearGradient
-              colors={[Colors.primaryMid, Colors.primary]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.badge}>
-              <Sparkles size={13} color={Colors.onInk} strokeWidth={2.4} />
-            </LinearGradient>
-            <ThemedText style={styles.kicker}>Ekaay noticed</ThemedText>
-            <View style={styles.flex} />
-            <Info size={12} color={Colors.textMuted} strokeWidth={2.2} />
-            <ThemedText type="caption" themeColor="textMuted" style={styles.note}>
-              Not a diagnosis
-            </ThemedText>
-          </View>
-
-          <View style={styles.copy}>
-            <ThemedText style={styles.title}>{insight.title}</ThemedText>
-            <ThemedText type="caption" themeColor="textSecondary" style={styles.body}>
-              {insight.text}
-            </ThemedText>
-          </View>
-
-          <View style={styles.panel}>
-            <MiniTrend insight={insight} />
-            <View style={styles.divider} />
-            <View
-              style={styles.metric}
-              accessible
-              accessibilityLabel={`Latest ${latest?.value} ${insight.unit}${change > 0 ? `, up ${change} since ${first?.label}` : ''}`}>
-              <ThemedText style={styles.metricValue}>{latest?.value}</ThemedText>
-              <ThemedText type="caption" themeColor="textMuted" style={styles.metricUnit}>
-                {insight.unit}
-              </ThemedText>
-              {change > 0 ? (
-                <View style={styles.delta}>
-                  <ArrowUpRight size={12} color={Colors.danger} strokeWidth={2.6} />
-                  <ThemedText style={styles.deltaText}>{change}</ThemedText>
-                </View>
-              ) : null}
-            </View>
-          </View>
-
-          <View style={styles.actions}>
-            <Pressable
-              onPress={onPrimary}
-              accessibilityRole="button"
-              style={({ pressed }) => [styles.primary, pressed && styles.pressed]}>
-              <CalendarPlus size={15} color={Colors.onInk} strokeWidth={2.4} />
-              <ThemedText type="smallBold" themeColor="onInk">
-                {primaryLabel}
-              </ThemedText>
-            </Pressable>
-            <Pressable
-              onPress={onSecondary}
-              accessibilityRole="button"
-              style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}>
-              <MessageCircle size={15} color={Colors.primary} strokeWidth={2.4} />
-              <ThemedText type="smallBold" themeColor="primary">
-                {secondaryLabel}
-              </ThemedText>
-            </Pressable>
-          </View>
+    <View style={styles.card}>
+      <View style={styles.header}>
+        <EkaayMark size={28} shape="square" />
+        <ThemedText style={styles.kicker}>Ekaay noticed</ThemedText>
+        <View style={styles.aiTag}>
+          <ThemedText style={styles.aiTagText}>AI</ThemedText>
         </View>
       </View>
+
+      <View style={styles.copy}>
+        <ThemedText style={styles.title}>{insight.title}</ThemedText>
+        <ThemedText style={styles.body}>{insight.text}</ThemedText>
+      </View>
+
+      <View style={styles.panel}>
+        <MiniTrend insight={insight} />
+        <View style={styles.divider} />
+        <View
+          style={styles.metric}
+          accessible
+          accessibilityLabel={`Latest ${latest?.value} ${insight.unit}${change > 0 ? `, up ${change} since ${first?.label}` : ''}`}>
+          <ThemedText style={styles.metricValue}>{latest?.value}</ThemedText>
+          <ThemedText style={styles.metricUnit}>{insight.unit}</ThemedText>
+          {change > 0 ? (
+            <View style={styles.delta}>
+              <ArrowUpRight size={12} color={Colors.high} strokeWidth={2.8} />
+              <ThemedText style={styles.deltaText}>{change}</ThemedText>
+            </View>
+          ) : null}
+        </View>
+      </View>
+      <ThemedText style={styles.source}>{insight.source}</ThemedText>
+
+      <View style={styles.actions}>
+        <Pressable
+          onPress={onPrimary}
+          accessibilityRole="button"
+          style={({ pressed }) => [styles.primary, pressed && styles.primaryPressed]}>
+          <CalendarPlus size={16} color={Colors.onInk} strokeWidth={2.4} />
+          <ThemedText style={styles.primaryText}>{primaryLabel}</ThemedText>
+        </Pressable>
+        <Pressable
+          onPress={onSecondary}
+          accessibilityRole="button"
+          style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}>
+          <MessageCircle size={16} color={Colors.text} strokeWidth={2.2} />
+          <ThemedText style={styles.secondaryText}>{secondaryLabel}</ThemedText>
+        </Pressable>
+      </View>
+
+      <Pressable
+        onPress={onTalkToDoctor}
+        accessibilityRole="button"
+        accessibilityLabel="Not a diagnosis. Talk to a doctor"
+        style={({ pressed }) => [styles.human, pressed && styles.pressed]}>
+        <View style={styles.humanNote}>
+          <Info size={13} color={Colors.textFaint} strokeWidth={2.2} />
+          <ThemedText style={styles.humanText}>Not a diagnosis</ThemedText>
+        </View>
+        <View style={styles.humanLink}>
+          <ThemedText style={styles.humanLinkText}>Talk to a doctor</ThemedText>
+          <ChevronRight size={15} color={Colors.primaryDeep} strokeWidth={2.4} />
+        </View>
+      </Pressable>
     </View>
   );
 }
 
-const FRAME = 1.5;
-/** Peach, still visible on the page colour, so the frame never fades out at the far corner. */
-const FRAME_END = 'rgba(246, 175, 145, 0.6)';
-const GLOW = 'rgba(246, 175, 145, 0.3)';
-
 const styles = StyleSheet.create({
-  shadow: {
-    borderRadius: Radius.xl,
-    boxShadow: '0 10px 28px rgba(221, 67, 1, 0.1)',
-  },
-  frame: {
-    padding: FRAME,
-    borderRadius: Radius.xl,
-    overflow: 'hidden',
-  },
   card: {
-    gap: Spacing.three - 4,
-    padding: 14,
-    borderRadius: Radius.xl - FRAME,
+    gap: Spacing.three - 2,
+    padding: Spacing.three,
+    paddingBottom: Spacing.two,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    borderColor: Colors.hairline,
     backgroundColor: Colors.backgroundElement,
-    overflow: 'hidden',
-  },
-  flex: {
-    flex: 1,
+    boxShadow: Shadows.soft,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-  },
-  badge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: Shadows.glow,
+    gap: 8,
   },
   kicker: {
-    marginLeft: 2,
     fontFamily: Fonts.bold,
     fontSize: 12,
     lineHeight: 16,
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
     textTransform: 'uppercase',
-    color: Colors.primary,
+    color: Colors.primaryDeep,
   },
-  note: {
-    fontSize: 11,
+  aiTag: {
+    paddingVertical: 1,
+    paddingHorizontal: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: Colors.hairline,
+  },
+  aiTagText: {
+    fontFamily: Fonts.bold,
+    fontSize: 10.5,
     lineHeight: 14,
+    letterSpacing: 0.4,
+    color: Colors.textFaint,
   },
   copy: {
-    gap: 3,
+    gap: 4,
   },
   title: {
-    fontFamily: Fonts.display,
-    fontSize: 18,
-    lineHeight: 23,
+    fontFamily: Fonts.displaySemibold,
+    fontSize: 20,
+    lineHeight: 25,
+    letterSpacing: -0.3,
+    color: Colors.text,
   },
   body: {
-    fontSize: 13,
-    lineHeight: 18,
+    fontFamily: Fonts.regular,
+    fontSize: 14.5,
+    lineHeight: 21,
+    color: Colors.textSoft,
   },
   panel: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingLeft: 4,
     paddingRight: 12,
     borderRadius: Radius.lg,
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.well,
   },
   chart: {
     flex: 1,
@@ -298,57 +287,67 @@ const styles = StyleSheet.create({
   valueLabel: {
     position: 'absolute',
     fontFamily: Fonts.bold,
-    fontSize: 10,
-    lineHeight: 12,
-    color: Colors.textSecondary,
+    fontSize: 11,
+    lineHeight: 14,
+    color: Colors.textSoft,
   },
   valueLabelLast: {
-    color: Colors.primary,
+    color: Colors.primaryDeep,
   },
   dateLabel: {
     position: 'absolute',
     bottom: 0,
     fontFamily: Fonts.medium,
-    fontSize: 10,
-    lineHeight: 12,
-    color: Colors.textMuted,
+    fontSize: 11,
+    lineHeight: 14,
+    color: Colors.textFaint,
   },
   divider: {
     width: 1,
     alignSelf: 'stretch',
-    marginVertical: 4,
-    backgroundColor: Colors.border,
+    marginVertical: 6,
+    backgroundColor: Colors.hairline,
   },
   metric: {
-    minWidth: 58,
+    minWidth: 60,
     alignItems: 'center',
   },
   metricValue: {
-    fontFamily: Fonts.display,
-    fontSize: 26,
-    lineHeight: 30,
+    fontFamily: Fonts.displaySemibold,
+    fontSize: 28,
+    lineHeight: 32,
+    letterSpacing: -0.5,
     color: Colors.text,
   },
   metricUnit: {
     marginTop: -2,
-    fontSize: 11,
-    lineHeight: 14,
+    fontFamily: Fonts.medium,
+    fontSize: 12,
+    lineHeight: 15,
+    color: Colors.textFaint,
   },
   delta: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
-    marginTop: 5,
+    marginTop: 6,
     paddingVertical: 2,
     paddingHorizontal: 7,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.dangerSoft,
+    backgroundColor: Colors.highSoft,
   },
   deltaText: {
     fontFamily: Fonts.bold,
-    fontSize: 11,
-    lineHeight: 14,
-    color: Colors.danger,
+    fontSize: 12,
+    lineHeight: 15,
+    color: Colors.high,
+  },
+  source: {
+    marginTop: -6,
+    fontFamily: Fonts.medium,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: Colors.textFaint,
   },
   actions: {
     flexDirection: 'row',
@@ -360,10 +359,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 9,
+    minHeight: 48,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.primary,
-    boxShadow: Shadows.glow,
+    backgroundColor: Colors.primaryBright,
+  },
+  primaryPressed: {
+    backgroundColor: Colors.primaryDeep,
+    transform: [{ scale: 0.98 }],
+  },
+  primaryText: {
+    fontFamily: Fonts.bold,
+    fontSize: 15,
+    lineHeight: 20,
+    color: Colors.onInk,
   },
   secondary: {
     flex: 1,
@@ -371,14 +379,54 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 9,
+    minHeight: 48,
     borderRadius: Radius.pill,
-    borderWidth: 1.5,
-    borderColor: Colors.primaryLight,
-    backgroundColor: Colors.primarySoft,
+    borderWidth: 1,
+    borderColor: Colors.hairline,
+    backgroundColor: Colors.backgroundElement,
+  },
+  secondaryText: {
+    fontFamily: Fonts.bold,
+    fontSize: 15,
+    lineHeight: 20,
+    color: Colors.text,
+  },
+  human: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+    minHeight: 44,
+    marginTop: -2,
+    borderTopWidth: 1,
+    borderTopColor: Colors.hairline,
+    paddingTop: Spacing.one,
+  },
+  humanNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 1,
+    gap: 5,
+  },
+  humanText: {
+    flexShrink: 1,
+    fontFamily: Fonts.medium,
+    fontSize: 13,
+    lineHeight: 18,
+    color: Colors.textFaint,
+  },
+  humanLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 1,
+  },
+  humanLinkText: {
+    fontFamily: Fonts.bold,
+    fontSize: 13.5,
+    lineHeight: 18,
+    color: Colors.primaryDeep,
   },
   pressed: {
-    opacity: 0.8,
-    transform: [{ scale: 0.98 }],
+    opacity: 0.7,
   },
 });

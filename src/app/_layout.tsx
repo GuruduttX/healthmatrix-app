@@ -1,4 +1,7 @@
-import { BricolageGrotesque_700Bold } from '@expo-google-fonts/bricolage-grotesque';
+import {
+  BricolageGrotesque_600SemiBold,
+  BricolageGrotesque_700Bold,
+} from '@expo-google-fonts/bricolage-grotesque';
 import {
   Figtree_400Regular,
   Figtree_500Medium,
@@ -31,6 +34,7 @@ const navigationTheme = {
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
+    BricolageGrotesque_600SemiBold,
     BricolageGrotesque_700Bold,
     Figtree_400Regular,
     Figtree_500Medium,

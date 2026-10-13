@@ -4,21 +4,19 @@ import { Plus, UserPlus } from 'lucide-react-native';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Button } from '@/components/ui/button';
+import { Section } from '@/components/ui/section';
 import { Skeleton, SkeletonCircle, SkeletonGroup } from '@/components/ui/skeleton';
-import { Colors, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
 import { aboutLine } from '@/features/family/relations';
 import { useFamily } from '@/features/family/use-family';
 import { MemberAvatar } from '@/features/profile/member-avatar';
 
-import { HomeSection } from './home-section';
-
-const AVATAR = 40;
+const AVATAR = 56;
 const openAdd = () => router.push('/family/add');
 
 /**
  * "Family" on Home: everyone the member added, one tap from their records, and a way to add
- * someone. Placeholder chips while it loads; hidden if it could not load.
+ * someone. Placeholder faces while it loads; hidden if it could not load.
  */
 export function FamilyStrip({ index }: { index: number }) {
   const { members, error } = useFamily();
@@ -26,25 +24,23 @@ export function FamilyStrip({ index }: { index: number }) {
 
   if (members === null) {
     return (
-      <HomeSection title="Family" index={index}>
-        <SkeletonGroup label="Loading your family" style={styles.skeletonStrip}>
+      <Section title="Family" index={index}>
+        <SkeletonGroup label="Loading your family" style={[styles.card, styles.strip]}>
           {[0, 1, 2].map((i) => (
-            <View key={i} style={styles.skeletonChip}>
+            <View key={i} style={styles.person}>
               <SkeletonCircle size={AVATAR} />
-              <View style={styles.skeletonText}>
-                <Skeleton width={56} height={12} />
-                <Skeleton width={40} height={10} />
-              </View>
+              <Skeleton width={48} height={12} />
+              <Skeleton width={36} height={10} />
             </View>
           ))}
         </SkeletonGroup>
-      </HomeSection>
+      </Section>
     );
   }
 
   if (!members.length) {
     return (
-      <HomeSection title="Family" index={index}>
+      <Section title="Family" index={index}>
         <View style={styles.invite}>
           {/* Photo: Pexels (free to use), assets/images/home. */}
           <Image
@@ -54,156 +50,187 @@ export function FamilyStrip({ index }: { index: number }) {
             accessibilityIgnoresInvertColors
           />
           <View style={styles.inviteBody}>
-            <ThemedText type="bodyBold">Your family’s health, in one place</ThemedText>
-            <ThemedText type="caption" themeColor="textSecondary">
+            <ThemedText style={styles.inviteTitle}>Your family’s health, in one place</ThemedText>
+            <ThemedText style={styles.inviteText}>
               Add a parent, spouse or child to see their prescriptions, vaccines and medicines.
             </ThemedText>
-            <View style={styles.inviteAction}>
-              <Button label="Add family" icon={UserPlus} onPress={openAdd} />
-            </View>
+            <Pressable
+              onPress={openAdd}
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.inviteButton, pressed && styles.inviteButtonPressed]}>
+              <UserPlus size={16} color={Colors.onInk} strokeWidth={2.4} />
+              <ThemedText style={styles.inviteButtonText}>Add family</ThemedText>
+            </Pressable>
           </View>
         </View>
-      </HomeSection>
+      </Section>
     );
   }
 
   return (
-    <HomeSection
+    <Section
       title="Family"
       actionLabel="Manage"
       onAction={() => router.navigate('/card')}
       index={index}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.scroller}
-        contentContainerStyle={styles.strip}>
-        {members.map((member) => {
-          const firstName = member.name.trim().split(/\s+/)[0] ?? member.name;
-          // Only who they are: "Mother", without age or blood group.
-          const relation = aboutLine({ ...member, age: undefined, bloodGroup: undefined });
-          return (
-            <Pressable
-              key={member.linkId}
-              onPress={() => router.push({ pathname: '/family/[id]', params: { id: member.id } })}
-              accessibilityRole="button"
-              accessibilityLabel={`${member.name}, ${relation}. Open their records.`}
-              style={({ pressed }) => [styles.person, pressed && styles.pressed]}>
-              <MemberAvatar name={member.name} photoUrl={member.photoUrl} size={AVATAR} />
-              <View style={styles.personText}>
-                <ThemedText type="smallBold" numberOfLines={1}>
-                  {firstName}
-                </ThemedText>
-                <ThemedText type="caption" themeColor="textMuted" numberOfLines={1}>
-                  {relation}
-                </ThemedText>
-              </View>
-            </Pressable>
-          );
-        })}
+      <View style={styles.card}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.strip}>
+          {members.map((member) => {
+            const firstName = member.name.trim().split(/\s+/)[0] ?? member.name;
+            // Only who they are: "Mother", without age or blood group.
+            const relation = aboutLine({ ...member, age: undefined, bloodGroup: undefined });
+            return (
+              <Pressable
+                key={member.linkId}
+                onPress={() => router.push({ pathname: '/family/[id]', params: { id: member.id } })}
+                accessibilityRole="button"
+                accessibilityLabel={`${member.name}, ${relation}. Open their records.`}
+                style={({ pressed }) => [styles.person, pressed && styles.pressed]}>
+                <View style={styles.ring}>
+                  <MemberAvatar name={member.name} photoUrl={member.photoUrl} size={AVATAR} />
+                </View>
+                <View style={styles.names}>
+                  <ThemedText style={styles.name} numberOfLines={1}>
+                    {firstName}
+                  </ThemedText>
+                  <ThemedText style={styles.relation} numberOfLines={1}>
+                    {relation}
+                  </ThemedText>
+                </View>
+              </Pressable>
+            );
+          })}
 
-        <Pressable
-          onPress={openAdd}
-          accessibilityRole="button"
-          accessibilityLabel="Add a family member"
-          style={({ pressed }) => [styles.person, styles.add, pressed && styles.pressed]}>
-          <View style={styles.addCircle}>
-            <Plus size={20} color={Colors.primary} strokeWidth={2.4} />
-          </View>
-          <ThemedText type="smallBold" themeColor="primary">
-            Add
-          </ThemedText>
-        </Pressable>
-      </ScrollView>
-    </HomeSection>
+          <Pressable
+            onPress={openAdd}
+            accessibilityRole="button"
+            accessibilityLabel="Add a family member"
+            style={({ pressed }) => [styles.person, pressed && styles.pressed]}>
+            <View style={styles.add}>
+              <Plus size={22} color={Colors.primary} strokeWidth={2.4} />
+            </View>
+            <View style={styles.names}>
+              <ThemedText style={[styles.name, styles.addLabel]}>Add</ThemedText>
+              <ThemedText style={styles.relation}> </ThemedText>
+            </View>
+          </Pressable>
+        </ScrollView>
+      </View>
+    </Section>
   );
 }
 
 const styles = StyleSheet.create({
-  // Let the strip run to the screen edges while its first avatar lines up with the page.
-  scroller: {
-    marginHorizontal: -Spacing.three,
+  card: {
+    overflow: 'hidden',
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    borderColor: Colors.hairline,
+    backgroundColor: Colors.backgroundElement,
+    boxShadow: Shadows.soft,
   },
   strip: {
-    gap: Spacing.two,
-    paddingHorizontal: Spacing.three,
+    flexDirection: 'row',
+    gap: Spacing.two + 2,
+    paddingVertical: Spacing.three,
+    paddingHorizontal: Spacing.three - 2,
   },
-  // A pill per person: photo or initials, then first name over who they are.
   person: {
-    flexDirection: 'row',
+    width: 72,
     alignItems: 'center',
-    gap: 10,
-    maxWidth: 200,
-    paddingVertical: 7,
-    paddingLeft: 7,
-    paddingRight: Spacing.three,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.card,
-  },
-  personText: {
-    flexShrink: 1,
-  },
-  skeletonStrip: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-    overflow: 'hidden',
-  },
-  skeletonChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 7,
-    paddingLeft: 7,
-    paddingRight: Spacing.three,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.backgroundElement,
-  },
-  skeletonText: {
-    gap: 6,
+    gap: 8,
   },
   pressed: {
-    opacity: 0.8,
+    opacity: 0.75,
     transform: [{ scale: 0.97 }],
   },
-  add: {
-    borderStyle: 'dashed',
-    borderColor: Colors.primaryLight,
-    backgroundColor: Colors.primarySoft,
-    boxShadow: 'none',
+  ring: {
+    padding: 2,
+    borderRadius: AVATAR / 2 + 2,
+    borderWidth: 1,
+    borderColor: Colors.hairline,
   },
-  addCircle: {
-    width: AVATAR,
-    height: AVATAR,
-    borderRadius: AVATAR / 2,
+  names: {
+    alignItems: 'center',
+    maxWidth: 72,
+  },
+  name: {
+    fontFamily: Fonts.bold,
+    fontSize: 13.5,
+    lineHeight: 18,
+    color: Colors.text,
+  },
+  relation: {
+    fontFamily: Fonts.medium,
+    fontSize: 12,
+    lineHeight: 16,
+    color: Colors.textFaint,
+  },
+  add: {
+    width: AVATAR + 6,
+    height: AVATAR + 6,
+    borderRadius: (AVATAR + 6) / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.backgroundElement,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: Colors.primaryLight,
+    backgroundColor: Colors.primaryTint,
+  },
+  addLabel: {
+    color: Colors.primaryDeep,
   },
   invite: {
     flexDirection: 'row',
     overflow: 'hidden',
-    borderRadius: Radius.xl - 4,
+    borderRadius: Radius.xl,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.hairline,
     backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.card,
+    boxShadow: Shadows.soft,
   },
   invitePhoto: {
-    width: 112,
-    backgroundColor: Colors.backgroundSelected,
+    width: 116,
+    backgroundColor: Colors.well,
   },
   inviteBody: {
     flex: 1,
     gap: 4,
-    padding: 14,
+    padding: Spacing.three - 2,
   },
-  inviteAction: {
-    alignItems: 'flex-start',
+  inviteTitle: {
+    fontFamily: Fonts.bold,
+    fontSize: 15.5,
+    lineHeight: 21,
+    color: Colors.text,
+  },
+  inviteText: {
+    fontFamily: Fonts.regular,
+    fontSize: 13.5,
+    lineHeight: 19,
+    color: Colors.textSoft,
+  },
+  inviteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    minHeight: 44,
     marginTop: Spacing.two,
+    paddingHorizontal: 16,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.primaryDeep,
+  },
+  inviteButtonPressed: {
+    backgroundColor: Colors.primaryInk,
+  },
+  inviteButtonText: {
+    fontFamily: Fonts.bold,
+    fontSize: 14.5,
+    lineHeight: 19,
+    color: Colors.onInk,
   },
 });

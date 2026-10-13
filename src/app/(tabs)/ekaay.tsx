@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, useIsFocused, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Mic, SendHorizontal, ShieldCheck, Sparkles } from 'lucide-react-native';
@@ -15,8 +14,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
+import { EkaayMark } from '@/components/ui/ekaay-mark';
 import { HeroBackground } from '@/components/ui/hero-background';
-import { Colors, Fonts, Gradients, MaxContentWidth, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Fonts, MaxContentWidth, Radius, Shadows, Spacing } from '@/constants/theme';
 import { MessageBubble } from '@/features/ekaay/message-bubble';
 import {
   notConnectedReply,
@@ -76,13 +76,7 @@ export default function EkaayScreen() {
         <HeroBackground />
         <View style={styles.headerRow}>
           <View>
-            <LinearGradient
-              colors={Gradients.brand}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.avatar}>
-              <Sparkles size={22} color={Colors.onInk} strokeWidth={2.2} />
-            </LinearGradient>
+            <EkaayMark size={48} style={styles.avatar} />
             <View style={styles.onlineDot} />
           </View>
           <View style={styles.flex}>
@@ -207,12 +201,10 @@ const styles = StyleSheet.create({
     gap: Spacing.three - 4,
     paddingHorizontal: Spacing.three,
   },
+  // A hairline of light around the mark, so the ink circle reads on the ink header.
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: Colors.glassBorder,
   },
   onlineDot: {
     position: 'absolute',

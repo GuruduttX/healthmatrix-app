@@ -1,11 +1,10 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { Sparkles } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { EkaayMark } from '@/components/ui/ekaay-mark';
 import { TrendChart } from '@/components/ui/trend-chart';
-import { Colors, Fonts, Gradients, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
 
 import { type ChatMessage } from './sample-data';
 
@@ -22,13 +21,7 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
 
   return (
     <View style={styles.ekaayRow}>
-      <LinearGradient
-        colors={Gradients.brand}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.avatar}>
-        <Sparkles size={13} color={Colors.onInk} strokeWidth={2.4} />
-      </LinearGradient>
+      <EkaayMark size={28} style={styles.avatar} />
       {/* A chart needs a known width, so those bubbles take the full bubble width. */}
       <View style={[styles.bubble, styles.ekaay, message.chart && styles.wide]}>
         <ThemedText style={styles.text}>{message.text}</ThemedText>
@@ -85,11 +78,6 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   avatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
     marginTop: 2,
   },
   ekaay: {

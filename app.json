@@ -10,6 +10,14 @@
     "userInterfaceStyle": "light",
     "android": {
       "package": "com.inventoapps.healthmatrix",
+      "blockedPermissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#0E2A33",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -43,11 +51,17 @@
       "expo-secure-store",
       ["expo-notifications", { "color": "#DD4301" }],
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "HealthMatrix uses your photos so you can choose a profile picture."
+        }
+      ],
+      [
         "expo-media-library",
         {
-          "photosPermission": "HealthMatrix saves your emergency QR picture to Photos so you can set it as your Lock Screen.",
+          "photosPermission": "HealthMatrix uses your photos so you can choose a profile picture.",
           "savePhotosPermission": "HealthMatrix saves your emergency QR picture to Photos so you can set it as your Lock Screen.",
-          "granularPermissions": ["photo"]
+          "granularPermissions": []
         }
       ],
       [
@@ -79,6 +93,7 @@
       }
     },
     "ios": {
+      "bundleIdentifier": "com.inventoapps.healthmatrix",
       "infoPlist": {
         "UIBackgroundModes": [
           "audio"

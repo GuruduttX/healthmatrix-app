@@ -80,6 +80,12 @@ export function progressOf(status?: string | null): { label: string; tone: Tone 
   }
 }
 
+/** Only before the pod starts on it: once a sample is taken the booking stays where it is. */
+export function canChangePod(booking: Pick<BookingDoc, 'status' | 'mobilab'>) {
+  const status = booking.mobilab?.status;
+  return booking.status === 'booked' && (!status || status === 'pending');
+}
+
 /** A pod booking as the app sees it. Matches `PodBooking` in `features/care/types.ts`. */
 export function toPodBookingJson(booking: BookingDoc) {
   return {
@@ -88,8 +94,12 @@ export function toPodBookingJson(booking: BookingDoc) {
     pod: { id: booking.pod!.id, name: booking.pod!.name },
     profiles: booking.profiles,
     testCount: booking.tests.length,
+    /** Every test code booked, the checks' tests included. */
+    tests: booking.tests,
     status: booking.status,
     progress: progressOf(booking.mobilab?.status),
+    /** Still waiting for the member at the pod, so it can move to another pod. */
+    canChangePod: canChangePod(booking),
     /** The pod screening record, once results are in. */
     recordId: booking.result ? String(booking.result) : undefined,
     /** India-time day it was booked, "2026-10-14". */

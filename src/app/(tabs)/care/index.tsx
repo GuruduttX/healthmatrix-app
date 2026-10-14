@@ -4,7 +4,6 @@ import { useCallback } from 'react';
 import { Screen } from '@/components/screen';
 import { Section } from '@/components/ui/section';
 import { useAuth } from '@/features/auth/auth-context';
-import { DoctorHero } from '@/features/care/doctor-hero';
 import { FindPodCard } from '@/features/care/find-pod-card';
 import { HealthChecksCard } from '@/features/care/health-checks-card';
 import { PodBookingsCard } from '@/features/care/pod-bookings-card';
@@ -14,7 +13,6 @@ import { podCatalogLoaded, usePodCatalog } from '@/features/care/use-pod-catalog
 import { ConsultsSection } from '@/features/doctors/consults-section';
 import { refreshAppointments } from '@/features/doctors/use-appointments';
 import { refreshConsultRequests } from '@/features/doctors/use-consult-requests';
-import { useFeaturedDoctor } from '@/features/doctors/use-featured-doctor';
 import { usePastConsults } from '@/features/doctors/use-past-consults';
 import { TodayMedicinesCard } from '@/features/reminders/today-card';
 import { refreshReminders } from '@/features/reminders/use-reminders';
@@ -27,7 +25,6 @@ export default function CareScreen() {
   const { catalog, error: podError, refresh: refreshPods } = usePodCatalog();
   const { bookings: podBookings } = usePodBookings();
   const memberId = useAuth().member?.id;
-  const { featured, refresh: refreshFeatured } = useFeaturedDoctor();
   const { consults: pastConsults, refresh: refreshPast } = usePastConsults();
 
   // The cards below read shared stores; refreshing those updates each card.
@@ -36,7 +33,6 @@ export default function CareScreen() {
     await Promise.allSettled([
       refreshAppointments(memberId),
       refreshConsultRequests(memberId),
-      refreshFeatured(),
       refreshPast(),
       refreshReminders(memberId),
       refreshVaccinations(memberId),
@@ -70,14 +66,10 @@ export default function CareScreen() {
       subtitle="Doctors, pods, medicines and vaccines."
       onRefresh={refresh}>
       <Section index={0}>
-        <DoctorHero featured={featured} />
+        <SpecialtyList />
       </Section>
 
       <ConsultsSection past={pastConsults} index={1} />
-
-      <Section title="Find a specialist" index={2}>
-        <SpecialtyList />
-      </Section>
 
       <Section title="Pods near you" actionLabel="Map" onAction={openPods} index={3}>
         <FindPodCard pods={catalog?.pods ?? null} error={podError} onPress={openPods} />

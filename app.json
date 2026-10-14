@@ -43,6 +43,14 @@
       "expo-secure-store",
       ["expo-notifications", { "color": "#DD4301" }],
       [
+        "expo-media-library",
+        {
+          "photosPermission": "HealthMatrix saves your emergency QR picture to Photos so you can set it as your Lock Screen.",
+          "savePhotosPermission": "HealthMatrix saves your emergency QR picture to Photos so you can set it as your Lock Screen.",
+          "granularPermissions": ["photo"]
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "android": {

@@ -8,7 +8,7 @@ import { Divided, LIST_LEAD, ListRow, listText } from '@/components/ui/list';
 import { Tag } from '@/components/ui/tag';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 
-import { PillButton, TextButton } from './consult-actions';
+import { LinkButton, LinkRow } from './consult-actions';
 import { DoctorAvatar } from './doctor-avatar';
 import { specialtyLabel } from './specialties';
 import { formatSlot } from './time';
@@ -38,9 +38,79 @@ function bookAnother(request: ConsultRequest) {
   });
 }
 
+type ConsultRequestRowProps = {
+  request: ConsultRequest;
+  /** Waiting requests can be withdrawn; leave out where they can't be (the Past tab). */
+  onWithdraw?: () => void;
+  withdrawing?: boolean;
+};
+
 /**
- * Custom-time requests at the top of the Upcoming tab, as rows for a `ListCard`: waiting for the
- * doctor (with Withdraw), or declined or unanswered (with a way to book an open slot instead).
+ * One custom-time request, as a row for a `ListCard`: the doctor, the time asked for (struck once
+ * it no longer stands), where it stands, and one quiet link under the words: Withdraw while it
+ * waits, Book a slot once the doctor said no or didn't answer. The doctor's own reason for saying
+ * no shows when they gave one; the flag says the rest.
+ */
+export function ConsultRequestRow({ request, onWithdraw, withdrawing }: ConsultRequestRowProps) {
+  const doctor = request.doctor?.name ?? 'Doctor';
+  const pending = request.status === 'pending';
+
+  return (
+    <ListRow
+      leading={<DoctorAvatar name={doctor} photoUrl={request.doctor?.photoUrl} size={LIST_LEAD} />}
+      title={doctor}
+      subtitle={
+        <>
+          <ThemedText style={listText.subtitle} numberOfLines={1}>
+            {specialtyLabel(request.specialty)} · Custom time
+          </ThemedText>
+          <ThemedText style={[styles.when, !pending && styles.struck]} numberOfLines={1}>
+            {formatSlot(request.requestedAt)}
+          </ThemedText>
+          <View style={styles.status}>
+            {pending ? (
+              <Tag label="Waiting for the doctor" tone="warning" icon={Clock} />
+            ) : request.status === 'declined' ? (
+              <Tag label="Doctor not available" tone="danger" icon={XCircle} />
+            ) : (
+              <Tag label="No reply in time" tone="neutral" icon={Clock} />
+            )}
+          </View>
+          {request.status === 'declined' && request.declineReason ? (
+            <ThemedText style={styles.reason} numberOfLines={3}>
+              “{request.declineReason}”
+            </ThemedText>
+          ) : null}
+          <LinkRow>
+            {pending && onWithdraw ? (
+              <LinkButton
+                label="Withdraw"
+                tone="danger"
+                busy={withdrawing}
+                onPress={onWithdraw}
+                accessibilityLabel={`Withdraw request to ${doctor}`}
+              />
+            ) : !pending && request.doctor ? (
+              <LinkButton
+                label="Book a slot"
+                icon={CalendarSearch}
+                onPress={() => bookAnother(request)}
+                accessibilityLabel={`Book one of ${doctor}’s open slots`}
+              />
+            ) : null}
+          </LinkRow>
+        </>
+      }
+      // Several lines of words, so the photo sits by the name rather than in the middle.
+      style={styles.row}
+    />
+  );
+}
+
+/**
+ * Custom-time requests still ahead, at the top of the Upcoming tab, as rows for a `ListCard`:
+ * waiting for the doctor (with Withdraw), or declined for a time still to come (with a way to
+ * book an open slot instead). Ones whose time has passed are on the Past tab.
  */
 export function ConsultRequestsList({ requests }: { requests: ConsultRequest[] }) {
   const { withdraw } = useConsultRequests();
@@ -63,65 +133,14 @@ export function ConsultRequestsList({ requests }: { requests: ConsultRequest[] }
   return (
     <>
       <Divided>
-        {requests.map((request) => {
-          const doctor = request.doctor?.name ?? 'Doctor';
-          const pending = request.status === 'pending';
-          const note =
-            request.status === 'declined'
-              ? (request.declineReason ??
-                `${doctor} can’t do this time. Pick one of their open slots instead.`)
-              : request.status === 'expired'
-                ? `${doctor} didn’t answer before this time. Pick one of their open slots.`
-                : null;
-
-          return (
-            <ListRow
-              key={request.id}
-              leading={
-                <DoctorAvatar name={doctor} photoUrl={request.doctor?.photoUrl} size={LIST_LEAD} />
-              }
-              title={doctor}
-              subtitle={
-                <>
-                  <ThemedText style={listText.subtitle} numberOfLines={1}>
-                    {specialtyLabel(request.specialty)} · Custom time
-                  </ThemedText>
-                  <ThemedText style={[styles.when, !pending && styles.struck]} numberOfLines={1}>
-                    {formatSlot(request.requestedAt)}
-                  </ThemedText>
-                  <View style={styles.status}>
-                    {pending ? (
-                      <Tag label="Waiting for the doctor" tone="warning" icon={Clock} />
-                    ) : request.status === 'declined' ? (
-                      <Tag label="Doctor not available" tone="danger" icon={XCircle} />
-                    ) : (
-                      <Tag label="No reply in time" tone="neutral" icon={Clock} />
-                    )}
-                  </View>
-                  {note ? <ThemedText style={styles.note}>{note}</ThemedText> : null}
-                </>
-              }
-              trailing={
-                pending ? (
-                  <TextButton
-                    label="Withdraw"
-                    tone="danger"
-                    busy={busyId === request.id}
-                    onPress={() => withdrawOne(request)}
-                    accessibilityLabel={`Withdraw request to ${doctor}`}
-                  />
-                ) : (
-                  <PillButton
-                    label="Book a slot"
-                    icon={CalendarSearch}
-                    onPress={() => bookAnother(request)}
-                    accessibilityLabel={`Book another time with ${doctor}`}
-                  />
-                )
-              }
-            />
-          );
-        })}
+        {requests.map((request) => (
+          <ConsultRequestRow
+            key={request.id}
+            request={request}
+            onWithdraw={() => void withdrawOne(request)}
+            withdrawing={busyId === request.id}
+          />
+        ))}
       </Divided>
       {error ? (
         <View style={styles.error} accessibilityRole="alert">
@@ -134,6 +153,9 @@ export function ConsultRequestsList({ requests }: { requests: ConsultRequest[] }
 }
 
 const styles = StyleSheet.create({
+  row: {
+    alignItems: 'flex-start',
+  },
   // The time asked for: a step stronger than the line above it, struck once it no longer stands.
   when: {
     fontFamily: Fonts.semibold,
@@ -150,7 +172,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginTop: 5,
   },
-  note: {
+  // The doctor's own words, quoted.
+  reason: {
     marginTop: 4,
     fontFamily: Fonts.medium,
     fontSize: 12.5,

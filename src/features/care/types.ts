@@ -33,9 +33,13 @@ export type PodBooking = {
   /** Health checks booked, by name. */
   profiles: string[];
   testCount: number;
+  /** Every test code booked, the checks' tests included. */
+  tests: string[];
   status: 'booked' | 'completed' | 'cancelled';
   /** Where it is on Mobilab, in words: "Waiting for you at the pod", "Results ready", … */
   progress: { label: string; tone: 'neutral' | 'success' | 'warning' | 'danger' };
+  /** Still waiting for the member at the pod, so it can move to another pod. */
+  canChangePod: boolean;
   /** The pod screening record, once results are in. */
   recordId?: string;
   /** India-time day it was booked, "2026-10-14". */

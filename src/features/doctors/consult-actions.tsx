@@ -1,9 +1,10 @@
 import { Video, type LucideIcon } from 'lucide-react-native';
+import { type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { LIST_LEAD } from '@/components/ui/list';
-import { Colors, Fonts, Radius } from '@/constants/theme';
+import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 
 import { DoctorAvatar } from './doctor-avatar';
 
@@ -80,6 +81,52 @@ export function TextButton({
   );
 }
 
+/**
+ * A quiet link under a row's words, as on past consults: an icon and a word, no fill. Deep orange,
+ * or crimson for withdrawing; a spinner stands in for the icon while it runs.
+ */
+export function LinkButton({
+  label,
+  icon: Icon,
+  tone = 'primary',
+  busy,
+  onPress,
+  accessibilityLabel,
+}: {
+  label: string;
+  icon?: LucideIcon;
+  tone?: 'primary' | 'danger';
+  busy?: boolean;
+  onPress: () => void;
+  accessibilityLabel: string;
+}) {
+  const color = tone === 'danger' ? Colors.high : Colors.primaryDeep;
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={busy}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ busy: !!busy, disabled: !!busy }}
+      hitSlop={8}
+      style={({ pressed }) => [styles.link, pressed && styles.pressed]}>
+      {busy ? (
+        <ActivityIndicator size="small" color={color} />
+      ) : Icon ? (
+        <Icon size={14} color={color} strokeWidth={2.4} />
+      ) : null}
+      <ThemedText style={[styles.textLabel, { color }]} numberOfLines={1}>
+        {label}
+      </ThemedText>
+    </Pressable>
+  );
+}
+
+/** A row's links side by side, under its words. */
+export function LinkRow({ children }: { children: ReactNode }) {
+  return <View style={styles.links}>{children}</View>;
+}
+
 /** A doctor's photo with a camera badge, since every consult is on video; teal-blue when live. */
 export function ConsultAvatar({
   name,
@@ -146,6 +193,18 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.6,
+  },
+  link: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    minHeight: 28,
+  },
+  links: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.three + 2,
+    marginTop: Spacing.two - 2,
   },
   badge: {
     position: 'absolute',

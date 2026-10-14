@@ -1,6 +1,27 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { ChevronRight } from 'lucide-react-native';
-import { Children, Fragment, type ReactNode } from 'react';
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  Children,
+  createContext,
+  Fragment,
+  useCallback,
+  useContext,
+  useEffect,
+  useId,
+  useState,
+  type ReactNode,
+} from 'react';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+  type LayoutRectangle,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
@@ -26,6 +47,90 @@ export function ListCard({ children, inset = LIST_LEAD, style }: ListCardProps) 
       <Divided inset={inset}>{children}</Divided>
     </View>
   );
+}
+
+/**
+ * Rows report where they sit to a `ScrollingListCard` above them. Rows reach the card's content
+ * through fragments only (`Divided` and the lists built on it add no views), so each row's
+ * position is already relative to the scrolling content.
+ */
+type RowReport = (id: string, layout: Pick<LayoutRectangle, 'y' | 'height'> | null) => void;
+const RowLayoutContext = createContext<RowReport | null>(null);
+
+/** How tall the fade over the last visible row is, hinting that the card scrolls. */
+const FADE = 36;
+const CARD_PAD = Spacing.one;
+
+type ScrollingListCardProps = ListCardProps & {
+  /** Rows shown at once; the rest scroll inside the card. */
+  rows?: number;
+};
+
+/**
+ * A `ListCard` that shows `rows` rows and scrolls inside for the rest. Rows differ in height, so
+ * the card measures them and stops exactly under the last one shown; a soft fade at the bottom
+ * says there is more, gone once the end is reached. With `rows` or fewer it is a plain card.
+ */
+export function ScrollingListCard({ children, inset = LIST_LEAD, rows = 3, style }: ScrollingListCardProps) {
+  const [layouts, setLayouts] = useState<Record<string, { y: number; height: number }>>({});
+  const [atEnd, setAtEnd] = useState(false);
+
+  const report = useCallback<RowReport>((id, layout) => {
+    setLayouts((current) => {
+      const known = current[id];
+      if (!layout) {
+        if (!known) return current;
+        const { [id]: _gone, ...rest } = current;
+        return rest;
+      }
+      if (known && known.y === layout.y && known.height === layout.height) return current;
+      return { ...current, [id]: { y: layout.y, height: layout.height } };
+    });
+  }, []);
+
+  const sorted = Object.values(layouts).sort((a, b) => a.y - b.y);
+  const last = sorted.length > rows ? sorted[rows - 1] : undefined;
+  const maxHeight = last ? last.y + last.height + CARD_PAD : undefined;
+
+  const onScroll = ({ nativeEvent }: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, contentSize, layoutMeasurement } = nativeEvent;
+    setAtEnd(contentOffset.y + layoutMeasurement.height >= contentSize.height - 4);
+  };
+
+  return (
+    <View style={[styles.card, styles.scrollingCard, style]}>
+      <ScrollView
+        style={maxHeight ? { maxHeight } : undefined}
+        contentContainerStyle={styles.scrollingContent}
+        scrollEnabled={!!maxHeight}
+        // Android scrolls a list inside the page only when told to.
+        nestedScrollEnabled
+        showsVerticalScrollIndicator={!!maxHeight}
+        onScroll={onScroll}
+        scrollEventThrottle={64}>
+        <RowLayoutContext.Provider value={report}>
+          <Divided inset={inset}>{children}</Divided>
+        </RowLayoutContext.Provider>
+      </ScrollView>
+      {maxHeight && !atEnd ? (
+        <LinearGradient
+          colors={['rgba(255, 255, 255, 0)', Colors.backgroundElement]}
+          style={styles.fade}
+          pointerEvents="none"
+        />
+      ) : null}
+    </View>
+  );
+}
+
+/** Reports a row's place to a `ScrollingListCard`, when it sits in one. */
+function useRowLayout() {
+  const report = useContext(RowLayoutContext);
+  const id = useId();
+  useEffect(() => (report ? () => report(id, null) : undefined), [report, id]);
+  return report
+    ? ({ nativeEvent }: { nativeEvent: { layout: LayoutRectangle } }) => report(id, nativeEvent.layout)
+    : undefined;
 }
 
 /** Children with a hairline between each, for lists that sit inside a card of their own. */
@@ -73,6 +178,7 @@ export function ListRow({
   accessibilityLabel,
   style,
 }: ListRowProps) {
+  const onLayout = useRowLayout();
   const body = (
     <>
       {leading}
@@ -104,12 +210,15 @@ export function ListRow({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
+      onLayout={onLayout}
       style={({ pressed }) => [styles.row, style, pressed && styles.pressed]}>
       {body}
     </Pressable>
   ) : (
     // Not grouped into one element, so a screen reader still reaches the row's own button.
-    <View style={[styles.row, style]}>{body}</View>
+    <View style={[styles.row, style]} onLayout={onLayout}>
+      {body}
+    </View>
   );
 }
 
@@ -143,6 +252,22 @@ const styles = StyleSheet.create({
     borderColor: Colors.hairline,
     backgroundColor: Colors.backgroundElement,
     boxShadow: Shadows.soft,
+  },
+  // The padding moves inside the scroll, so rows don't stop short of the card's edge.
+  scrollingCard: {
+    paddingVertical: 0,
+  },
+  scrollingContent: {
+    paddingVertical: CARD_PAD,
+  },
+  fade: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: FADE,
+    borderBottomLeftRadius: Radius.xl,
+    borderBottomRightRadius: Radius.xl,
   },
   divider: {
     height: StyleSheet.hairlineWidth,

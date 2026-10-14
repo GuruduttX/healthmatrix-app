@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { Eye, Share2, Smartphone } from 'lucide-react-native';
 import { useState } from 'react';
+import { Alert, Platform } from 'react-native';
 
 import { Screen } from '@/components/screen';
 import { IconTile } from '@/components/ui/icon-tile';
@@ -14,7 +15,7 @@ import { useAuth } from '@/features/auth/auth-context';
 import { useEmergencyProfile, type EmergencyFieldId } from '@/features/card/emergency-profile';
 import { EmergencyProfileCard } from '@/features/card/emergency-profile-card';
 import { MemberCard, type CardMember } from '@/features/card/member-card';
-import { sampleCard } from '@/features/card/sample-data';
+import { takeQrOffLockScreen, useLockScreenQr } from '@/features/card/lock-screen-qr';
 import { useEmergencyQr } from '@/features/card/use-emergency-qr';
 import { FamilySection } from '@/features/family/family-section';
 import { useFamily } from '@/features/family/use-family';
@@ -42,10 +43,34 @@ function toCardMember(member: Member): CardMember {
 export default function CardScreen() {
   const { member, refreshMember } = useAuth();
   const { qr, error: qrError, refresh: refreshQr } = useEmergencyQr();
-  const [lockScreenQr, setLockScreenQr] = useState(sampleCard.lockScreenQr);
+  const { on: lockScreenQr, mode: lockScreenMode } = useLockScreenQr();
   const { profile, error: profileError, refresh: refreshProfile, save } = useEmergencyProfile();
   const [toggleError, setToggleError] = useState<string | null>(null);
   const { refresh: refreshFamily } = useFamily();
+
+  /**
+   * On opens the lock screen page, to see the picture and set it. Off takes it off: Android brings
+   * back the home screen picture; on iPhone the member changes the wallpaper themselves.
+   */
+  const toggleLockScreenQr = (next: boolean) => {
+    if (next) return router.push('/lock-screen-qr');
+    const turnOff = () =>
+      takeQrOffLockScreen().catch((e: unknown) =>
+        setToggleError(e instanceof Error ? e.message : 'Could not take the QR off your lock screen.'),
+      );
+    const message =
+      lockScreenMode === 'automatic'
+        ? 'Your lock screen will show your home screen picture again.'
+        : 'Pick another Lock Screen wallpaper in Settings to take the picture off.';
+    if (Platform.OS === 'web') {
+      if (globalThis.confirm?.(`Remove the QR from your lock screen?\n\n${message}`)) void turnOff();
+      return;
+    }
+    Alert.alert('Remove the QR from your lock screen?', message, [
+      { text: 'Keep it', style: 'cancel' },
+      { text: 'Remove', style: 'destructive', onPress: () => void turnOff() },
+    ]);
+  };
 
   const toggleField = (id: EmergencyFieldId) => {
     if (!profile) return;
@@ -93,11 +118,17 @@ export default function CardScreen() {
           <ListRow
             leading={<IconTile icon={Smartphone} tone="neutral" />}
             title="QR on lock screen"
-            subtitle="Visible without unlocking"
+            subtitle={
+              lockScreenQr
+                ? lockScreenMode === 'photos'
+                  ? 'Saved to Photos for your Lock Screen'
+                  : 'On this phone’s lock screen'
+                : 'Visible without unlocking'
+            }
             trailing={
               <Toggle
-                value={lockScreenQr}
-                onValueChange={setLockScreenQr}
+                value={Boolean(lockScreenQr)}
+                onValueChange={toggleLockScreenQr}
                 accessibilityLabel="Emergency QR on lock screen"
               />
             }

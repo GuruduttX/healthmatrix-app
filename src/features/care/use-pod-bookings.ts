@@ -52,5 +52,26 @@ export function usePodBookings() {
     void refresh();
   }, [refresh]);
 
-  return { bookings, error, refresh };
+  /** Moves a waiting booking to another pod; the list shows the new pod straight away. */
+  const changePod = async (id: string, podId: string) => {
+    if (!memberId) throw new Error('Please sign in');
+    try {
+      const { booking } = await api<{ booking: PodBooking }>(`/pod-bookings/${id}`, {
+        method: 'PATCH',
+        body: { podId },
+      });
+      snapshot = {
+        memberId,
+        bookings: (snapshot?.bookings ?? []).map((item) => (item.id === id ? booking : item)),
+      };
+      listeners.forEach((listener) => listener());
+      return booking;
+    } catch (e) {
+      // The pod may have started on it meanwhile: show where it stands now.
+      void refresh();
+      throw e;
+    }
+  };
+
+  return { bookings, error, refresh, changePod };
 }

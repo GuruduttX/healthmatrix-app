@@ -264,3 +264,19 @@ export async function getMobilabReportUrl(bookingId: string) {
   );
   return found?.data.url ?? null;
 }
+
+/**
+ * Moves a booking to another pod. Without an assignee, Mobilab hands it to every active operator
+ * of the new pod and takes it off the old pod's queue. Tests can't be changed this way.
+ */
+export async function moveMobilabBooking(bookingId: string, podId: string) {
+  const { data } = await mobilab<{ data: MobilabBooking }>(
+    `/bookings/${encodeURIComponent(bookingId)}`,
+    {
+      method: 'PATCH',
+      body: { clinic_id: Number(podId) },
+      rejected: 'That pod couldn’t take this booking. Try another pod.',
+    },
+  );
+  return data;
+}

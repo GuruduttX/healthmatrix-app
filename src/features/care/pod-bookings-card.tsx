@@ -28,7 +28,7 @@ const openHistory = () => router.push('/care/pod-bookings');
 
 /**
  * One pod booking: what was booked, where and when, and where it is now. With results it opens
- * the record; still waiting, it shows the ID to read out at the pod.
+ * the record; otherwise its own page, to see the tests or move it to another pod.
  */
 export function PodBookingRow({ booking }: { booking: PodBooking }) {
   const what =
@@ -63,13 +63,13 @@ export function PodBookingRow({ booking }: { booking: PodBooking }) {
           icon={ICONS[booking.progress.tone]}
         />
       }
-      trailing={recordId ? <Chevron /> : undefined}
-      onPress={
+      trailing={<Chevron />}
+      onPress={() =>
         recordId
-          ? () => router.push({ pathname: '/records/[id]', params: { id: recordId } })
-          : undefined
+          ? router.push({ pathname: '/records/[id]', params: { id: recordId } })
+          : router.push({ pathname: '/care/pod-bookings/[id]', params: { id: booking.id } })
       }
-      accessibilityLabel={`${what} at ${booking.pod.name}, booked ${day}, ${booking.progress.label}${recordId ? '. Opens the results' : `. Booking ID ${booking.reference}`}`}
+      accessibilityLabel={`${what} at ${booking.pod.name}, booked ${day}, ${booking.progress.label}. ${recordId ? 'Opens the results' : 'Opens the booking'}`}
     />
   );
 }

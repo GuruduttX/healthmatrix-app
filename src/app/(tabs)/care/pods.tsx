@@ -1,10 +1,9 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ChevronLeft, MapPinOff, RotateCw, Search } from 'lucide-react-native';
+import { ChevronLeft, MapPinOff, RotateCw, Search, SearchX, X } from 'lucide-react-native';
 import { useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ThemedText } from '@/components/themed-text';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SkeletonList } from '@/components/ui/skeleton';
 import { Colors, Fonts, Gutter, Radius, Shadows, Spacing } from '@/constants/theme';
@@ -15,7 +14,7 @@ import { PodBooking } from '@/features/care/pod-booking';
 import { PodMap } from '@/features/care/pod-map';
 import { sampleCare } from '@/features/care/sample-data';
 import { coveredTests, TestPicker } from '@/features/care/test-picker';
-import { type PodBooking as Booking } from '@/features/care/types';
+import { type PodBooking as Booking, type Pod } from '@/features/care/types';
 import { refreshPodBookings } from '@/features/care/use-pod-bookings';
 import { usePodCatalog } from '@/features/care/use-pod-catalog';
 import { useTabBarClearance } from '@/hooks/use-tab-bar-clearance';
@@ -25,6 +24,19 @@ const MAP_HEIGHT = 300;
 const BAR_HEIGHT = 44;
 /** How far the pod card rides up over the bottom of the map. */
 const CARD_OVERLAP = 44;
+
+/**
+ * Pods whose name, street or city hold every word typed, in any order and case: "doom", "clinic
+ * bangalore". An empty search keeps them all.
+ */
+function matchPods(pods: Pod[], query: string) {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.length) return pods;
+  return pods.filter((pod) => {
+    const text = [pod.name, pod.address, pod.city].filter(Boolean).join(' ').toLowerCase();
+    return words.every((word) => text.includes(word));
+  });
+}
 
 /** `toggle(list, x)`: x added, or taken out if it was there. */
 const toggle = (list: string[], code: string) =>
@@ -44,6 +56,7 @@ export default function PodsScreen() {
   const insets = useSafeAreaInsets();
   const clearance = useTabBarClearance();
 
+  const [query, setQuery] = useState('');
   const [chosenPodId, setPodId] = useState<string>();
   const [profileIds, setProfileIds] = useState<string[]>(profile ? [profile] : []);
   const [testCodes, setTestCodes] = useState<string[]>([]);
@@ -59,8 +72,11 @@ export default function PodsScreen() {
   const askDateOfBirth = !member?.dateOfBirth;
   const askSex = member?.gender !== 'male' && member?.gender !== 'female';
 
-  // The first pod is chosen until the member picks one.
-  const podId = chosenPodId ?? pods[0]?.id;
+  // The map and the list show the pods the search matches.
+  const shown = matchPods(pods, query);
+  // The first pod shown is chosen until the member picks one; a search that hides the chosen pod
+  // moves the choice to the first match.
+  const podId = shown.some((pod) => pod.id === chosenPodId) ? chosenPodId : shown[0]?.id;
 
   // A test inside a chosen check is booked with it, so it never counts twice.
   const covered = coveredTests(catalog?.profiles ?? [], profileIds);
@@ -107,7 +123,7 @@ export default function PodsScreen() {
         contentContainerStyle={{ paddingBottom: clearance + Spacing.three }}>
         <View style={{ height: mapHeight }}>
           <PodMap
-            pods={pods}
+            pods={shown}
             selectedId={podId}
             user={userLocation}
             inset={{
@@ -128,9 +144,27 @@ export default function PodsScreen() {
             </Pressable>
             <View style={styles.search}>
               <Search size={16} color={Colors.textMuted} strokeWidth={2.2} />
-              <ThemedText style={styles.searchText} numberOfLines={1}>
-                Pods near you
-              </ThemedText>
+              <TextInput
+                value={query}
+                onChangeText={setQuery}
+                placeholder="Search pods by name or area"
+                placeholderTextColor={Colors.textMuted}
+                returnKeyType="search"
+                autoCorrect={false}
+                autoCapitalize="none"
+                accessibilityLabel="Search pods"
+                style={styles.searchInput}
+              />
+              {query ? (
+                <Pressable
+                  onPress={() => setQuery('')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Clear search"
+                  hitSlop={10}
+                  style={({ pressed }) => [styles.clear, pressed && styles.pressed]}>
+                  <X size={13} color={Colors.textSoft} strokeWidth={2.6} />
+                </Pressable>
+              ) : null}
             </View>
           </View>
         </View>
@@ -153,9 +187,16 @@ export default function PodsScreen() {
               title="No pods open yet"
               body="Pods appear here as soon as one near you starts taking bookings."
             />
+          ) : !shown.length ? (
+            <EmptyState
+              icon={SearchX}
+              title={`No pods match “${query.trim()}”`}
+              body="Try a pod’s name, its street or your city."
+              action={{ label: 'Clear search', icon: X, onPress: () => setQuery('') }}
+            />
           ) : (
             <PodBooking
-              pods={pods}
+              pods={shown}
               podId={podId}
               testCount={testCount}
               onSelectPod={setPodId}
@@ -230,12 +271,24 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.backgroundElement,
     boxShadow: Shadows.soft,
   },
-  searchText: {
-    flexShrink: 1,
+  searchInput: {
+    flex: 1,
+    minWidth: 0,
+    height: BAR_HEIGHT,
     fontFamily: Fonts.medium,
     fontSize: 14.5,
-    lineHeight: 19,
-    color: Colors.textSoft,
+    color: Colors.text,
+    // The pill is the field; no second outline from the browser on web.
+    outlineStyle: 'solid',
+    outlineWidth: 0,
+  },
+  clear: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.well,
   },
   pressed: {
     opacity: 0.7,

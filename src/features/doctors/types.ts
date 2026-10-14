@@ -68,21 +68,6 @@ export type Appointment = {
   cancelReason?: string;
 };
 
-/**
- * The Care tab's top card: a doctor who has consulted this member before and is in a consult
- * right now, with anyone. Matches the doctors
- * `featured` route, `src/app/api/v1/doctors/featured+api.ts`.
- */
-export type FeaturedDoctor = {
-  /** With `nextSlot`, their first free slot. */
-  doctor: Doctor;
-  /** The specialty of the member's last consult with them, if the doctor still offers it. */
-  specialty?: Specialty;
-  /** The slot of the member's last consult with them, ISO. */
-  lastConsultAt: string;
-  consultCount: number;
-};
-
 /** A completed consult. Matches `?when=past` on `src/app/api/v1/consults+api.ts`. */
 export type PastConsult = Appointment & {
   /** The prescription signed in this consult; opens at `/records/[id]`. */

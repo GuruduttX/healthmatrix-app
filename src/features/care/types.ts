@@ -38,5 +38,7 @@ export type PodBooking = {
   progress: { label: string; tone: 'neutral' | 'success' | 'warning' | 'danger' };
   /** The pod screening record, once results are in. */
   recordId?: string;
+  /** India-time day it was booked, "2026-10-14". */
+  date: string;
   createdAt: string;
 };

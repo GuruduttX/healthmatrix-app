@@ -9,6 +9,7 @@ import {
   type MobilabReading,
 } from './mobilab';
 import { BookingModel, HealthRecordModel, type Booking } from './models';
+import { istDate } from './vaccinations';
 
 type BookingDoc = Booking & { _id: Types.ObjectId; createdAt: Date };
 type Tone = 'neutral' | 'success' | 'warning' | 'danger';
@@ -91,6 +92,8 @@ export function toPodBookingJson(booking: BookingDoc) {
     progress: progressOf(booking.mobilab?.status),
     /** The pod screening record, once results are in. */
     recordId: booking.result ? String(booking.result) : undefined,
+    /** India-time day it was booked, "2026-10-14". */
+    date: istDate(booking.createdAt),
     createdAt: booking.createdAt.toISOString(),
   };
 }
@@ -196,10 +199,14 @@ async function fileResults(booking: HydratedDocument<BookingDoc>, dateOfBirth?: 
   booking.status = 'completed';
 }
 
-/** Asks Mobilab where one booking is, and files its results once the report is out. */
+/**
+ * Asks Mobilab where one booking is, and files its results once the report is out. `via` records
+ * what filed them, so a missing webhook shows up as bookings filed by the app instead.
+ */
 export async function syncBooking(
   booking: HydratedDocument<BookingDoc>,
   dateOfBirth?: Date | null,
+  via: 'webhook' | 'app' = 'app',
 ) {
   const found = await findMobilabBooking(booking.mobilab!.bookingId);
   booking.mobilab!.checkedAt = new Date();
@@ -207,6 +214,7 @@ export async function syncBooking(
 
   if (found?.status === 'report_generated' && !booking.result) {
     await fileResults(booking, dateOfBirth);
+    booking.mobilab!.filedVia = via;
   } else if (found?.status === 'rejected') {
     booking.status = 'cancelled';
   }

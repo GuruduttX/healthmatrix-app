@@ -19,6 +19,12 @@ const schema = z.object({
   MOBILAB_API_URL: z.url().default('https://api-staging.mobilab.ai'),
   /** A Mobilab API key, shown once when issued. Without it the pod screens say pods aren't set up. */
   MOBILAB_API_KEY: z.string().regex(/^(mlab|test)_\w+$/, 'must look like mlab_…').optional(),
+  /**
+   * The secret Mobilab signs its "report ready" webhook with (see `server/webhook-signature.ts`).
+   * We make it up, 32+ characters, and share it with Mobilab securely. Without it the webhook
+   * turns every call away and results arrive when the member opens the app.
+   */
+  MOBILAB_WEBHOOK_SECRET: z.string().min(32, 'must be at least 32 characters').optional(),
 });
 
 let cached: z.infer<typeof schema> | undefined;

@@ -12,12 +12,17 @@ import {
   toPodBookingJson,
 } from '@/server/pod-bookings';
 
-/** The signed-in member's pod bookings, newest first, the waiting ones checked with Mobilab. */
+/** Most bookings returned; enough for years of pod visits. */
+const HISTORY_LIMIT = 500;
+
+/** Every pod booking the member has made, newest first, the waiting ones checked with Mobilab. */
 export const GET = handle(async (request: Request) => {
   await connectDB();
   const member = await requireMember(request);
   await syncMemberBookings(member);
-  const bookings = await BookingModel.find({ member: member._id }).sort({ createdAt: -1 }).limit(20);
+  const bookings = await BookingModel.find({ member: member._id })
+    .sort({ createdAt: -1 })
+    .limit(HISTORY_LIMIT);
   return Response.json({ bookings: bookings.map(toPodBookingJson) });
 });
 

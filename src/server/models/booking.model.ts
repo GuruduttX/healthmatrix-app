@@ -34,6 +34,10 @@ const bookingSchema = new mongoose.Schema(
       status: String,
       /** When the status was last asked for, so screens don't ask on every load. */
       checkedAt: Date,
+      /** When Mobilab's "report ready" webhook last arrived for it, signed. */
+      webhookAt: Date,
+      /** What filed the results: the webhook, or the app's check when a screen loaded. */
+      filedVia: { type: String, enum: ['webhook', 'app'] },
     },
 
     /** Set when a doctor ordered the tests, so results flow back to them. */

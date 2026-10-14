@@ -1,12 +1,20 @@
 import { router } from 'expo-router';
 import {
+  AlertCircle,
   BadgeCheck,
   BellPlus,
   CalendarPlus,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  Eye,
+  FlaskConical,
   Info,
   ListChecks,
   MessageSquareText,
   Video,
+  type LucideIcon,
 } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -21,13 +29,16 @@ import { Chevron, LIST_LEAD, ListCard, ListRow, listText } from '@/components/ui
 import { Section } from '@/components/ui/section';
 import { Skeleton, SkeletonGroup, SkeletonList } from '@/components/ui/skeleton';
 import { HeaderIconButton } from '@/components/ui/stack-header';
+import { Tag } from '@/components/ui/tag';
 import { Colors, Fonts, Shadows, Spacing } from '@/constants/theme';
+import { LinkButton, LinkRow, PillButton } from '@/features/doctors/consult-actions';
 import { DoctorAvatar } from '@/features/doctors/doctor-avatar';
 import { specialtyLabel } from '@/features/doctors/specialties';
 import { formatSlot } from '@/features/doctors/time';
 import { iconFor, MONTHS_SHORT, RecordTag } from '@/features/records/record-row';
 import {
   type OpenRecord,
+  type PrescribedTest,
   type PrescriptionRecord,
   type RecordSummary,
 } from '@/features/records/types';
@@ -60,6 +71,36 @@ function splitLine(item: string) {
     title: head,
     how: rest ? rest[0]!.toUpperCase() + rest.slice(1) : undefined,
   };
+}
+
+const PROGRESS_ICONS: Record<NonNullable<PrescribedTest['booking']>['progress']['tone'], LucideIcon> = {
+  neutral: Clock,
+  success: Check,
+  warning: Eye,
+  danger: AlertCircle,
+};
+
+/**
+ * Opens the pod finder with these tests chosen, linked to the prescription so the booking (and
+ * its results) can go back to the doctor who ordered them.
+ */
+function bookAtPod(prescriptionId: string, tests: PrescribedTest[]) {
+  const profiles = tests.filter((test) => test.kind === 'profile').map((test) => test.code);
+  const singles = tests.filter((test) => test.kind === 'test').map((test) => test.code);
+  router.push({
+    pathname: '/care/pods',
+    params: {
+      rx: prescriptionId,
+      ...(profiles.length && { profiles: profiles.join(',') }),
+      ...(singles.length && { tests: singles.join(',') }),
+    },
+  });
+}
+
+/** "Health check · 2 tests" or "Lab test". */
+function testLine(test: PrescribedTest) {
+  if (test.kind === 'test') return 'Lab test';
+  return `Health check · ${test.tests.length} ${test.tests.length === 1 ? 'test' : 'tests'}`;
 }
 
 /**
@@ -239,6 +280,102 @@ export function RecordScreen({
 }
 
 /**
+ * A test the doctor ordered, on the prescription's card. A health check's "2 tests" opens and
+ * closes the list of what it covers. Book sits at the right until it's booked; then the flag says
+ * where the booking is and a link opens it, or its results. The row itself isn't a button, since
+ * it holds its own.
+ */
+function PrescribedTestRow({
+  test,
+  readOnly,
+  onBook,
+}: {
+  test: PrescribedTest;
+  readOnly?: boolean;
+  onBook: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const { booking } = test;
+  const isProfile = test.kind === 'profile' && test.testNames.length > 0;
+
+  return (
+    <ListRow
+      leading={<IconTile icon={FlaskConical} size={LIST_LEAD} />}
+      title={<ThemedText style={listText.title}>{test.name}</ThemedText>}
+      subtitle={
+        <View>
+          {isProfile ? (
+            <Pressable
+              onPress={() => setOpen((value) => !value)}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: open }}
+              accessibilityLabel={`${test.name}: ${test.testNames.length} tests. ${open ? 'Hide' : 'Show'} them`}
+              hitSlop={6}
+              style={({ pressed }) => [styles.toggle, pressed && styles.togglePressed]}>
+              <ThemedText style={listText.subtitle}>{testLine(test)}</ThemedText>
+              {open ? (
+                <ChevronUp size={15} color={Colors.textSoft} strokeWidth={2.4} />
+              ) : (
+                <ChevronDown size={15} color={Colors.textSoft} strokeWidth={2.4} />
+              )}
+            </Pressable>
+          ) : (
+            <ThemedText style={listText.subtitle}>{testLine(test)}</ThemedText>
+          )}
+          {isProfile && open ? (
+            <View style={styles.included}>
+              {test.testNames.map((name, index) => (
+                <View key={`${test.tests[index]}-${index}`} style={styles.includedRow}>
+                  <View style={styles.dot} />
+                  <ThemedText style={[styles.includedText, styles.flex]}>{name}</ThemedText>
+                </View>
+              ))}
+            </View>
+          ) : null}
+          {booking ? (
+            <View style={styles.flag}>
+              <Tag
+                label={booking.progress.label}
+                tone={booking.progress.tone}
+                icon={PROGRESS_ICONS[booking.progress.tone]}
+              />
+            </View>
+          ) : null}
+          {booking && !readOnly ? (
+            <LinkRow>
+              <LinkButton
+                label={booking.recordId ? 'See results' : 'View booking'}
+                onPress={() =>
+                  booking.recordId
+                    ? router.push({ pathname: '/records/[id]', params: { id: booking.recordId } })
+                    : router.push({
+                        pathname: '/care/pod-bookings/[id]',
+                        params: { id: booking.id },
+                      })
+                }
+                accessibilityLabel={`${booking.recordId ? 'See the results of' : 'View the booking for'} ${test.name}`}
+              />
+            </LinkRow>
+          ) : null}
+        </View>
+      }
+      trailing={
+        booking || readOnly ? null : (
+          <PillButton
+            label="Book"
+            icon={CalendarPlus}
+            onPress={onBook}
+            accessibilityLabel={`Book ${test.name} at a pod`}
+          />
+        )
+      }
+      // With the tests listed, the icon sits by the name rather than in the middle.
+      style={open ? styles.topAligned : undefined}
+    />
+  );
+}
+
+/**
  * The prescription itself: every line first, then any vaccines prescribed with it, then the doctor
  * and the consult it came from, with the way to book them again.
  */
@@ -255,48 +392,75 @@ function PrescriptionBody({
     router.push({ pathname: '/care/medicine/[id]', params: { id: 'new', name: item } });
   const { doctor, consult } = record;
   const items = record.prescription.items;
+  const tests = record.prescription.tests ?? [];
+  const lines = items.length + tests.length;
+  const toBook = tests.filter((test) => !test.booking);
 
   return (
     <>
       <Section
         title="Medicines and advice"
-        meta={items.length ? `${items.length} ${items.length === 1 ? 'line' : 'lines'}` : undefined}
+        meta={lines ? `${lines} ${lines === 1 ? 'line' : 'lines'}` : undefined}
         index={1}>
         <ListCard>
-          {items.length ? (
-            items.map((item, index) => {
-              const line = splitLine(item);
-              return (
-                <ListRow
-                  key={`${index}-${item}`}
-                  leading={
-                    line.medicine ? (
-                      <ArtDish art={PILL} />
-                    ) : (
-                      <IconTile icon={ListChecks} size={LIST_LEAD} />
-                    )
-                  }
-                  title={<ThemedText style={listText.title}>{line.title}</ThemedText>}
-                  subtitle={
-                    line.how ? (
-                      <ThemedText style={listText.subtitle}>{line.how}</ThemedText>
-                    ) : undefined
-                  }
-                  trailing={
-                    readOnly ? null : (
-                      <Pressable
-                        onPress={() => remind(item)}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Set a reminder for ${item}`}
-                        hitSlop={6}
-                        style={({ pressed }) => [styles.remind, pressed && styles.remindPressed]}>
-                        <BellPlus size={16} color={Colors.primaryDeep} strokeWidth={2.4} />
-                      </Pressable>
-                    )
-                  }
+          {items.length || tests.length ? (
+            [
+              ...items.map((item, index) => {
+                const line = splitLine(item);
+                return (
+                  <ListRow
+                    key={`${index}-${item}`}
+                    leading={
+                      line.medicine ? (
+                        <ArtDish art={PILL} />
+                      ) : (
+                        <IconTile icon={ListChecks} size={LIST_LEAD} />
+                      )
+                    }
+                    title={<ThemedText style={listText.title}>{line.title}</ThemedText>}
+                    subtitle={
+                      line.how ? (
+                        <ThemedText style={listText.subtitle}>{line.how}</ThemedText>
+                      ) : undefined
+                    }
+                    trailing={
+                      readOnly ? null : (
+                        <Pressable
+                          onPress={() => remind(item)}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Set a reminder for ${item}`}
+                          hitSlop={6}
+                          style={({ pressed }) => [styles.remind, pressed && styles.remindPressed]}>
+                          <BellPlus size={16} color={Colors.primaryDeep} strokeWidth={2.4} />
+                        </Pressable>
+                      )
+                    }
+                  />
+                );
+              }),
+              // Tests to book at a pod, under the medicines. A health check opens to list its tests.
+              // Once booked, the line shows where the booking is, with a link to it or its results.
+              ...tests.map((test) => (
+                <PrescribedTestRow
+                  key={`test-${test.code}`}
+                  test={test}
+                  readOnly={readOnly}
+                  onBook={() => bookAtPod(record.id, [test])}
                 />
-              );
-            })
+              )),
+              ...(toBook.length > 1 && !readOnly
+                ? [
+                    <ListRow
+                      key="book-all"
+                      leading={<IconTile icon={CalendarPlus} size={LIST_LEAD} />}
+                      title={`Book all ${toBook.length} at a pod`}
+                      subtitle="One visit for every test on this prescription"
+                      trailing={<Chevron />}
+                      onPress={() => bookAtPod(record.id, toBook)}
+                    />,
+                  ]
+                : []),
+            ]
           ) : (
             <ListRow
               leading={<IconTile icon={ListChecks} size={LIST_LEAD} tone="neutral" />}
@@ -477,6 +641,46 @@ const styles = StyleSheet.create({
   remindPressed: {
     backgroundColor: Colors.primaryTint,
     transform: [{ scale: 0.95 }],
+  },
+  // "Health check · 2 tests" with its chevron: the whole line opens the list.
+  toggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    alignSelf: 'flex-start',
+    minHeight: 24,
+  },
+  togglePressed: {
+    opacity: 0.6,
+  },
+  included: {
+    gap: 3,
+    marginTop: 4,
+  },
+  includedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.textFaint,
+  },
+  includedText: {
+    fontFamily: Fonts.medium,
+    fontSize: 13,
+    lineHeight: 18,
+    color: Colors.text,
+  },
+  topAligned: {
+    alignItems: 'flex-start',
+  },
+  // Where the booking stands, under the tests, before its link.
+  flag: {
+    flexDirection: 'row',
+    marginTop: 6,
   },
   // A quiet line on the page, like Home's privacy note: no box around it.
   note: {

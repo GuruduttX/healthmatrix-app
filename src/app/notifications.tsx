@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
-import { BellRing } from 'lucide-react-native';
-import { StyleSheet } from 'react-native';
+import { BellRing, CheckCheck } from 'lucide-react-native';
+import { Alert, Platform, StyleSheet } from 'react-native';
 
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
@@ -9,6 +9,7 @@ import { IconTile } from '@/components/ui/icon-tile';
 import { Chevron, LIST_LEAD, ListCard, ListRow } from '@/components/ui/list';
 import { Section } from '@/components/ui/section';
 import { SkeletonList } from '@/components/ui/skeleton';
+import { HeaderIconButton } from '@/components/ui/stack-header';
 import { Colors, Fonts } from '@/constants/theme';
 import { type Notice, useNotifications } from '@/features/notifications/use-notifications';
 
@@ -54,12 +55,27 @@ function NoticeSection({
   );
 }
 
+/** Asks before clearing: an urgent one (a consult starting, a dose due) won't come back. */
+function confirmClear(count: number) {
+  const message = `${count === 1 ? 'It' : `All ${count}`} will go from here and from the bell. New notifications still show.`;
+  if (Platform.OS === 'web') {
+    return Promise.resolve(globalThis.confirm?.(`Clear notifications?\n\n${message}`) ?? false);
+  }
+  return new Promise<boolean>((resolve) =>
+    Alert.alert('Clear notifications?', message, [
+      { text: 'Keep them', style: 'cancel', onPress: () => resolve(false) },
+      { text: 'Clear', style: 'destructive', onPress: () => resolve(true) },
+    ]),
+  );
+}
+
 /**
  * Notifications, opened from the bell on Home: consults starting or cancelled, answers to
- * custom-time requests, doses due or missed today, and vaccine doses due.
+ * custom-time requests, doses due or missed today, and vaccine doses due. Clear hides the ones
+ * showing now; a later stage of the same thing, or tomorrow's dose, still shows.
  */
 export default function NotificationsScreen() {
-  const { notices, refresh } = useNotifications();
+  const { notices, refresh, clear } = useNotifications();
   const urgent = notices?.filter((notice) => notice.urgent) ?? [];
   const updates = notices?.filter((notice) => !notice.urgent) ?? [];
 
@@ -68,6 +84,18 @@ export default function NotificationsScreen() {
       onBack={() => (router.canGoBack() ? router.back() : router.replace('/'))}
       backLabel="Home"
       barTitle="Notifications"
+      barRight={
+        notices?.length ? (
+          <HeaderIconButton
+            icon={<CheckCheck size={16} color={Colors.text} strokeWidth={2.4} />}
+            text="Clear"
+            label="Clear all notifications"
+            onPress={async () => {
+              if (await confirmClear(notices.length)) void clear();
+            }}
+          />
+        ) : undefined
+      }
       onRefresh={refresh}>
       {!notices ? (
         <SkeletonList rows={4} leading="tile" trailing={false} label="Loading your notifications" />

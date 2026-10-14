@@ -42,12 +42,15 @@ const bookingSchema = new mongoose.Schema(
 
     /** Set when a doctor ordered the tests, so results flow back to them. */
     orderedByConsult: { type: mongoose.Schema.Types.ObjectId, ref: 'Consult' },
+    /** The prescription the tests were booked from, when they were. */
+    prescription: { type: mongoose.Schema.Types.ObjectId, ref: 'Prescription' },
     result: { type: mongoose.Schema.Types.ObjectId, ref: 'HealthRecord' },
   },
   { timestamps: true },
 );
 
 bookingSchema.index({ member: 1, createdAt: -1 });
+bookingSchema.index({ prescription: 1 }, { sparse: true });
 
 export type Booking = InferSchemaType<typeof bookingSchema>;
 export const BookingModel = defineModel('Booking', bookingSchema);

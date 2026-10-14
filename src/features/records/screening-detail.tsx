@@ -119,7 +119,7 @@ export function ScreeningDetail({ record, readOnly }: ScreeningDetailProps) {
         </View>
         <ThemedText style={[styles.noteText, styles.flex]}>
           Not a diagnosis. Values are compared with the lab’s ranges for{' '}
-          {readOnly ? 'their' : 'your'} age and sex; a doctor can say what they mean for{' '}
+          {readOnly ? 'their' : 'your'} age and gender; a doctor can say what they mean for{' '}
           {readOnly ? 'them' : 'you'}.
         </ThemedText>
       </View>

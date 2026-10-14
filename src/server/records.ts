@@ -2,7 +2,8 @@ import { type Types } from 'mongoose';
 
 import { displayName } from './doctors';
 import { HttpError } from './http';
-import { getMobilabReportUrl } from './mobilab';
+import { getMobilabReportUrl, labCatalog } from './mobilab';
+import { progressOf } from './pod-bookings';
 import {
   BookingModel,
   ConsultModel,
@@ -85,9 +86,27 @@ export async function loadVaccinations(memberId: Id, filter: Record<string, unkn
 type LoadedPrescription = Awaited<ReturnType<typeof loadPrescriptions>>[number];
 type LoadedVaccination = Awaited<ReturnType<typeof loadVaccinations>>[number];
 
+/** The tests a doctor ordered on a prescription, with names; entries missing a code are dropped. */
+function orderedTests(prescription: Pick<Prescription, 'tests'>) {
+  return (prescription.tests ?? []).flatMap((entry) =>
+    entry.code && entry.name
+      ? [
+          {
+            kind: entry.kind === 'test' ? ('test' as const) : ('profile' as const),
+            code: entry.code,
+            name: entry.name.trim(),
+            tests: entry.tests?.length ? entry.tests : [entry.code],
+          },
+        ]
+      : [],
+  );
+}
+
 function prescriptionSummary({ prescription, consult, doctor }: LoadedPrescription) {
   const at = prescription.signedAt ?? prescription.createdAt ?? new Date();
   const items = (prescription.items ?? []).map((item) => item.trim()).filter(Boolean);
+  const tests = orderedTests(prescription);
+  const lines = items.length + tests.length;
   const doctorName = doctor ? displayName(doctor.name) : 'Your doctor';
   const reason = reasonTitle(consult?.reason);
 
@@ -95,15 +114,17 @@ function prescriptionSummary({ prescription, consult, doctor }: LoadedPrescripti
     id: String(prescription._id),
     type: 'prescription' as const,
     title: reason ? `Prescription for ${reason.toLowerCase()}` : 'Prescription',
-    subtitle: `${doctorName}${consult ? ', video consult' : ''} · ${items.length} ${items.length === 1 ? 'item' : 'items'}`,
+    subtitle: `${doctorName}${consult ? ', video consult' : ''} · ${lines} ${lines === 1 ? 'item' : 'items'}`,
     date: istDate(at),
     at: at.toISOString(),
     tag:
       Date.now() - at.getTime() < NEW_FOR_MS
         ? { label: 'New from your doctor', tone: 'primary' as const }
         : undefined,
-    /** Extra words the search box matches: the doctor, the reason and every line. */
-    keywords: [doctorName, consult?.reason, ...items].filter(Boolean).join(' '),
+    /** Extra words the search box matches: the doctor, the reason, every line and test. */
+    keywords: [doctorName, consult?.reason, ...items, ...tests.map((test) => test.name)]
+      .filter(Boolean)
+      .join(' '),
   };
 }
 
@@ -238,7 +259,27 @@ export async function getRecord(memberId: Id, id: string) {
   const [row] = await loadPrescriptions(memberId, _id);
   if (row) {
     const { prescription, consult, doctor } = row;
-    const vaccines = await loadVaccinations(memberId, { prescription: _id });
+    const ordered = orderedTests(prescription);
+    const [vaccines, bookings, catalog] = await Promise.all([
+      loadVaccinations(memberId, { prescription: _id }),
+      // Newest first, so a test booked twice shows its latest booking.
+      BookingModel.find({ member: memberId, prescription: _id }).sort({ createdAt: -1 }).lean(),
+      // Names for the tests inside each health check. Without the pod catalog the codes show.
+      ordered.length ? labCatalog().catch(() => null) : null,
+    ]);
+    const testName = (code: string) =>
+      catalog?.tests.find((test) => test.code === code)?.name ?? code;
+    /** The booking made from this prescription that covers every test of `codes`, if any. */
+    const bookingFor = (codes: string[]) => {
+      const booking = bookings.find((item) => codes.every((code) => item.tests.includes(code)));
+      return (
+        booking && {
+          id: String(booking._id),
+          progress: progressOf(booking.mobilab?.status),
+          recordId: booking.result ? String(booking.result) : undefined,
+        }
+      );
+    };
     return {
       ...prescriptionSummary(row),
       doctor: doctor && {
@@ -256,6 +297,13 @@ export async function getRecord(memberId: Id, id: string) {
       },
       prescription: {
         items: (prescription.items ?? []).map((item) => item.trim()).filter(Boolean),
+        /** Tests to book at a pod, each with the booking made for it from here, once there is one. */
+        tests: ordered.map((test) => ({
+          ...test,
+          /** The names of the tests it covers, in the same order as `tests`. */
+          testNames: test.tests.map(testName),
+          booking: bookingFor(test.tests),
+        })),
         status: prescription.status ?? undefined,
         signedAt: prescription.signedAt?.toISOString(),
       },

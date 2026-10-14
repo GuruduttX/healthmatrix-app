@@ -19,6 +19,25 @@ export type RecordSummary = {
   keywords: string;
 };
 
+/**
+ * A test the doctor ordered on a prescription: a health check (`code` is the pod finder's profile
+ * id) or a single test (`code` is its test code), with the booking made for it, once there is one.
+ */
+export type PrescribedTest = {
+  kind: 'profile' | 'test';
+  code: string;
+  name: string;
+  /** Every test code it covers. */
+  tests: string[];
+  /** Their names, in the same order: "Glucose (Random)", "HbA1c". */
+  testNames: string[];
+  booking?: {
+    id: string;
+    progress: { label: string; tone: 'neutral' | 'success' | 'warning' | 'danger' };
+    recordId?: string;
+  };
+};
+
 /** A prescription opened up. Matches `getRecord` in `src/server/records.ts`. */
 export type PrescriptionRecord = RecordSummary & {
   type: 'prescription';
@@ -31,7 +50,13 @@ export type PrescriptionRecord = RecordSummary & {
     specialties: Specialty[];
   };
   consult?: { specialty?: Specialty; reason?: string; scheduledAt: string };
-  prescription: { items: string[]; status?: string; signedAt?: string };
+  prescription: {
+    items: string[];
+    /** Tests the doctor ordered, to book at a pod. */
+    tests: PrescribedTest[];
+    status?: string;
+    signedAt?: string;
+  };
   /** Vaccines prescribed alongside, each a record of its own. */
   vaccines: RecordSummary[];
 };

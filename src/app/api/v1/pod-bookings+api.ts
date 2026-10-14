@@ -4,7 +4,7 @@ import { requireMember } from '@/server/auth';
 import { connectDB } from '@/server/db';
 import { HttpError, handle } from '@/server/http';
 import { createMobilabBooking, findMobilabBooking, listPods } from '@/server/mobilab';
-import { BookingModel } from '@/server/models';
+import { BookingModel, PrescriptionModel } from '@/server/models';
 import {
   newBookingId,
   selectTests,
@@ -34,6 +34,8 @@ const body = z.object({
   dateOfBirth: z.iso.date('Enter your date of birth').optional(),
   /** For the lab's reference ranges. Asked when the member's gender isn't male or female. */
   sex: z.enum(['male', 'female']).optional(),
+  /** The prescription the tests were ordered on, when booked from one. */
+  prescriptionId: z.string().regex(/^[a-f\d]{24}$/i, 'Invalid prescription').optional(),
 });
 
 /**
@@ -52,14 +54,27 @@ export const POST = handle(async (request: Request) => {
 
   const gender = member.gender;
   const sex = input.sex ?? (gender === 'male' || gender === 'female' ? gender : undefined);
-  if (!sex) throw new HttpError(400, 'Choose the sex the lab should use');
+  if (!sex) throw new HttpError(400, 'Choose your gender');
+
+  // Only the member's own prescription links a booking to a doctor.
+  const prescription = input.prescriptionId
+    ? await PrescriptionModel.findOne({ _id: input.prescriptionId, member: member._id }).select(
+        'consult',
+      )
+    : null;
+  if (input.prescriptionId && !prescription) {
+    throw new HttpError(404, 'That prescription no longer exists');
+  }
 
   const pod = (await listPods()).find((item) => item.id === input.podId);
   if (!pod) throw new HttpError(400, 'That pod isn’t taking bookings right now');
   const tests = await selectTests(input.profileIds, input.testCodes);
 
-  if (input.dateOfBirth) {
-    member.dateOfBirth = dateOfBirth;
+  // Saved to the profile so they're not asked again: the date of birth, and the gender when the
+  // profile has none. A gender of "other" stays as the member chose; theirs is for the lab only.
+  if (input.dateOfBirth || (input.sex && !member.gender)) {
+    if (input.dateOfBirth) member.dateOfBirth = dateOfBirth;
+    if (input.sex && !member.gender) member.gender = input.sex;
     await member.save();
   }
 
@@ -72,6 +87,11 @@ export const POST = handle(async (request: Request) => {
     tests: tests.allTests,
     sex,
     mobilab: { bookingId: newBookingId() },
+    // So the results can flow back to the doctor who ordered them.
+    ...(prescription && {
+      prescription: prescription._id,
+      orderedByConsult: prescription.consult ?? undefined,
+    }),
   });
 
   const reference = booking.mobilab!.bookingId;

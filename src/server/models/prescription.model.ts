@@ -16,6 +16,25 @@ const prescriptionSchema = new mongoose.Schema(
     source: String, // "typed"
     /** One line per medicine or instruction, as the doctor wrote it. */
     items: [String],
+    /**
+     * Tests the doctor ordered, from the pod catalog: a health check (`kind: 'profile'`, its `code`
+     * the same id the pod finder uses, e.g. "profile-4") or a single test (`kind: 'test'`, its
+     * Mobilab code). `tests` lists the test codes either one covers.
+     */
+    tests: {
+      type: [
+        new mongoose.Schema(
+          {
+            kind: { type: String, enum: ['profile', 'test'] },
+            code: String,
+            name: String,
+            tests: [String],
+          },
+          { _id: false },
+        ),
+      ],
+      default: undefined,
+    },
     signedAt: Date,
   },
   { timestamps: true },

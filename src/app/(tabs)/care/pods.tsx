@@ -9,7 +9,7 @@ import { SkeletonList } from '@/components/ui/skeleton';
 import { Colors, Fonts, Gutter, Radius, Shadows, Spacing } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-context';
 import { BookingConfirmed } from '@/features/care/booking-confirmed';
-import { LabDetails, parseDateInput, type LabSex } from '@/features/care/lab-details';
+import { LabDetails, parseDateInput, toDateInput, type LabSex } from '@/features/care/lab-details';
 import { PodBooking } from '@/features/care/pod-booking';
 import { PodMap } from '@/features/care/pod-map';
 import { sampleCare } from '@/features/care/sample-data';
@@ -42,15 +42,25 @@ function matchPods(pods: Pod[], query: string) {
 const toggle = (list: string[], code: string) =>
   list.includes(code) ? list.filter((item) => item !== code) : [...list, code];
 
+/** "a,b" -> ["a", "b"]; nothing -> []. */
+const listParam = (value?: string) => (value ? value.split(',').filter(Boolean) : []);
+
 /**
  * Pod finder: pods on a map, the tests they run, and booking. Walk-in, so no slots: the booking
  * goes into the pod's queue and the member is tested when they arrive. Opened with
- * `?profile=<id>` from a health check on the Care tab, that check starts chosen.
+ * `?profile=<id>` from a health check on the Care tab, that check starts chosen; from a
+ * prescription, `?rx=<id>&profiles=a,b&tests=x,y` starts with the doctor's tests chosen and links
+ * the booking to the prescription.
  */
 export default function PodsScreen() {
   const { userLocation } = sampleCare;
   const { member, refreshMember } = useAuth();
-  const { profile } = useLocalSearchParams<{ profile?: string }>();
+  const params = useLocalSearchParams<{
+    profile?: string;
+    profiles?: string;
+    tests?: string;
+    rx?: string;
+  }>();
   const { catalog, error, refresh } = usePodCatalog();
   const pods = catalog?.pods ?? [];
   const insets = useSafeAreaInsets();
@@ -58,9 +68,13 @@ export default function PodsScreen() {
 
   const [query, setQuery] = useState('');
   const [chosenPodId, setPodId] = useState<string>();
-  const [profileIds, setProfileIds] = useState<string[]>(profile ? [profile] : []);
-  const [testCodes, setTestCodes] = useState<string[]>([]);
+  const [profileIds, setProfileIds] = useState<string[]>(() => [
+    ...new Set([...listParam(params.profile), ...listParam(params.profiles)]),
+  ]);
+  const [testCodes, setTestCodes] = useState<string[]>(() => listParam(params.tests));
   const [dateOfBirth, setDateOfBirth] = useState('');
+  // Correcting a date of birth already on file, from the details section.
+  const [changingBirth, setChangingBirth] = useState(false);
   const [sex, setSex] = useState<LabSex>();
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [booking, setBooking] = useState(false);
@@ -69,7 +83,7 @@ export default function PodsScreen() {
   const scroll = useRef<ScrollView>(null);
 
   // Asked once: what the lab needs that the profile doesn't have.
-  const askDateOfBirth = !member?.dateOfBirth;
+  const askDateOfBirth = !member?.dateOfBirth || changingBirth;
   const askSex = member?.gender !== 'male' && member?.gender !== 'female';
 
   // The map and the list show the pods the search matches.
@@ -85,7 +99,7 @@ export default function PodsScreen() {
   const book = async (podToBook: string) => {
     const birth = askDateOfBirth ? parseDateInput(dateOfBirth) : undefined;
     if (askDateOfBirth && !birth) return setDetailsError('Enter your date of birth as DD/MM/YYYY');
-    if (askSex && !sex) return setDetailsError('Choose female or male for the lab');
+    if (askSex && !sex) return setDetailsError('Choose your gender');
     setDetailsError(null);
     setBookError(null);
     setBooking(true);
@@ -94,8 +108,15 @@ export default function PodsScreen() {
         method: 'POST',
         body: {
           podId: podToBook,
-          profileIds,
-          testCodes: testCodes.filter((code) => !covered.has(code)),
+          // A check or test the doctor ordered that the pods no longer offer can't be sent.
+          profileIds: profileIds.filter((id) =>
+            (catalog?.profiles ?? []).some((item) => item.id === id),
+          ),
+          testCodes: testCodes.filter(
+            (code) =>
+              !covered.has(code) && (catalog?.tests ?? []).some((test) => test.code === code),
+          ),
+          ...(params.rx && { prescriptionId: params.rx }),
           ...(birth && { dateOfBirth: birth }),
           ...(askSex && { sex }),
         },
@@ -103,8 +124,9 @@ export default function PodsScreen() {
       setConfirmed(result.booking);
       if (member) void refreshPodBookings(member.id);
       scroll.current?.scrollTo({ y: 0, animated: true });
-      // The date of birth is on the profile now; don't ask again.
-      if (birth) void refreshMember();
+      // The date of birth, and a gender the profile lacked, are on the profile now; don't ask again.
+      setChangingBirth(false);
+      if (birth || (askSex && !member?.gender)) void refreshMember();
     } catch (e) {
       setBookError(e instanceof Error ? e.message : 'Could not book. Try again.');
     } finally {
@@ -218,6 +240,11 @@ export default function PodsScreen() {
               />
               <LabDetails
                 askDateOfBirth={askDateOfBirth}
+                savedDateOfBirth={member?.dateOfBirth}
+                onChangeSavedDateOfBirth={() => {
+                  if (member?.dateOfBirth) setDateOfBirth(toDateInput(member.dateOfBirth));
+                  setChangingBirth(true);
+                }}
                 askSex={askSex}
                 dateOfBirth={dateOfBirth}
                 sex={sex}

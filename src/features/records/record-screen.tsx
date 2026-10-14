@@ -31,6 +31,7 @@ import {
   type PrescriptionRecord,
   type RecordSummary,
 } from '@/features/records/types';
+import { ScreeningDetail } from '@/features/records/screening-detail';
 import { VaccineDetail } from '@/features/vaccines/vaccine-detail';
 import { api } from '@/services/api';
 
@@ -138,8 +139,8 @@ function Provenance({ record }: { record: PrescriptionRecord }) {
 }
 
 /**
- * One record opened up: a prescription with every line on it, or a vaccine with its doses. Used
- * by the Records tab and, read-only, by a family member's page.
+ * One record opened up: a prescription with every line on it, a vaccine with its doses, or a pod
+ * screening's readings. Used by the Records tab and, read-only, by a family member's page.
  */
 export function RecordScreen({
   endpoint,
@@ -211,9 +212,16 @@ export function RecordScreen({
               {record.title}
             </ThemedText>
             {record.type === 'prescription' ? <Provenance record={record} /> : null}
+            {record.type === 'pod_screening' ? (
+              <ThemedText style={styles.provenance} numberOfLines={2}>
+                {record.screening.provider} · {formatDate(record.date)}
+              </ThemedText>
+            ) : null}
           </View>
 
-          {record.type === 'vaccination' ? (
+          {record.type === 'pod_screening' ? (
+            <ScreeningDetail record={record} readOnly={readOnly} />
+          ) : record.type === 'vaccination' ? (
             <VaccineDetail
               vaccination={record.vaccination}
               readOnly={readOnly}

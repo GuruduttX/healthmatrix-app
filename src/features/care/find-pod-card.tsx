@@ -7,10 +7,13 @@ import { ThemedText } from '@/components/themed-text';
 import { Chevron, listText } from '@/components/ui/list';
 import { Colors, Fonts, Gradients, Radius, Shadows, Spacing } from '@/constants/theme';
 
-import { type Pod } from './sample-data';
+import { type Pod } from './types';
 
 type FindPodCardProps = {
-  pods: Pod[];
+  /** Null while loading; empty when none could be loaded. */
+  pods: Pod[] | null;
+  /** Why the pods couldn't be loaded, shown in place of "Finding pods…". */
+  error?: string | null;
   onPress?: () => void;
 };
 
@@ -19,17 +22,18 @@ const DISH = 52;
 const POD_ASPECT = 274 / 420;
 
 /** Entry point on the Care tab: opens the pod finder with the map, slots and booking. */
-export function FindPodCard({ pods, onPress }: FindPodCardProps) {
-  const nearest = pods.length ? pods.reduce((a, b) => (b.distanceKm < a.distanceKm ? b : a)) : null;
+export function FindPodCard({ pods, error, onPress }: FindPodCardProps) {
+  // Pods have no coordinates yet, so there is no nearest one: lead with the first.
+  const first = pods?.[0];
+  const count = pods?.length ?? 0;
+  const where = first ? [first.name, first.city].filter(Boolean).join(' · ') : null;
 
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={
-        nearest
-          ? `Find a pod near you. ${pods.length} nearby, the closest is ${nearest.name}, ${nearest.distanceKm} km away`
-          : 'Find a pod near you'
+        where ? `Find a pod near you. ${count} to choose from, including ${where}` : 'Find a pod near you'
       }
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
       {/* Cloudspital's Arc pod, as on Home's Book pod button (assets/images/home/3d/LICENSE). */}
@@ -57,13 +61,15 @@ export function FindPodCard({ pods, onPress }: FindPodCardProps) {
           Screening pods near you
         </ThemedText>
         <ThemedText style={listText.subtitle} numberOfLines={1}>
-          {nearest ? `${nearest.name} · ${nearest.hours}` : 'See pods on the map and book a slot'}
+          {pods === null
+            ? (error ?? 'Finding pods…')
+            : (where ?? 'See pods on the map and book a slot')}
         </ThemedText>
-        {nearest ? (
+        {count ? (
           <View style={styles.distance}>
             <MapPin size={12} color={Colors.textFaint} strokeWidth={2.4} />
             <ThemedText style={styles.distanceText} numberOfLines={1}>
-              {nearest.distanceKm} km · {pods.length} {pods.length === 1 ? 'pod' : 'pods'} nearby
+              {count} {count === 1 ? 'pod' : 'pods'} to choose from
             </ThemedText>
           </View>
         ) : null}

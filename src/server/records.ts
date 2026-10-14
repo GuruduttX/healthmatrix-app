@@ -2,24 +2,30 @@ import { type Types } from 'mongoose';
 
 import { displayName } from './doctors';
 import { HttpError } from './http';
+import { getMobilabReportUrl } from './mobilab';
 import {
+  BookingModel,
   ConsultModel,
   DoctorModel,
+  HealthRecordModel,
   PrescriptionModel,
   VaccinationModel,
   type Doctor,
+  type HealthRecord,
   type Prescription,
 } from './models';
 import { mongoose } from './mongoose';
 import { istDate, toVaccinationJson, type VaccinationDoc } from './vaccinations';
 
-// The records timeline. Each kind of record lives in its own collection, written by the doctor
-// app; this file reads them and shapes them for the app. Prescriptions and vaccines for now;
-// reports join when their collection exists.
+// The records timeline. Each kind of record lives in its own collection: prescriptions and
+// vaccines written by the doctor app, pod screenings filed from Mobilab's results
+// (`server/pod-bookings.ts`). This file reads them and shapes them for the app.
 
 type Id = Types.ObjectId;
 type DoctorDoc = Doctor & { _id: Id };
 type PrescriptionDoc = Prescription & { _id: Id; createdAt?: Date };
+type ScreeningDoc = HealthRecord & { _id: Id };
+type ScreeningValue = NonNullable<HealthRecord['values']>[number];
 
 /** Drafts and withdrawn prescriptions are the doctor's business, not the member's. */
 const HIDDEN_STATUSES = ['draft', 'cancelled', 'void', 'deleted'];
@@ -116,13 +122,111 @@ function vaccinationSummary({ vaccination, doctor }: LoadedVaccination) {
   };
 }
 
+const loadScreenings = (memberId: Id, only?: Id) =>
+  HealthRecordModel.find({
+    member: memberId,
+    type: 'pod_screening',
+    ...(only && { _id: only }),
+  }).lean<ScreeningDoc[]>();
+
+/** A value outside its range, or every value inside, as the row's one flag. */
+function screeningSummary(record: ScreeningDoc) {
+  const values = record.values ?? [];
+  const outside = values.filter((value) => value.flag && value.flag !== 'normal').length;
+  const where = record.provider ?? 'Arc pod';
+  return {
+    id: String(record._id),
+    type: 'pod_screening' as const,
+    title: record.title,
+    subtitle: `${where} · ${values.length} ${values.length === 1 ? 'test' : 'tests'}${record.isSample ? ' · sample values' : ''}`,
+    date: istDate(record.recordedAt),
+    at: record.recordedAt.toISOString(),
+    tag: outside
+      ? { label: `${outside} outside range`, tone: 'warning' as const }
+      : { label: 'All in range', tone: 'success' as const },
+    keywords: [where, 'pod', ...values.map((value) => value.name)].join(' '),
+  };
+}
+
+/** 0.2900001 -> "0.29" */
+const num = (n: number) => String(Number(n.toFixed(2)));
+
+/**
+ * A value as the app's `ValueRow` draws it (`RecordValue` in `features/records`): the range in
+ * words, a flag, and a bar with the normal range in the middle, low below it and high above.
+ */
+function toRecordValue(value: ScreeningValue, index: number) {
+  const low = value.referenceRange?.low ?? undefined;
+  const high = value.referenceRange?.high ?? undefined;
+  const unit = value.unit ? ` ${value.unit}` : '';
+  const range =
+    low !== undefined && high !== undefined
+      ? `Normal ${num(low)}–${num(high)}${unit}`
+      : high !== undefined
+        ? `Normal up to ${num(high)}${unit}`
+        : low !== undefined
+          ? `Normal from ${num(low)}${unit}`
+          : value.referenceRange?.text
+            ? `Normal: ${value.referenceRange.text}`
+            : 'No reference range from the lab';
+  const status =
+    value.flag === 'high'
+      ? { label: 'High', tone: 'danger' as const }
+      : value.flag === 'low'
+        ? { label: 'Low', tone: 'warning' as const }
+        : { label: 'Normal', tone: 'success' as const };
+
+  // The bar shows half the normal range's width again on each side, and always reaches the value.
+  const from = low ?? 0;
+  const to = high ?? Math.max(from * 2, value.value * 1.2, 1);
+  const width = to - from || to || 1;
+  const scaleMin = low !== undefined && low > 0 ? Math.max(0, low - width / 2) : from;
+  const top = Math.max(to + width / 2, value.value * 1.05);
+  const bands =
+    low === undefined && high === undefined
+      ? [{ upTo: top, tone: 'success' as const }]
+      : [
+          ...(low !== undefined && low > scaleMin ? [{ upTo: low, tone: 'warning' as const }] : []),
+          { upTo: to, tone: 'success' as const },
+          ...(high !== undefined ? [{ upTo: top, tone: 'danger' as const }] : []),
+        ];
+
+  return {
+    id: `${value.code ?? value.name}-${index}`,
+    name: value.name,
+    value: value.value,
+    unit: value.unit ?? '',
+    range,
+    status,
+    scaleMin,
+    bands,
+  };
+}
+
+/** The values under each health check they were booked with, single tests last. */
+function screeningGroups(values: ScreeningValue[]) {
+  const named = [...new Set(values.map((value) => value.group).filter(Boolean))] as string[];
+  const groups = named.map((title) => ({
+    title,
+    values: values.flatMap((value, i) => (value.group === title ? [toRecordValue(value, i)] : [])),
+  }));
+  const rest = values.flatMap((value, i) => (value.group ? [] : [toRecordValue(value, i)]));
+  if (rest.length) groups.push({ title: named.length ? 'Other tests' : 'Tests', values: rest });
+  return groups;
+}
+
 /** The member's timeline, newest first. */
 export async function listRecords(memberId: Id) {
-  const [prescriptions, vaccinations] = await Promise.all([
+  const [prescriptions, vaccinations, screenings] = await Promise.all([
     loadPrescriptions(memberId),
     loadVaccinations(memberId),
+    loadScreenings(memberId),
   ]);
-  const rows = [...prescriptions.map(prescriptionSummary), ...vaccinations.map(vaccinationSummary)];
+  const rows = [
+    ...prescriptions.map(prescriptionSummary),
+    ...vaccinations.map(vaccinationSummary),
+    ...screenings.map(screeningSummary),
+  ];
   return rows.sort((a, b) => b.at.localeCompare(a.at));
 }
 
@@ -167,5 +271,35 @@ export async function getRecord(memberId: Id, id: string) {
     };
   }
 
+  const [screening] = await loadScreenings(memberId, _id);
+  if (screening) {
+    return {
+      ...screeningSummary(screening),
+      screening: {
+        provider: screening.provider ?? 'Arc pod',
+        groups: screeningGroups(screening.values ?? []),
+        remarks: screening.remarks ?? undefined,
+        disclaimers: screening.disclaimers ?? [],
+        isSample: Boolean(screening.isSample),
+        /** The PDF opens from `/records/<id>/report`. */
+        hasReport: Boolean(screening.booking),
+      },
+    };
+  }
+
   throw new HttpError(404, 'This record no longer exists');
+}
+
+/** A fresh link to a pod screening's PDF report; Mobilab's links last about an hour. */
+export async function screeningReportUrl(memberId: Id, id: string) {
+  if (!/^[a-f\d]{24}$/i.test(id)) throw new HttpError(404, 'This record no longer exists');
+  const record = await HealthRecordModel.findOne({ _id: id, member: memberId, type: 'pod_screening' })
+    .select('booking')
+    .lean<{ booking?: Id }>();
+  const booking = record?.booking && (await BookingModel.findById(record.booking).select('mobilab'));
+  const reference = booking ? booking.mobilab?.bookingId : undefined;
+  if (!reference) throw new HttpError(404, 'This record has no report');
+  const url = await getMobilabReportUrl(reference);
+  if (!url) throw new HttpError(404, 'The report isn’t ready yet. Try again in a little while.');
+  return url;
 }

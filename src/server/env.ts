@@ -15,6 +15,10 @@ const schema = z.object({
   /** A Twilio API key for video consults (see `server/video.ts`), with TWILIO_ACCOUNT_SID. */
   TWILIO_API_KEY_SID: z.string().regex(/^SK\w{32}$/, 'must look like SK…').optional(),
   TWILIO_API_KEY_SECRET: z.string().min(1).optional(),
+  /** Mobilab runs the tests at the pods (see `server/mobilab.ts`). Staging until production is set up. */
+  MOBILAB_API_URL: z.url().default('https://api-staging.mobilab.ai'),
+  /** A Mobilab API key, shown once when issued. Without it the pod screens say pods aren't set up. */
+  MOBILAB_API_KEY: z.string().regex(/^(mlab|test)_\w+$/, 'must look like mlab_…').optional(),
 });
 
 let cached: z.infer<typeof schema> | undefined;

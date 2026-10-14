@@ -1,15 +1,16 @@
-import { Check } from 'lucide-react-native';
+import { Check, DoorOpen } from 'lucide-react-native';
+import { type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ArtDish } from '@/components/ui/dish';
 import { Button } from '@/components/ui/button';
-import { Chip } from '@/components/ui/chip';
-import { Divided, LIST_LEAD, listText } from '@/components/ui/list';
+import { IconTile } from '@/components/ui/icon-tile';
+import { Divided, LIST_LEAD, ListCard, ListRow, listText } from '@/components/ui/list';
 import { Section } from '@/components/ui/section';
 import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
 
-import { sampleCare, type Pod } from './sample-data';
+import { type Pod } from './types';
 
 /** The Arc pod from the HealthMatrix brochure; see assets/images/home/3d/LICENSE. */
 const POD_ART = require('@/assets/images/home/3d/pod.png');
@@ -18,26 +19,33 @@ const RADIO = 22;
 
 type PodBookingProps = {
   pods: Pod[];
-  booking: (typeof sampleCare)['booking'];
   podId?: string;
-  slot?: string;
+  /** How many tests are chosen, for the Book button. */
+  testCount: number;
   onSelectPod: (id: string) => void;
-  onSelectSlot: (slot: string) => void;
-  onBook?: (pod: Pod, slot: string) => void;
+  onBook: (pod: Pod) => void;
+  /** A booking is being sent. */
+  booking?: boolean;
+  /** Why the last try failed, shown over the button. */
+  error?: string | null;
+  /** The test picker and any details the lab still needs, between the pods and Book. */
+  children?: ReactNode;
 };
 
 /**
- * Pick a nearby pod, then a slot for the test that is due: the pods as rows on one card (raised,
- * over the map), the day's slots on the page under it, and Book.
+ * Pick a pod, then the tests, and Book: the pods as rows on one card (raised, over the map), the
+ * tests on the page under it. Walk-in: Mobilab bookings have no time, so there are no slots; the
+ * booking waits in the pod's queue until the member arrives.
  */
 export function PodBooking({
   pods,
-  booking,
   podId,
-  slot,
+  testCount,
   onSelectPod,
-  onSelectSlot,
   onBook,
+  booking = false,
+  error,
+  children,
 }: PodBookingProps) {
   const pod = pods.find((item) => item.id === podId);
 
@@ -49,7 +57,7 @@ export function PodBooking({
             Pods near you
           </ThemedText>
           <ThemedText style={styles.caption}>
-            Pick a pod, then a slot for your {booking.test} test.
+            Pick a pod, then the tests you want.
           </ThemedText>
         </View>
         <View style={styles.rule} />
@@ -58,7 +66,6 @@ export function PodBooking({
           <Divided>
             {pods.map((item) => {
               const selected = item.id === podId;
-              const hours = item.hours.charAt(0).toLowerCase() + item.hours.slice(1);
               return (
                 <Pressable
                   key={item.id}
@@ -76,13 +83,12 @@ export function PodBooking({
                     <ThemedText style={listText.title} numberOfLines={1}>
                       {item.name}
                     </ThemedText>
-                    <ThemedText style={listText.subtitle} numberOfLines={1}>
-                      {item.tier}, {hours}
-                    </ThemedText>
+                    {item.address ? (
+                      <ThemedText style={listText.subtitle} numberOfLines={1}>
+                        {item.address}
+                      </ThemedText>
+                    ) : null}
                   </View>
-                  <ThemedText style={[styles.distance, selected && styles.distanceSelected]}>
-                    {item.distanceKm} km
-                  </ThemedText>
                   {/* Chosen: solid ink with a tick, like every other choice in the app. */}
                   <View style={[styles.radio, selected && styles.radioSelected]}>
                     {selected ? <Check size={13} color={Colors.onInk} strokeWidth={3} /> : null}
@@ -94,24 +100,36 @@ export function PodBooking({
         </View>
       </View>
 
-      {pod && slot ? (
+      {pod ? children : null}
+
+      {pod ? (
         <>
-          <Section title={`${booking.day} slots`} caption={`At ${pod.name}`} index={1}>
-            <View style={styles.slotRow}>
-              {booking.slots.map((time) => (
-                <Chip
-                  key={time}
-                  label={time}
-                  selected={time === slot}
-                  onPress={() => onSelectSlot(time)}
-                />
-              ))}
-            </View>
+          <Section index={4}>
+            <ListCard>
+              <ListRow
+                leading={<IconTile icon={DoorOpen} tone="neutral" />}
+                title="No appointment needed"
+                subtitle={`Walk in to ${pod.name} when it’s open and give the operator your phone number.`}
+              />
+            </ListCard>
           </Section>
-          <Button
-            label={`Book ${booking.test} at ${slot}`}
-            onPress={onBook ? () => onBook(pod, slot) : undefined}
-          />
+          <View style={styles.footer}>
+            {error ? (
+              <ThemedText style={styles.error} accessibilityRole="alert">
+                {error}
+              </ThemedText>
+            ) : null}
+            <Button
+              label={
+                testCount
+                  ? `Book ${testCount} ${testCount === 1 ? 'test' : 'tests'}`
+                  : 'Choose a test to book'
+              }
+              disabled={!testCount}
+              loading={booking}
+              onPress={() => onBook(pod)}
+            />
+          </View>
         </>
       ) : null}
     </View>
@@ -171,17 +189,6 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.6,
   },
-  distance: {
-    fontFamily: Fonts.semibold,
-    fontSize: 13,
-    lineHeight: 17,
-    color: Colors.textFaint,
-    fontVariant: ['tabular-nums'],
-  },
-  distanceSelected: {
-    fontFamily: Fonts.bold,
-    color: Colors.text,
-  },
   radio: {
     width: RADIO,
     height: RADIO,
@@ -196,9 +203,14 @@ const styles = StyleSheet.create({
     borderColor: Colors.text,
     backgroundColor: Colors.text,
   },
-  slotRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  footer: {
     gap: Spacing.two,
+  },
+  error: {
+    fontFamily: Fonts.medium,
+    fontSize: 13.5,
+    lineHeight: 19,
+    color: Colors.high,
+    textAlign: 'center',
   },
 });

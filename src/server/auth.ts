@@ -92,6 +92,8 @@ export function toMemberJson(member: Member & { _id: unknown }) {
     phone: member.phone,
     email: member.email ?? undefined,
     gender: member.gender ?? undefined,
+    /** "1990-06-15" */
+    dateOfBirth: member.dateOfBirth?.toISOString().slice(0, 10),
     /** Relative to the API base URL. */
     photoUrl: member.photoKey ? `/photos/${member.photoKey}` : undefined,
     bloodGroup: member.bloodGroup ?? undefined,

@@ -6,8 +6,11 @@ import { Section } from '@/components/ui/section';
 import { useAuth } from '@/features/auth/auth-context';
 import { DoctorHero } from '@/features/care/doctor-hero';
 import { FindPodCard } from '@/features/care/find-pod-card';
-import { sampleCare } from '@/features/care/sample-data';
+import { HealthChecksCard } from '@/features/care/health-checks-card';
+import { PodBookingsCard } from '@/features/care/pod-bookings-card';
 import { SpecialtyList } from '@/features/care/specialty-list';
+import { refreshPodBookings, usePodBookings } from '@/features/care/use-pod-bookings';
+import { podCatalogLoaded, usePodCatalog } from '@/features/care/use-pod-catalog';
 import { ConsultsSection } from '@/features/doctors/consults-section';
 import { refreshAppointments } from '@/features/doctors/use-appointments';
 import { refreshConsultRequests } from '@/features/doctors/use-consult-requests';
@@ -21,7 +24,8 @@ import { VaccinesCard } from '@/features/vaccines/vaccines-card';
 const openPods = () => router.push('/care/pods');
 
 export default function CareScreen() {
-  const { pods } = sampleCare;
+  const { catalog, error: podError, refresh: refreshPods } = usePodCatalog();
+  const { bookings: podBookings } = usePodBookings();
   const memberId = useAuth().member?.id;
   const { featured, refresh: refreshFeatured } = useFeaturedDoctor();
   const { consults: pastConsults, refresh: refreshPast } = usePastConsults();
@@ -36,6 +40,8 @@ export default function CareScreen() {
       refreshPast(),
       refreshReminders(memberId),
       refreshVaccinations(memberId),
+      refreshPods(),
+      refreshPodBookings(memberId),
     ]);
   };
 
@@ -44,8 +50,15 @@ export default function CareScreen() {
   useFocusEffect(
     useCallback(() => {
       if (!memberId) return;
-      void Promise.allSettled([refreshAppointments(memberId), refreshConsultRequests(memberId)]);
-    }, [memberId]),
+      // Pod results come in while the member is away too.
+      void Promise.allSettled([
+        refreshAppointments(memberId),
+        refreshConsultRequests(memberId),
+        refreshPodBookings(memberId),
+      ]);
+      // Pods that failed to load get another try each time Care comes back into view.
+      if (!podCatalogLoaded()) void refreshPods();
+    }, [memberId, refreshPods]),
   );
 
   // The page puts 20pt between sections, as on Home. Consults and vaccines hide themselves when
@@ -67,18 +80,22 @@ export default function CareScreen() {
       </Section>
 
       <Section title="Pods near you" actionLabel="Map" onAction={openPods} index={3}>
-        <FindPodCard pods={pods} onPress={openPods} />
+        <FindPodCard pods={catalog?.pods ?? null} error={podError} onPress={openPods} />
       </Section>
+
+      <PodBookingsCard bookings={podBookings} index={4} />
+
+      <HealthChecksCard profiles={catalog?.profiles ?? null} failed={!!podError} index={5} />
 
       <Section
         title="Medicines today"
         actionLabel="Manage"
         onAction={() => router.push('/care/medicines')}
-        index={4}>
+        index={6}>
         <TodayMedicinesCard />
       </Section>
 
-      <VaccinesCard index={5} />
+      <VaccinesCard index={7} />
     </Screen>
   );
 }

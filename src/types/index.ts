@@ -17,6 +17,8 @@ export type Member = {
   phone: string;
   email?: string;
   gender?: Gender;
+  /** "1990-06-15" */
+  dateOfBirth?: string;
   /** Relative to the API base URL; resolve it with `apiUrl`. */
   photoUrl?: string;
   bloodGroup?: BloodGroup;

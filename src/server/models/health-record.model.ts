@@ -11,6 +11,10 @@ const valueSchema = new mongoose.Schema(
     unit: String,
     referenceRange: { low: Number, high: Number, text: String },
     flag: { type: String, enum: READING_FLAGS },
+    /** How it was measured, e.g. "GOD-POD". */
+    method: String,
+    /** The health check it was booked under, e.g. "Liver Function Test"; unset for a single test. */
+    group: String,
   },
   { _id: false },
 );
@@ -32,6 +36,14 @@ const healthRecordSchema = new mongoose.Schema(
     files: [{ url: String, mimeType: String, pages: Number }],
     values: [valueSchema],
 
+    /** A pod screening's booking; its Mobilab reference fetches the PDF report on demand. */
+    booking: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking' },
+    /** The pathologist's remarks and the lab report's disclaimers. */
+    remarks: String,
+    disclaimers: { type: [String], default: undefined },
+    /** Made by a Mobilab test-mode key: synthetic values, never a real reading. */
+    isSample: Boolean,
+
     /** Ekaay's plain-language note on this record. */
     ekaayNote: String,
   },
@@ -39,6 +51,10 @@ const healthRecordSchema = new mongoose.Schema(
 );
 
 healthRecordSchema.index({ member: 1, recordedAt: -1 });
+healthRecordSchema.index(
+  { booking: 1 },
+  { unique: true, partialFilterExpression: { booking: { $exists: true } } },
+);
 healthRecordSchema.index({ member: 1, 'values.code': 1, recordedAt: 1 });
 
 export type HealthRecord = InferSchemaType<typeof healthRecordSchema>;

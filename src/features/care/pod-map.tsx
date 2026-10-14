@@ -7,7 +7,11 @@ import Svg, { Line, Path } from 'react-native-svg';
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Fonts, Gradients, Radius, Shadows } from '@/constants/theme';
 
-import { type MapPoint, type Pod } from './sample-data';
+import { MAP_SPOTS, type MapPoint } from './sample-data';
+import { type Pod } from './types';
+
+/** A pod with its spot on the illustration. */
+type Pin = Pod & { map: MapPoint };
 
 type PodMapProps = {
   pods: Pod[];
@@ -52,7 +56,7 @@ const ROADS = { horizontal: [30, 62], vertical: [30, 62] };
  * The chosen pod's name goes under its pin, where it covers the least, unless another pin sits
  * just below; then it goes above. Numbers are percentages of the map, like the pins'.
  */
-function labelBelow(pod: Pod, pods: Pod[]) {
+function labelBelow(pod: Pin, pods: Pin[]) {
   return !pods.some(
     (other) =>
       other.id !== pod.id &&
@@ -67,10 +71,11 @@ const PIN_SELECTED = 46;
 const HIT = 48;
 
 /**
- * Stylised neighbourhood map with a pin per pod. An illustration, not a live
- * map: positions come from the sample data until the pods API returns coordinates.
+ * Stylised neighbourhood map with a pin per pod. An illustration, not a live map: pods have no
+ * coordinates yet, so the first few sit on fixed spots and the rest are only in the list.
  */
-export function PodMap({ pods, selectedId, user, inset, onSelect }: PodMapProps) {
+export function PodMap({ pods: all, selectedId, user, inset, onSelect }: PodMapProps) {
+  const pods: Pin[] = all.slice(0, MAP_SPOTS.length).map((pod, i) => ({ ...pod, map: MAP_SPOTS[i]! }));
   const selected = pods.find((pod) => pod.id === selectedId);
 
   return (
@@ -131,7 +136,7 @@ export function PodMap({ pods, selectedId, user, inset, onSelect }: PodMapProps)
               key={pod.id}
               onPress={() => onSelect(pod.id)}
               accessibilityRole="button"
-              accessibilityLabel={`${pod.name}, ${pod.distanceKm} km`}
+              accessibilityLabel={pod.city ? `${pod.name}, ${pod.city}` : pod.name}
               accessibilityState={{ selected: isSelected }}
               style={[
                 styles.pinHit,
@@ -150,7 +155,7 @@ export function PodMap({ pods, selectedId, user, inset, onSelect }: PodMapProps)
                     ]}>
                     <View style={styles.label}>
                       <ThemedText style={styles.labelText} numberOfLines={1}>
-                        {pod.name} · {pod.distanceKm} km
+                        {pod.name}
                       </ThemedText>
                     </View>
                   </View>

@@ -3,6 +3,8 @@ import { type Specialty } from '@/features/doctors/types';
 import { type VaccinationRecord } from '@/features/vaccines/types';
 import { type RecordType } from '@/types';
 
+import { type RecordValue } from './record-details';
+
 /** One row on the timeline. Matches `summary` in `src/server/records.ts`. */
 export type RecordSummary = {
   id: string;
@@ -37,5 +39,21 @@ export type PrescriptionRecord = RecordSummary & {
 /** A vaccine opened up. */
 export type VaccineRecord = RecordSummary & { type: 'vaccination'; vaccination: VaccinationRecord };
 
-/** What `/records/<id>` returns: a prescription or a vaccine. */
-export type OpenRecord = PrescriptionRecord | VaccineRecord;
+/** A pod screening opened up: Mobilab's readings, grouped by the health check they came with. */
+export type ScreeningRecord = RecordSummary & {
+  type: 'pod_screening';
+  screening: {
+    provider: string;
+    groups: { title: string; values: RecordValue[] }[];
+    /** The pathologist's remarks on the booking. */
+    remarks?: string;
+    disclaimers: string[];
+    /** From a Mobilab test booking: synthetic values, not a real reading. */
+    isSample: boolean;
+    /** The PDF opens from `/records/<id>/report`. */
+    hasReport: boolean;
+  };
+};
+
+/** What `/records/<id>` returns: a prescription, a vaccine or a pod screening. */
+export type OpenRecord = PrescriptionRecord | VaccineRecord | ScreeningRecord;

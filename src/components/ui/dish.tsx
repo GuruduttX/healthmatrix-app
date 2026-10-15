@@ -3,7 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { type ReactNode } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { Gradients, Shadows } from '@/constants/theme';
+import { Glass, Gradients } from '@/constants/theme';
 
 import { LIST_LEAD } from './list';
 
@@ -22,9 +22,10 @@ type DishProps = {
 };
 
 /**
- * A round tinted dish, the lead shape on every card: one shared tint, never a colour per item. A
- * plain View rounds and clips; the tint is a layer, and the content one more above it, so it
- * paints over the gradient on web too. The shadow, when lifted, sits on an outer wrapper.
+ * A round dish of glass, the lead shape on every card: one shared tint, never a colour per item,
+ * with a bright rim. A plain View rounds and clips; the tint is a layer, and the content one more
+ * above it, so it paints over the gradient on web too. The lift, when lifted, sits on an outer
+ * wrapper.
  */
 export function Dish({ size = LIST_LEAD, tint = 'quiet', lifted = false, style, children }: DishProps) {
   const round = { width: size, height: size, borderRadius: size / 2 };
@@ -82,13 +83,16 @@ export function ArtDish({
 const styles = StyleSheet.create({
   clip: {
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Glass.rim,
+    boxShadow: Glass.shadowFlat,
   },
   center: {
     alignItems: 'center',
     justifyContent: 'center',
   },
   lifted: {
-    boxShadow: Shadows.dish,
+    boxShadow: Glass.shadowSmall,
   },
   faded: {
     opacity: 0.45,

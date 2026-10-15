@@ -2,7 +2,9 @@ import { type LucideIcon } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Fonts, Radius, Shadows } from '@/constants/theme';
+import { Colors, Fonts, Radius } from '@/constants/theme';
+
+import { glassSurface } from './glass';
 
 type ChipProps = {
   label: string;
@@ -15,8 +17,8 @@ type ChipProps = {
 };
 
 /**
- * Pill used for filters and time slots: white with a hairline on the warm page, solid ink once
- * chosen, so the choice reads without adding more orange.
+ * Pill used for filters and time slots: a pill of glass, solid ink once chosen, so the choice
+ * reads without adding more orange.
  */
 export function Chip({
   label,
@@ -36,6 +38,7 @@ export function Chip({
       accessibilityState={{ selected, disabled }}
       accessibilityLabel={count ? `${label}, ${count}` : undefined}
       style={({ pressed }) => [
+        glassSurface.small,
         styles.chip,
         selected && styles.selected,
         disabled && styles.disabled,
@@ -66,14 +69,11 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 15,
     borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
   },
   selected: {
     borderColor: Colors.text,
     backgroundColor: Colors.text,
+    boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.18), 0 4px 12px rgba(14, 42, 51, 0.18)',
   },
   disabled: {
     opacity: 0.4,

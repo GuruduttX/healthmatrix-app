@@ -25,7 +25,7 @@ import { LIST_LEAD, ListCard, ListRow, listText } from '@/components/ui/list';
 import { Section } from '@/components/ui/section';
 import { SkeletonList } from '@/components/ui/skeleton';
 import { Tag } from '@/components/ui/tag';
-import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Glass, Spacing } from '@/constants/theme';
 import { type PodBooking } from '@/features/care/types';
 import { usePodBookings } from '@/features/care/use-pod-bookings';
 import { usePodCatalog } from '@/features/care/use-pod-catalog';
@@ -315,6 +315,7 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     color: Colors.good,
   },
+  // A round of glass waiting for a tick, its edge clear while empty.
   radio: {
     width: RADIO,
     height: RADIO,
@@ -323,11 +324,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1.5,
     borderColor: Colors.border,
-    backgroundColor: Colors.backgroundElement,
+    backgroundColor: Glass.fillSoft,
+    boxShadow: Glass.glowSmall,
   },
   radioSelected: {
     borderColor: Colors.text,
     backgroundColor: Colors.text,
+    boxShadow: 'none',
   },
   actions: {
     gap: Spacing.two,

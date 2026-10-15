@@ -13,16 +13,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { Glass } from '@/components/ui/glass';
 import { LogoMark } from '@/components/ui/logo-mark';
 import { PageBackground } from '@/components/ui/morning-light';
 import { TextField } from '@/components/ui/text-field';
 import {
   Colors,
   Fonts,
+  Glass as GlassTokens,
   Gutter,
   MaxContentWidth,
-  Radius,
-  Shadows,
   Spacing,
 } from '@/constants/theme';
 import { useKeyboardVisible } from '@/hooks/use-keyboard-visible';
@@ -59,9 +59,9 @@ type AuthFormProps = {
 const LOGO = 64;
 
 /**
- * Shared layout for the sign-in steps, on the warm page: the brand in the morning light, then one
- * white card with the heading, fields and one button. It scrolls, and while the keyboard is up it
- * drops the brand and scrolls the fields and button into view above it.
+ * Shared layout for the sign-in steps, on the lit page: the brand, then one pane of glass with the
+ * heading, fields and one button. It scrolls, and while the keyboard is up it drops the brand and
+ * scrolls the fields and button into view above it.
  */
 export function AuthForm({
   title,
@@ -90,7 +90,7 @@ export function AuthForm({
 
   return (
     <View style={styles.screen}>
-      <PageBackground height={480} />
+      <PageBackground />
       {/* Android draws edge to edge, so the window no longer shrinks for the keyboard: pad on
           both platforms. */}
       <KeyboardAvoidingView style={styles.flex} behavior="padding">
@@ -135,7 +135,7 @@ export function AuthForm({
               </View>
             )}
 
-            <View style={styles.card}>
+            <Glass style={styles.card}>
               <View style={styles.heading}>
                 <ThemedText style={styles.title} accessibilityRole="header">
                   {title}
@@ -197,7 +197,7 @@ export function AuthForm({
               />
 
               {footer}
-            </View>
+            </Glass>
           </View>
 
           <View style={styles.trust}>
@@ -220,9 +220,9 @@ const FEATURES = [
 ];
 
 const styles = StyleSheet.create({
+  // No fill of its own: the page's light shows through the glass.
   screen: {
     flex: 1,
-    backgroundColor: Colors.canvas,
   },
   flex: {
     flex: 1,
@@ -253,17 +253,19 @@ const styles = StyleSheet.create({
   logoShadow: {
     marginBottom: Spacing.three,
     borderRadius: 20,
-    boxShadow: Shadows.dish,
+    boxShadow: GlassTokens.shadowSmall,
   },
-  // A white app-icon tile with the petals in the brand's three oranges.
+  // An app-icon tile of bright glass with the petals in the brand's three oranges: nearly opaque,
+  // so the page's peach light never shows under the orange.
   logoTile: {
     width: LOGO,
     height: LOGO,
     borderRadius: 20,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
+    borderColor: GlassTokens.rim,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    boxShadow: GlassTokens.glowSmall,
   },
   brand: {
     fontFamily: Fonts.display,
@@ -300,15 +302,10 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     color: Colors.text,
   },
-  // The one raised thing on the page.
+  // The one pane on the page.
   card: {
     gap: Spacing.three,
     padding: Spacing.four - 4,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.raised,
   },
   heading: {
     gap: 4,

@@ -12,7 +12,8 @@ import Animated, {
 import Svg, { Circle } from 'react-native-svg';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Fonts } from '@/constants/theme';
+import { glassSurface } from '@/components/ui/glass';
+import { Colors, Fonts, Glass } from '@/constants/theme';
 
 // The small pieces the medicine screens share with Home's Today card: a 3D pill in a round dish,
 // the orange ring for the day's doses, and the round tick and undo buttons.
@@ -28,7 +29,7 @@ const ART = {
   syringe: require('@/assets/images/home/3d/syringe.png'),
 };
 
-/** A 3D pill (or syringe) in a round, neutral dish. Faded for a dose already marked or paused. */
+/** A 3D pill (or syringe) in a small round of glass. Faded for a dose already marked or paused. */
 export function MedicineDish({
   art = 'pill',
   size = LEAD,
@@ -40,8 +41,9 @@ export function MedicineDish({
 }) {
   // The syringe fills its square more than the pill, so it sits a touch smaller.
   const image = Math.round(size * (art === 'syringe' ? 0.56 : 0.62));
+  const round = { width: size, height: size, borderRadius: size / 2 };
   return (
-    <View style={[styles.dish, { width: size, height: size, borderRadius: size / 2 }]}>
+    <View style={[glassSurface.flat, styles.dish, round]}>
       <Image
         source={ART[art]}
         style={[{ width: image, height: image }, faded && styles.faded]}
@@ -110,8 +112,8 @@ export function DoseRing({ taken, total }: { taken: number; total: number }) {
 }
 
 /**
- * How a tick looks: `solid` orange when the dose is due now, `soft` (white with a peach ring, like
- * a box waiting for a tick) otherwise, and `done` once taken.
+ * How a tick looks: `solid` orange when the dose is due now, `soft` (a round of glass with a peach
+ * ring, like a box waiting for a tick) otherwise, and `done` once taken.
  */
 export type TickLook = 'solid' | 'soft' | 'done';
 
@@ -149,7 +151,7 @@ export function TickButton({
   );
 }
 
-/** Takes back a dose already marked: a quiet white round button. */
+/** Takes back a dose already marked: a quiet round of glass. */
 export function UndoButton({
   onPress,
   accessibilityLabel,
@@ -163,7 +165,7 @@ export function UndoButton({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       hitSlop={8}
-      style={({ pressed }) => [styles.tick, styles.undo, pressed && styles.undoPressed]}>
+      style={({ pressed }) => [glassSurface.flat, styles.tick, pressed && styles.undoPressed]}>
       <Undo2 size={15} color={Colors.textSoft} strokeWidth={2.3} />
     </Pressable>
   );
@@ -188,7 +190,6 @@ const styles = StyleSheet.create({
   dish: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.well,
   },
   faded: {
     opacity: 0.5,
@@ -220,15 +221,11 @@ const styles = StyleSheet.create({
   soft: {
     borderWidth: 1.5,
     borderColor: Colors.primaryLight,
-    backgroundColor: Colors.backgroundElement,
+    backgroundColor: Glass.fillSoft,
+    boxShadow: Glass.glowSmall,
   },
   done: {
     backgroundColor: Colors.good,
-  },
-  undo: {
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.backgroundElement,
   },
   undoPressed: {
     backgroundColor: Colors.well,

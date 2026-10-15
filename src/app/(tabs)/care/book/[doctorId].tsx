@@ -27,6 +27,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { ErrorState } from '@/components/ui/empty-state';
+import { glassSurface, webBlur } from '@/components/ui/glass';
 import { IconTile } from '@/components/ui/icon-tile';
 import { Divided, LIST_LEAD, ListRow, listText } from '@/components/ui/list';
 import { PageBackground } from '@/components/ui/morning-light';
@@ -39,11 +40,11 @@ import { TextField } from '@/components/ui/text-field';
 import {
   Colors,
   Fonts,
+  Glass,
   Gradients,
   Gutter,
   MaxContentWidth,
   Radius,
-  Shadows,
   Spacing,
 } from '@/constants/theme';
 import { CustomTimeInput } from '@/features/doctors/custom-time-input';
@@ -411,6 +412,7 @@ export default function BookDoctorScreen() {
                     accessibilityState={{ selected, disabled: closed }}
                     accessibilityLabel={`${formatDay(d.date, today)}, ${free ? `${free} free slots` : dayStatus(d, free).toLowerCase()}`}
                     style={({ pressed }) => [
+                      glassSurface.small,
                       styles.day,
                       selected && styles.daySelected,
                       closed && !selected && styles.dayClosed,
@@ -486,6 +488,7 @@ export default function BookDoctorScreen() {
                           accessibilityState={{ checked: selected, disabled: !slot.available }}
                           accessibilityLabel={`${formatTime(slot.time)}${slot.available ? '' : ', booked'}`}
                           style={({ pressed }) => [
+                            glassSurface.small,
                             styles.slot,
                             selected && styles.slotSelected,
                             !slot.available && styles.slotTaken,
@@ -533,17 +536,13 @@ export default function BookDoctorScreen() {
           </View>
         </ScrollView>
 
-        {/* Pinned over the bottom of the page: the page fades out under the button. */}
+        {/* Pinned over the bottom of the page: frosted, so the page shows softly through it. */}
         <View
           onLayout={(event) => setFooterHeight(event.nativeEvent.layout.height)}
           style={[
             styles.footer,
             { paddingBottom: keyboardVisible ? Spacing.two + 4 : clearance + Spacing.two + 4 },
           ]}>
-          <LinearGradient
-            colors={['rgba(248, 245, 240, 0)', Colors.canvas]}
-            style={[styles.fade, styles.noTouch]}
-          />
           {error ? (
             <View style={styles.error} accessibilityLiveRegion="polite">
               <AlertCircle size={15} color={Colors.high} strokeWidth={2.4} />
@@ -557,7 +556,7 @@ export default function BookDoctorScreen() {
           <Button
             label={cta.label}
             icon={cta.icon}
-            // Quiet white until there is something to book, then the one orange thing on the page.
+            // Quiet glass until there is something to book, then the one orange thing on the page.
             variant={canSubmit ? 'primary' : 'secondary'}
             onPress={cta.onPress}
             disabled={!canSubmit}
@@ -569,10 +568,12 @@ export default function BookDoctorScreen() {
   );
 }
 
-/** A round dish at the top of a done screen: a check in the "good" colour, or a sent request. */
+/**
+ * A round glass dish at the top of a done screen: a check in the "good" colour, or a sent request.
+ */
 function DoneBadge({ icon: Icon, good }: { icon: LucideIcon; good?: boolean }) {
   return (
-    // The shadow sits outside; a plain View rounds and clips the tint.
+    // The lift sits outside; a plain View rounds and clips the tint.
     <View style={styles.badgeShadow}>
       <View style={[styles.badge, good && styles.badgeGood]}>
         {good ? null : (
@@ -593,7 +594,7 @@ function DoneBadge({ icon: Icon, good }: { icon: LucideIcon; good?: boolean }) {
 }
 
 /**
- * A done screen: one white card with the badge, what happened, and the consult's lines under a
+ * A done screen: one pane of glass with the badge, what happened, and the consult's lines under a
  * hairline (the doctor, when, what it's about), then Done.
  */
 function Done({
@@ -693,7 +694,7 @@ function RequestSent({ request }: { request: ConsultRequest }) {
   );
 }
 
-/** The page around each step: the warm backdrop, a back (or close) bar, then the content. */
+/** The page around each step: the page's light, a back (or close) bar, then the content. */
 function Shell({
   title,
   onBack,
@@ -752,12 +753,14 @@ function BookingSkeleton() {
 }
 
 const DAY_WIDTH = 60;
+/** A chosen day or time: solid ink with light on its top edge, as on a chosen `Chip`. */
+const CHOSEN_SHADOW =
+  'inset 0 1px 1px rgba(255, 255, 255, 0.18), 0 4px 12px rgba(14, 42, 51, 0.18)';
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: Colors.canvas,
   },
   safeArea: {
     flex: 1,
@@ -770,9 +773,6 @@ const styles = StyleSheet.create({
   center: {
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  noTouch: {
-    pointerEvents: 'none',
   },
   onInk: {
     color: Colors.onInk,
@@ -866,33 +866,34 @@ const styles = StyleSheet.create({
   // Days: tall pills that scroll sideways, out to the screen's edges.
   daysScroll: {
     marginHorizontal: -Gutter,
+    // Room for the pills' lift, which the scroll would cut, taken back from the page around it.
+    marginTop: -Spacing.two,
+    marginBottom: -Spacing.three,
   },
   days: {
     flexDirection: 'row',
     gap: Spacing.two,
     paddingHorizontal: Gutter,
-    // Room for the pills' shadows.
-    paddingTop: 2,
-    paddingBottom: 6,
+    paddingTop: Spacing.two + 2,
+    paddingBottom: Spacing.three + 6,
   },
+  // Tall pills of glass; the chosen one solid ink, like a chosen chip.
   day: {
     width: DAY_WIDTH,
     alignItems: 'center',
     paddingTop: 11,
     paddingBottom: 12,
     borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
   },
   daySelected: {
     borderColor: Colors.text,
     backgroundColor: Colors.text,
+    boxShadow: CHOSEN_SHADOW,
   },
-  // Nothing to book: faded, flat, still in its place so the week reads in order.
+  // Nothing to book: faded, flat, only its outline, still in its place so the week reads in order.
   dayClosed: {
     opacity: 0.5,
+    borderColor: Colors.hairline,
     backgroundColor: 'transparent',
     boxShadow: 'none',
   },
@@ -946,6 +947,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: Spacing.two,
   },
+  // Pills of glass, like the days.
   slot: {
     width: '31%',
     flexGrow: 1,
@@ -954,17 +956,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 44,
     borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
   },
   slotSelected: {
     borderColor: Colors.text,
     backgroundColor: Colors.text,
+    boxShadow: CHOSEN_SHADOW,
   },
-  // Taken: no fill, no lift, faint words.
+  // Taken: no glass, no lift, only its outline and faint words.
   slotTaken: {
+    borderColor: Colors.hairline,
     backgroundColor: 'transparent',
     boxShadow: 'none',
   },
@@ -1003,24 +1003,19 @@ const styles = StyleSheet.create({
     color: Colors.textFaint,
   },
 
-  // The pinned button
+  // The pinned button, on a frosted strip of the page with a hairline along its top.
   footer: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
     gap: Spacing.two + 2,
-    paddingTop: Spacing.two,
+    paddingTop: Spacing.three - 4,
     paddingHorizontal: Gutter,
-    backgroundColor: Colors.canvas,
-  },
-  // Above the footer: the page fades into it instead of stopping at an edge.
-  fade: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: '100%',
-    height: Spacing.five,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.hairline,
+    backgroundColor: 'rgba(251, 250, 248, 0.82)',
+    ...webBlur,
   },
   summary: {
     textAlign: 'center',
@@ -1075,7 +1070,7 @@ const styles = StyleSheet.create({
   },
   badgeShadow: {
     borderRadius: 36,
-    boxShadow: Shadows.dish,
+    boxShadow: Glass.shadowSmall,
   },
   badge: {
     width: 72,
@@ -1083,7 +1078,7 @@ const styles = StyleSheet.create({
     borderRadius: 36,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: Colors.backgroundElement,
+    borderColor: Glass.rim,
   },
   badgeGood: {
     backgroundColor: Colors.goodSoft,

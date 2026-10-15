@@ -1,14 +1,16 @@
-import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BadgeCheck, RotateCw, Siren } from 'lucide-react-native';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Animated, Platform, Pressable, StyleSheet, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
+import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 
 import { ThemedText } from '@/components/themed-text';
+import { Glass, glassSurface } from '@/components/ui/glass';
+import { LogoMark } from '@/components/ui/logo-mark';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Plans } from '@/constants/plans';
-import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Glass as GlassTokens, Radius, Spacing } from '@/constants/theme';
 import { type BloodGroup, type PlanId } from '@/types';
 
 import { formatMemberId } from './sample-data';
@@ -35,7 +37,14 @@ type MemberCardProps = {
 
 const FLIP_MS = 450;
 
-/** The digital twin of the physical card. Tap to flip to the emergency QR on the back. */
+/** Same proportions as a bank card: 85.6 x 54 mm. */
+const RATIO = 85.6 / 54;
+const RADIUS = Radius.xl - 4;
+
+/**
+ * The digital twin of the physical card, as a frosted glass card like Home's banner. Tap to flip
+ * to the emergency QR on the back.
+ */
 export function MemberCard({ member, emergencyUrl, emergencyError }: MemberCardProps) {
   const [flipped, setFlipped] = useState(false);
   const [width, setWidth] = useState(0);
@@ -72,22 +81,11 @@ export function MemberCard({ member, emergencyUrl, emergencyError }: MemberCardP
         }
         style={styles.card}
         onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
-        <Animated.View
-          style={[
-            styles.face,
-            styles.frontFace,
-            face('0deg', '180deg', true),
-            flipped && styles.inert,
-          ]}>
+        <Animated.View style={[styles.face, face('0deg', '180deg', true), flipped && styles.inert]}>
           <CardFront member={member} cardWidth={width} />
         </Animated.View>
         <Animated.View
-          style={[
-            styles.face,
-            styles.backFace,
-            face('180deg', '360deg', false),
-            !flipped && styles.inert,
-          ]}>
+          style={[styles.face, face('180deg', '360deg', false), !flipped && styles.inert]}>
           <CardBack
             firstName={member.firstName}
             emergencyUrl={emergencyUrl}
@@ -107,47 +105,70 @@ export function MemberCard({ member, emergencyUrl, emergencyError }: MemberCardP
   );
 }
 
-/** The front's gradient: light brand orange to a deep burnt orange. */
-const FRONT = [Colors.primaryMid, Colors.primary, Colors.primaryInk] as const;
-
 /** The card is designed at this width; the member number scales with the real width. */
 const DESIGN_WIDTH = 358;
+
+/**
+ * Light inside the card's glass, as in Home's banner: warm peach gathering at the top right, where
+ * the mark is etched, and sky blue rising from the bottom left under the number. Then a glint
+ * across the middle, like light on a laminated card.
+ */
+function CardLight({ width }: { width: number }) {
+  const id = useId().replace(/[^a-zA-Z0-9]/g, '');
+  const height = width / RATIO;
+  const peach = { cx: width * 0.84, cy: height * 0.3, r: width * 0.52 };
+  const sky = { cx: 0, cy: height, r: width * 0.64 };
+
+  return (
+    <>
+      <Svg width={width} height={height} style={styles.light} pointerEvents="none">
+        <Defs>
+          <RadialGradient id={`${id}sky`} {...sky} gradientUnits="userSpaceOnUse">
+            <Stop offset="0" stopColor="#C9E1F4" stopOpacity={0.9} />
+            <Stop offset="0.55" stopColor="#C9E1F4" stopOpacity={0.35} />
+            <Stop offset="1" stopColor="#C9E1F4" stopOpacity={0} />
+          </RadialGradient>
+          <RadialGradient id={`${id}peach`} {...peach} gradientUnits="userSpaceOnUse">
+            <Stop offset="0" stopColor="#FFD6BC" stopOpacity={0.78} />
+            <Stop offset="0.55" stopColor="#FFD6BC" stopOpacity={0.32} />
+            <Stop offset="1" stopColor="#FFD6BC" stopOpacity={0} />
+          </RadialGradient>
+        </Defs>
+        <Circle {...sky} fill={`url(#${id}sky)`} />
+        <Circle {...peach} fill={`url(#${id}peach)`} />
+      </Svg>
+      <LinearGradient
+        colors={['rgba(255, 255, 255, 0)', 'rgba(255, 255, 255, 0.4)', 'rgba(255, 255, 255, 0)']}
+        locations={[0.38, 0.5, 0.64]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[StyleSheet.absoluteFill, styles.noTouch]}
+      />
+    </>
+  );
+}
 
 function CardFront({ member, cardWidth }: { member: MemberCardProps['member']; cardWidth: number }) {
   const scale = cardWidth > 0 ? Math.min(cardWidth / DESIGN_WIDTH, 1.3) : 1;
 
   return (
-    <View style={styles.front}>
-      {/* The brand card: the one big orange thing on the warm page. */}
-      <LinearGradient
-        colors={FRONT}
-        locations={[0, 0.5, 1]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-      {/* A soft sheen across the top, like light on a plastic card. */}
-      <LinearGradient
-        colors={['rgba(255, 255, 255, 0.22)', 'rgba(255, 255, 255, 0)']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0.55, y: 0.6 }}
-        style={StyleSheet.absoluteFill}
-      />
-      <Image
-        source={require('@/assets/images/logo-mark.png')}
-        style={styles.watermark}
-        tintColor={Colors.onInk}
-        contentFit="contain"
-      />
+    <Glass style={styles.front} wrapperStyle={styles.flex} radius={RADIUS} tinted={false}>
+      {cardWidth > 0 ? <CardLight width={cardWidth} /> : null}
+      {/* The mark etched into the glass, in white, over the peach light. */}
+      {cardWidth > 0 ? (
+        <View style={styles.watermark}>
+          <LogoMark
+            size={cardWidth * 0.46}
+            scale={0.95}
+            colors={['#FFFFFF', '#FFFFFF', '#FFFFFF']}
+            opacities={[0.72, 0.6, 0.5]}
+          />
+        </View>
+      ) : null}
 
       <View style={styles.topRow}>
         <View style={styles.brand}>
-          <Image
-            source={require('@/assets/images/logo-mark.png')}
-            style={styles.brandMark}
-            tintColor={Colors.onInk}
-            contentFit="contain"
-          />
+          <LogoMark size={32} scale={0.94} />
           <View>
             <ThemedText style={styles.brandHealth}>Health</ThemedText>
             <ThemedText style={styles.brandMatrix}>Matrix</ThemedText>
@@ -159,7 +180,7 @@ function CardFront({ member, cardWidth }: { member: MemberCardProps['member']; c
       <View style={styles.details}>
         {member.abhaLinked ? (
           <View style={styles.abha}>
-            <BadgeCheck size={13} color={Colors.onInk} strokeWidth={2.2} />
+            <BadgeCheck size={13} color={Colors.good} strokeWidth={2.4} />
             <ThemedText style={styles.abhaText}>ABHA linked</ThemedText>
           </View>
         ) : null}
@@ -181,12 +202,12 @@ function CardFront({ member, cardWidth }: { member: MemberCardProps['member']; c
       </View>
 
       {member.bloodGroup ? (
-        <View style={styles.bloodGroup}>
+        <View style={[glassSurface.small, styles.bloodGroup]}>
           <ThemedText style={styles.bloodGroupLabel}>Blood group</ThemedText>
           <ThemedText style={styles.bloodGroupValue}>{member.bloodGroup}</ThemedText>
         </View>
       ) : null}
-    </View>
+    </Glass>
   );
 }
 
@@ -201,15 +222,10 @@ function CardBack({ firstName, emergencyUrl, emergencyError, cardWidth }: CardBa
   const qrSize = Math.max(64, Math.round(cardWidth * 0.25));
 
   return (
-    <View style={styles.back}>
-      <LinearGradient
-        colors={[Colors.backgroundElement, Colors.primaryTint]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
+    <Glass style={styles.back} wrapperStyle={styles.flex} radius={RADIUS} tinted={false}>
+      {cardWidth > 0 ? <CardLight width={cardWidth} /> : null}
       <View style={styles.backBand}>
-        <Siren size={15} color={Colors.onInk} strokeWidth={2.2} />
+        <Siren size={15} color={Colors.high} strokeWidth={2.4} />
         <ThemedText style={styles.backBandText} numberOfLines={1}>
           In an emergency, scan this code
         </ThemedText>
@@ -243,7 +259,7 @@ function CardBack({ firstName, emergencyUrl, emergencyError, cardWidth }: CardBa
         <ThemedText style={styles.backFootnote}>HealthMatrix LLP</ThemedText>
         <ThemedText style={styles.backFootnote}>Found this card? Scan to return it.</ThemedText>
       </View>
-    </View>
+    </Glass>
   );
 }
 
@@ -251,24 +267,24 @@ const styles = StyleSheet.create({
   wrap: {
     gap: Spacing.three - 4,
   },
-  // Same proportions as a bank card: 85.6 x 54 mm. The shadow sits here, outside the faces that
-  // clip their corners and gradients.
   card: {
-    aspectRatio: 85.6 / 54,
-    borderRadius: Radius.xl - 4,
-    boxShadow: Shadows.raised,
+    aspectRatio: RATIO,
+    borderRadius: RADIUS,
   },
-  // No border: a solid colour under each face keeps its rounded edge clean when clipped.
+  // Each face is a whole pane of glass with its own lift, so the shadow turns with the card.
   face: {
     ...StyleSheet.absoluteFill,
-    borderRadius: Radius.xl - 4,
-    overflow: 'hidden',
   },
-  frontFace: {
-    backgroundColor: Colors.primary,
+  flex: {
+    flex: 1,
   },
-  backFace: {
-    backgroundColor: Colors.backgroundElement,
+  noTouch: {
+    pointerEvents: 'none',
+  },
+  light: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
   },
   inert: {
     pointerEvents: 'none',
@@ -293,11 +309,8 @@ const styles = StyleSheet.create({
   },
   watermark: {
     position: 'absolute',
-    right: '-11%',
-    top: '24%',
-    width: '44%',
-    aspectRatio: 1024 / 917,
-    opacity: 0.14,
+    right: '-12%',
+    top: '20%',
   },
   topRow: {
     flexDirection: 'row',
@@ -309,15 +322,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  brandMark: {
-    width: 30,
-    height: 27,
-  },
   brandHealth: {
     fontFamily: Fonts.semibold,
     fontSize: 22,
     lineHeight: 24,
-    color: Colors.onInk,
+    color: Colors.text,
   },
   brandMatrix: {
     alignSelf: 'flex-end',
@@ -325,14 +334,15 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.semibold,
     fontSize: 9,
     lineHeight: 11,
-    color: Colors.onInk,
+    color: Colors.text,
   },
+  // The card's one orange word, beside the mark.
   plan: {
     fontFamily: Fonts.display,
     fontSize: 20,
     lineHeight: 24,
     letterSpacing: -0.2,
-    color: Colors.onInk,
+    color: Colors.primaryDeep,
   },
   details: {
     gap: 2,
@@ -352,30 +362,30 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 14,
     letterSpacing: 0.2,
-    color: Colors.onInk,
+    color: Colors.good,
   },
   memberId: {
     fontFamily: Fonts.bold,
     fontSize: 19,
     lineHeight: 24,
     letterSpacing: 1.5,
-    color: Colors.onInk,
+    color: Colors.text,
     fontVariant: ['tabular-nums'],
   },
   name: {
     fontFamily: Fonts.bold,
     fontSize: 14.5,
     lineHeight: 19,
-    color: Colors.onInk,
+    color: Colors.text,
   },
   dates: {
     fontFamily: Fonts.medium,
     fontSize: 10.5,
     lineHeight: 14,
-    color: 'rgba(255, 255, 255, 0.82)',
+    color: Colors.textSoft,
     fontVariant: ['tabular-nums'],
   },
-  // A white label on the card, lifted by a close, warm shadow.
+  // A small pill of glass on the card.
   bloodGroup: {
     position: 'absolute',
     right: 16,
@@ -384,8 +394,6 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: Radius.md,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.button,
   },
   bloodGroupLabel: {
     fontFamily: Fonts.semibold,
@@ -402,23 +410,25 @@ const styles = StyleSheet.create({
 
   back: {
     flex: 1,
-    backgroundColor: Colors.backgroundElement,
   },
-  // White on the brighter orange reads at 4.8:1.
+  // A band of the alert crimson across the top, see-through so it takes the glass's light; never
+  // the brand orange.
   backBand: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingVertical: 8,
     paddingHorizontal: 14,
-    backgroundColor: Colors.primaryBright,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: GlassTokens.hairline,
+    backgroundColor: GlassTokens.highTint,
   },
   backBandText: {
     flex: 1,
     fontFamily: Fonts.bold,
     fontSize: 13,
     lineHeight: 16,
-    color: Colors.onInk,
+    color: Colors.high,
   },
   backBody: {
     flex: 1,
@@ -427,14 +437,14 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: 14,
   },
+  // Solid white under the code, whatever the glass shows: scanners need the contrast.
   qr: {
     alignItems: 'center',
     justifyContent: 'center',
     padding: 6,
     borderRadius: Radius.sm,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
     backgroundColor: Colors.backgroundElement,
+    boxShadow: GlassTokens.shadowSmall,
   },
   qrError: {
     fontFamily: Fonts.semibold,
@@ -465,7 +475,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bold,
     fontSize: 10.5,
     lineHeight: 14,
-    color: Colors.primaryDeep,
+    color: Colors.text,
   },
   backFooter: {
     flexDirection: 'row',

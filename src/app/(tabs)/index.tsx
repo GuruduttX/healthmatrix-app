@@ -1,12 +1,11 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect, type Href } from 'expo-router';
 import { Lock } from 'lucide-react-native';
 import { useCallback } from 'react';
-import { Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
-import { GLOW_TOP, MorningLight } from '@/components/ui/morning-light';
+import { Aurora } from '@/components/ui/glass';
 import { Section } from '@/components/ui/section';
 import { Colors, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-context';
@@ -72,7 +71,6 @@ export default function HomeScreen() {
             ]
           : []),
       ]),
-    { progressViewOffset: insets.top },
   );
 
   // A doctor can start or cancel a consult, or prescribe a vaccine, from the console while the
@@ -90,17 +88,17 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.screen}>
-      {/* Peach behind the page, so pulling down shows the light's colour above the greeting. */}
+      {/* The light stands still behind the page, so the glass slides over it as you scroll. */}
+      <Aurora />
+      {/* Starts under the status bar: the page scrolls away there instead of under the clock. */}
       <ScrollView
-        style={styles.scroll}
+        style={[styles.scroll, { marginTop: insets.top }]}
         showsVerticalScrollIndicator={false}
-        refreshControl={refreshControl}
-        contentContainerStyle={styles.page}>
-        <MorningLight />
+        refreshControl={refreshControl}>
         <View
           style={[
             styles.content,
-            { paddingTop: insets.top + Spacing.three, paddingBottom: clearance + Spacing.four },
+            { paddingTop: Spacing.three, paddingBottom: clearance + Spacing.four },
           ]}>
           <HomeHeader
             name={member?.name ?? ''}
@@ -163,15 +161,7 @@ export default function HomeScreen() {
             </ThemedText>
           </View>
         </View>
-        {/* The page colour below the last section too, for the bounce at the bottom on iOS. */}
-        {Platform.OS === 'web' ? null : <View style={styles.bounce} />}
       </ScrollView>
-
-      {/* Content fades out under the status bar instead of running into the clock. */}
-      <LinearGradient
-        colors={['rgba(248, 245, 240, 0.94)', 'rgba(248, 245, 240, 0)']}
-        style={[styles.scrim, { height: insets.top + Spacing.two }]}
-      />
     </View>
   );
 }
@@ -179,23 +169,9 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.canvas,
   },
   scroll: {
     flex: 1,
-    backgroundColor: GLOW_TOP,
-  },
-  page: {
-    flexGrow: 1,
-    backgroundColor: Colors.canvas,
-  },
-  bounce: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
-    height: 1000,
-    backgroundColor: Colors.canvas,
   },
   content: {
     width: '100%',
@@ -220,12 +196,5 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     lineHeight: 17,
     color: Colors.textFaint,
-  },
-  scrim: {
-    pointerEvents: 'none',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
   },
 });

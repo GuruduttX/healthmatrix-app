@@ -1,9 +1,9 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Fonts, Gradients, Shadows, Spacing } from '@/constants/theme';
+import { Glass } from '@/components/ui/glass';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { SPECIALTIES, type SpecialtyInfo } from '@/features/doctors/specialties';
 
 const DISH = 56;
@@ -26,9 +26,8 @@ function rows(items: SpecialtyInfo[]) {
 }
 
 /**
- * The specialties on the network, laid out like Home's quick actions: an icon in a round dish
- * (one quiet tint for all), the name under it, four to a row on the page. Tap one to see its
- * doctors.
+ * The specialties on the network, laid out like Home's quick actions: an icon in a round glass
+ * dish, the name under it, four to a row on the page. Tap one to see its doctors.
  */
 export function SpecialtyList() {
   return (
@@ -57,21 +56,12 @@ function Item({ specialty: { id, label, short, icon: Icon } }: { specialty: Spec
       accessibilityRole="button"
       accessibilityLabel={`${label} doctors`}
       style={({ pressed }) => [styles.item, pressed && styles.pressed]}>
-      {/* The shadow sits outside; a plain View rounds and clips the dish. */}
-      <View style={styles.dishShadow}>
-        <View style={styles.dish}>
-          <LinearGradient
-            colors={Gradients.dish}
-            start={{ x: 0.2, y: 0 }}
-            end={{ x: 0.8, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
-          {/* A layer of its own, so it paints above the gradient on web too. */}
-          <View style={[StyleSheet.absoluteFill, styles.center]}>
-            <Icon size={23} color={Colors.primaryDeep} strokeWidth={2} />
-          </View>
+      <Glass variant="small" radius={DISH / 2} style={styles.dish}>
+        {/* A layer of its own, so it paints above the frost on web too. */}
+        <View style={[StyleSheet.absoluteFill, styles.center]}>
+          <Icon size={23} color={Colors.primaryDeep} strokeWidth={2} />
         </View>
-      </View>
+      </Glass>
       <View style={styles.labelBox}>
         <ThemedText style={styles.label} numberOfLines={2}>
           {short}
@@ -99,15 +89,9 @@ const styles = StyleSheet.create({
     opacity: 0.85,
     transform: [{ scale: 0.95 }],
   },
-  dishShadow: {
-    borderRadius: DISH / 2,
-    boxShadow: Shadows.dish,
-  },
   dish: {
     width: DISH,
     height: DISH,
-    borderRadius: DISH / 2,
-    overflow: 'hidden',
   },
   center: {
     alignItems: 'center',

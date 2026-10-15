@@ -5,8 +5,10 @@ import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EmptyState } from '@/components/ui/empty-state';
+import { glassSurface } from '@/components/ui/glass';
+import { PageBackground } from '@/components/ui/morning-light';
 import { SkeletonList } from '@/components/ui/skeleton';
-import { Colors, Fonts, Gutter, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Gutter, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-context';
 import { BookingConfirmed } from '@/features/care/booking-confirmed';
 import { LabDetails, parseDateInput, toDateInput, type LabSex } from '@/features/care/lab-details';
@@ -139,6 +141,7 @@ export default function PodsScreen() {
 
   return (
     <View style={styles.container}>
+      <PageBackground />
       <ScrollView
         ref={scroll}
         showsVerticalScrollIndicator={false}
@@ -161,10 +164,10 @@ export default function PodsScreen() {
               accessibilityRole="button"
               accessibilityLabel="Back to Care"
               hitSlop={6}
-              style={({ pressed }) => [styles.back, pressed && styles.pressed]}>
+              style={({ pressed }) => [glassSurface.small, styles.back, pressed && styles.pressed]}>
               <ChevronLeft size={21} color={Colors.text} strokeWidth={2.2} />
             </Pressable>
-            <View style={styles.search}>
+            <View style={[glassSurface.small, styles.search]}>
               <Search size={16} color={Colors.textMuted} strokeWidth={2.2} />
               <TextInput
                 value={query}
@@ -263,7 +266,6 @@ export default function PodsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.canvas,
   },
   bar: {
     position: 'absolute',
@@ -273,18 +275,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.two,
   },
-  // White and round with a hairline, like the back button on every other screen.
+  // A round of glass over the map, like the back button on every other screen.
   back: {
     width: BAR_HEIGHT,
     height: BAR_HEIGHT,
     borderRadius: BAR_HEIGHT / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
   },
+  // A pill of glass: the map blurs behind it on web.
   search: {
     flex: 1,
     flexDirection: 'row',
@@ -293,10 +292,6 @@ const styles = StyleSheet.create({
     height: BAR_HEIGHT,
     paddingHorizontal: Spacing.three,
     borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
   },
   searchInput: {
     flex: 1,

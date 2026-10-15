@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { SearchX, Stethoscope } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
@@ -6,10 +5,11 @@ import { StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/screen';
 import { EmptyState, ErrorState } from '@/components/ui/empty-state';
+import { Glass } from '@/components/ui/glass';
 import { Section } from '@/components/ui/section';
 import { Skeleton, SkeletonCircle, SkeletonGroup } from '@/components/ui/skeleton';
 import { Surface } from '@/components/ui/surface';
-import { Colors, Gradients, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Radius, Spacing } from '@/constants/theme';
 import { DoctorCard } from '@/features/doctors/doctor-card';
 import { specialtyInfo } from '@/features/doctors/specialties';
 import { type Doctor } from '@/features/doctors/types';
@@ -96,20 +96,12 @@ export default function SpecialtyDoctorsScreen() {
       subtitle={info?.blurb}
       headerRight={
         info ? (
-          // The specialty's icon in Home's round warm dish, one tint for every specialty.
-          <View style={styles.dishShadow}>
-            <View style={styles.dish}>
-              <LinearGradient
-                colors={Gradients.dish}
-                start={{ x: 0.2, y: 0 }}
-                end={{ x: 0.8, y: 1 }}
-                style={StyleSheet.absoluteFill}
-              />
-              <View style={[StyleSheet.absoluteFill, styles.center]}>
-                <Icon size={24} color={Colors.primaryDeep} strokeWidth={2.1} />
-              </View>
+          // The specialty's icon in a round glass dish, as on the Care tab.
+          <Glass variant="small" radius={DISH / 2} style={styles.dish}>
+            <View style={[StyleSheet.absoluteFill, styles.center]}>
+              <Icon size={24} color={Colors.primaryDeep} strokeWidth={2.1} />
             </View>
-          </View>
+          </Glass>
         ) : undefined
       }
       onRefresh={() => load(() => true)}>
@@ -187,15 +179,9 @@ const styles = StyleSheet.create({
   gap: {
     marginTop: 8,
   },
-  dishShadow: {
-    borderRadius: DISH / 2,
-    boxShadow: Shadows.dish,
-  },
   dish: {
     width: DISH,
     height: DISH,
-    borderRadius: DISH / 2,
-    overflow: 'hidden',
   },
   list: {
     gap: Spacing.three - 4,

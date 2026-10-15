@@ -2,9 +2,16 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowRight } from 'lucide-react-native';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
-import Svg, { Circle, Defs, Path, RadialGradient, Stop } from 'react-native-svg';
+import Svg, {
+  Circle,
+  Defs,
+  RadialGradient,
+  Stop,
+  LinearGradient as SvgLinearGradient,
+} from 'react-native-svg';
 
 import { ThemedText } from '@/components/themed-text';
+import { Glass, type Orb } from '@/components/ui/glass';
 import { Colors, Fonts, MaxContentWidth, Radius } from '@/constants/theme';
 
 import { GUTTER } from './layout';
@@ -27,52 +34,72 @@ const WORDS_WIDTH = 194;
 const TALLEST = 156;
 const SHORTEST = 120;
 
-/**
- * Warm orange under the words (white text on it is 4.1:1 to 4.5:1, and the headline is large),
- * brightening to apricot behind the doctors, where the light falls.
- */
-const BASE = ['#D04A0E', '#D65212', '#EC7838', '#F9AF7E'] as const;
+/** A peach sphere behind the doctors' side, a blue one low behind the words, both peeking out. */
+const ORBS: Orb[] = [
+  { x: 1, y: 0.24, r: 30, tone: 'peach' },
+  { x: 0, y: 0.8, r: 22, tone: 'sky' },
+];
+
+/** Where the light gathers behind the doctors, from the card's right edge and top. */
+const HALO = { fromRight: 82, y: 76 };
 
 /**
- * Light and shape behind the art: a soft glow around the doctors with two faint rings, a warm
- * rise of land under them, and a darker wave low on the left that gives the card depth.
+ * Light inside the glass: sky blue rising from the bottom left under the words, warm peach behind
+ * the doctors, and a frosted disc with a ring around them.
  */
-function Backdrop() {
+function Backdrop({ width }: { width: number }) {
+  const cx = width - HALO.fromRight;
   return (
-    <>
-      <Svg width={360} height={HEIGHT} style={styles.left}>
-        <Path
-          d={`M0 118 C70 96 130 150 214 138 C282 128 318 156 360 ${HEIGHT} L0 ${HEIGHT} Z`}
-          fill="rgba(255, 255, 255, 0.07)"
-        />
-        <Path
-          d={`M0 150 C64 132 150 168 238 ${HEIGHT} L0 ${HEIGHT} Z`}
-          fill="rgba(140, 40, 0, 0.1)"
-        />
-      </Svg>
-      <Svg width={250} height={HEIGHT} style={styles.right}>
-        <Defs>
-          <RadialGradient id="glow" cx="160" cy="84" r="118" gradientUnits="userSpaceOnUse">
-            <Stop offset="0" stopColor="#FFFFFF" stopOpacity="0.42" />
-            <Stop offset="0.55" stopColor="#FFFFFF" stopOpacity="0.12" />
-            <Stop offset="1" stopColor="#FFFFFF" stopOpacity="0" />
-          </RadialGradient>
-        </Defs>
-        <Circle cx="160" cy="84" r="118" fill="url(#glow)" />
-        <Circle cx="160" cy="84" r="64" stroke="#FFFFFF" strokeOpacity="0.16" fill="none" />
-        <Circle cx="160" cy="84" r="96" stroke="#FFFFFF" strokeOpacity="0.1" fill="none" />
-        <Path
-          d={`M40 ${HEIGHT} C64 140 118 124 168 128 C214 132 238 150 250 160 L250 ${HEIGHT} Z`}
-          fill="rgba(255, 214, 186, 0.22)"
-        />
-      </Svg>
-    </>
+    <Svg width={width} height={HEIGHT} style={styles.backdrop} pointerEvents="none">
+      <Defs>
+        <RadialGradient id="banner-sky" cx={0} cy={HEIGHT} r={190} gradientUnits="userSpaceOnUse">
+          <Stop offset="0" stopColor="#C9E1F4" stopOpacity={0.9} />
+          <Stop offset="0.55" stopColor="#C9E1F4" stopOpacity={0.35} />
+          <Stop offset="1" stopColor="#C9E1F4" stopOpacity={0} />
+        </RadialGradient>
+        <RadialGradient
+          id="banner-peach"
+          cx={cx}
+          cy={HALO.y}
+          r={140}
+          gradientUnits="userSpaceOnUse">
+          <Stop offset="0" stopColor="#FFD6BC" stopOpacity={0.72} />
+          <Stop offset="0.55" stopColor="#FFD6BC" stopOpacity={0.3} />
+          <Stop offset="1" stopColor="#FFD6BC" stopOpacity={0} />
+        </RadialGradient>
+        <SvgLinearGradient id="banner-disc" x1="0.2" y1="0" x2="0.8" y2="1">
+          <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.7} />
+          <Stop offset="1" stopColor="#FFE3D1" stopOpacity={0.35} />
+        </SvgLinearGradient>
+      </Defs>
+      <Circle cx={0} cy={HEIGHT} r={190} fill="url(#banner-sky)" />
+      <Circle cx={cx} cy={HALO.y} r={140} fill="url(#banner-peach)" />
+      <Circle
+        cx={cx}
+        cy={HALO.y}
+        r={92}
+        fill="none"
+        stroke="#FFFFFF"
+        strokeOpacity={0.75}
+        strokeWidth={1}
+      />
+      <Circle
+        cx={cx}
+        cy={HALO.y}
+        r={62}
+        fill="url(#banner-disc)"
+        stroke="#FFFFFF"
+        strokeOpacity={0.95}
+        strokeWidth={1.2}
+      />
+    </Svg>
   );
 }
 
 /**
- * Home's banner under the quick actions: two real doctors on a warm orange card, and the way into
- * Ekaay. The whole card is the button. Flat on the page: no rim, no shadow.
+ * Home's banner under the quick actions, and the way into Ekaay: two real doctors on a pane of
+ * glass lit sky blue and peach, with glass spheres peeking past its edges. The whole card is the
+ * button; its one orange is the button inside it.
  */
 export function CareBanner({ onPress }: { onPress: () => void }) {
   const { width } = useWindowDimensions();
@@ -88,22 +115,8 @@ export function CareBanner({ onPress }: { onPress: () => void }) {
       accessibilityLabel="Your health, our priority. Talk to Ekaay"
       accessibilityHint="Personalised care for a healthier, happier you"
       style={({ pressed }) => pressed && styles.pressed}>
-      {/* A plain View rounds and clips the card and its art. */}
-      <View style={styles.card}>
-        <LinearGradient
-          colors={BASE}
-          locations={[0, 0.5, 0.78, 1]}
-          start={{ x: 0, y: 0.3 }}
-          end={{ x: 1, y: 0.7 }}
-          style={StyleSheet.absoluteFill}
-        />
-        <Backdrop />
-        {/* A gloss along the top edge, like light on a raised surface. */}
-        <LinearGradient
-          colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0)']}
-          locations={[0, 0.5]}
-          style={StyleSheet.absoluteFill}
-        />
+      <Glass style={styles.card} orbs={ORBS} tinted={false}>
+        <Backdrop width={card} />
 
         <Image
           source={DOCTORS.source}
@@ -115,17 +128,29 @@ export function CareBanner({ onPress }: { onPress: () => void }) {
 
         <View style={styles.copy}>
           <View style={styles.words}>
-            <ThemedText style={styles.headline}>Your health,{'\n'}our priority</ThemedText>
+            <ThemedText style={styles.headline}>
+              Your health,{'\n'}
+              <ThemedText style={[styles.headline, styles.accent]}>our priority</ThemedText>
+            </ThemedText>
             <ThemedText style={styles.lede}>Personalised care for a healthier, happier you.</ThemedText>
           </View>
-          <View style={styles.cta}>
-            <ThemedText style={styles.ctaText}>Talk to Ekaay</ThemedText>
-            <View style={styles.ctaArrow}>
-              <ArrowRight size={15} color={Colors.onInk} strokeWidth={2.6} />
+          {/* The shadow sits outside; a plain View rounds and clips the button's gradient. */}
+          <View style={styles.ctaLift}>
+            <View style={styles.cta}>
+              <LinearGradient
+                colors={['#D84A08', '#BF3800']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <ThemedText style={styles.ctaText}>Talk to Ekaay</ThemedText>
+              <View style={styles.ctaArrow}>
+                <ArrowRight size={14} color={Colors.primaryDeep} strokeWidth={2.8} />
+              </View>
             </View>
           </View>
         </View>
-      </View>
+      </Glass>
     </Pressable>
   );
 }
@@ -136,18 +161,11 @@ const styles = StyleSheet.create({
   },
   card: {
     height: HEIGHT,
-    borderRadius: Radius.xl,
-    overflow: 'hidden',
   },
-  left: {
+  backdrop: {
     position: 'absolute',
+    top: 0,
     left: 0,
-    bottom: 0,
-  },
-  right: {
-    position: 'absolute',
-    right: 0,
-    bottom: 0,
   },
   // Cut by the card's right and bottom edges, so the coats run on past them; set low, so the
   // card's bottom edge cuts them above the belt.
@@ -160,47 +178,52 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'space-between',
     maxWidth: 212,
-    paddingTop: 15,
-    paddingBottom: 15,
+    paddingTop: 16,
+    paddingBottom: 16,
     paddingLeft: 18,
   },
   words: {
-    gap: 4,
+    gap: 5,
   },
   headline: {
     fontFamily: Fonts.display,
     fontSize: 22,
     lineHeight: 25,
     letterSpacing: -0.6,
-    color: Colors.onInk,
-    textShadowColor: 'rgba(110, 28, 0, 0.25)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    color: Colors.text,
+  },
+  accent: {
+    color: Colors.primaryDeep,
   },
   lede: {
-    maxWidth: 176,
+    maxWidth: 170,
     fontFamily: Fonts.medium,
     fontSize: 12.5,
     lineHeight: 17,
-    color: 'rgba(255, 255, 255, 0.94)',
+    color: Colors.textSoft,
   },
-  cta: {
+  ctaLift: {
     alignSelf: 'flex-start',
+    borderRadius: Radius.pill,
+    boxShadow: '0 2px 4px rgba(150, 46, 0, 0.14), 0 8px 18px rgba(190, 70, 10, 0.22)',
+  },
+  // White on the gradient is 4.9:1 to 5.4:1.
+  cta: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     height: 36,
-    paddingLeft: 14,
+    paddingLeft: 15,
     paddingRight: 6,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: '0 4px 12px rgba(110, 30, 0, 0.22)',
+    overflow: 'hidden',
+    boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.35)',
   },
   ctaText: {
     fontFamily: Fonts.bold,
     fontSize: 13.5,
     lineHeight: 18,
-    color: Colors.primaryDeep,
+    color: Colors.onInk,
   },
   ctaArrow: {
     width: 24,
@@ -208,6 +231,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.primaryDeep,
+    backgroundColor: Colors.backgroundElement,
   },
 });

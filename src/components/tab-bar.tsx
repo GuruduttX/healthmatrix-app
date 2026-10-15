@@ -1,7 +1,9 @@
+import { GlassView } from 'expo-glass-effect';
+import { LinearGradient } from 'expo-linear-gradient';
 import { type Tabs } from 'expo-router';
 import { CreditCard, FileText, House, Stethoscope, type LucideIcon } from 'lucide-react-native';
 import { useEffect, type ComponentProps } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useReducedMotion,
@@ -12,7 +14,8 @@ import Animated, {
 
 import { ThemedText } from '@/components/themed-text';
 import { EkaayMark } from '@/components/ui/ekaay-mark';
-import { Colors, Fonts, Radius, Shadows, TabBar as Metrics } from '@/constants/theme';
+import { liquidGlass } from '@/components/ui/glass';
+import { Colors, Fonts, Glass, Radius, Shadows, TabBar as Metrics } from '@/constants/theme';
 import { useKeyboardVisible } from '@/hooks/use-keyboard-visible';
 
 type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0];
@@ -42,9 +45,10 @@ const LABEL_GAP = 4;
 const SPRING = { damping: 22, stiffness: 260, mass: 1 };
 
 /**
- * A floating dock of five labelled tabs: white, monochrome, with a soft pill that slides to the
- * selected tab's icon and orange only on what's selected. Ekaay is an orb inside the dock, ringed
- * when selected instead of getting the pill.
+ * A floating dock of five labelled tabs, made of glass: Liquid Glass on iOS 26, a frosted pane
+ * elsewhere. Monochrome, with a pane of orange-tinted glass that slides to the selected tab's icon
+ * and orange only on what's selected. Ekaay is an orb inside the dock, ringed when selected instead
+ * of getting the pill.
  */
 export function TabBar({ state, descriptors, navigation, insets }: TabBarProps) {
   const keyboardVisible = useKeyboardVisible();
@@ -72,14 +76,24 @@ export function TabBar({ state, descriptors, navigation, insets }: TabBarProps) 
 
   return (
     <View style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, Metrics.bottomGap) }]}>
-      {/* The shadow sits outside; a plain View rounds and clips the dock's layers. */}
+      {/* The shadow sits outside; the glass rounds and clips the dock's layers. */}
       <View style={styles.shadow}>
-        <View
-          style={styles.dock}
+        <GlassView
+          glassEffectStyle="regular"
+          colorScheme="light"
+          style={[styles.dock, liquidGlass ? styles.dockLiquid : styles.dockFrost]}
           accessibilityRole="tablist"
           onLayout={(event) =>
             slot.set((event.nativeEvent.layout.width - INSET * 2) / state.routes.length)
           }>
+          {liquidGlass ? null : (
+            // Light on the frost: brighter along the top edge, as on every pane.
+            <LinearGradient
+              colors={['rgba(255, 255, 255, 0.7)', 'rgba(255, 255, 255, 0)']}
+              locations={[0, 0.6]}
+              style={[StyleSheet.absoluteFill, styles.noTouch]}
+            />
+          )}
           <Animated.View style={[styles.pill, pill]} />
 
           {state.routes.map((route, index) => {
@@ -129,7 +143,7 @@ export function TabBar({ state, descriptors, navigation, insets }: TabBarProps) 
               </Pressable>
             );
           })}
-        </View>
+        </GlassView>
       </View>
     </View>
   );
@@ -146,24 +160,37 @@ const styles = StyleSheet.create({
     // Let touches in the transparent area around the bar reach the screen behind it.
     pointerEvents: 'box-none',
   },
+  // Light and cool, so the dock floats on the blue and apricot light without darkening it.
   shadow: {
     width: '100%',
     maxWidth: 460,
     borderRadius: Radius.pill,
-    boxShadow: '0 2px 6px rgba(58, 36, 22, 0.06), 0 12px 32px rgba(58, 36, 22, 0.12)',
+    boxShadow:
+      '0 0 0 1px rgba(44, 72, 96, 0.05), 0 2px 6px rgba(30, 50, 70, 0.05), 0 12px 32px rgba(30, 50, 70, 0.1)',
   },
-  // Solid: without a real blur, see-through white only lets the page's text show through.
   dock: {
     flexDirection: 'row',
     height: Metrics.height,
     paddingHorizontal: INSET,
     borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
     overflow: 'hidden',
   },
-  // The selected tab's pill, sliding from icon to icon; peach, so the orange icon reads on it.
+  dockLiquid: {
+    borderWidth: 0,
+  },
+  // Web blurs what's behind, so the frost can be thin; Android has no blur, so it's denser and
+  // the page's text never shows through.
+  dockFrost: {
+    borderWidth: 1,
+    borderColor: Glass.rim,
+    backgroundColor: Platform.OS === 'web' ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.82)',
+    boxShadow: Glass.glow,
+    ...(Platform.OS === 'web' ? ({ backdropFilter: Glass.blurDock } as object) : null),
+  },
+  noTouch: {
+    pointerEvents: 'none',
+  },
+  // The selected tab's pill, sliding from icon to icon: orange-tinted glass with a bright rim.
   pill: {
     position: 'absolute',
     left: 0,
@@ -171,7 +198,10 @@ const styles = StyleSheet.create({
     width: PILL_WIDTH,
     height: PILL_HEIGHT,
     borderRadius: PILL_HEIGHT / 2,
-    backgroundColor: Colors.primaryTint,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.85)',
+    backgroundColor: 'rgba(255, 196, 160, 0.4)',
+    boxShadow: `${Glass.shine}, 0 2px 8px rgba(196, 80, 20, 0.12)`,
     pointerEvents: 'none',
   },
   item: {

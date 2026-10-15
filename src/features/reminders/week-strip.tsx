@@ -2,7 +2,8 @@ import { Check, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Glass, glassSurface } from '@/components/ui/glass';
+import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 
 import { addDays, fromDateKey, MONTH_NAMES, WEEKDAY_NAMES } from './schedule';
 import { type DateKey } from './types';
@@ -29,7 +30,7 @@ export function WeekStrip({ selected, today, onSelect, markFor }: WeekStripProps
   const month = fromDateKey(selected);
 
   return (
-    <View style={styles.card}>
+    <Glass style={styles.card}>
       <View style={styles.header}>
         <ThemedText style={styles.month} numberOfLines={1}>
           {MONTH_NAMES[month.getMonth()]} {month.getFullYear()}
@@ -98,7 +99,7 @@ export function WeekStrip({ selected, today, onSelect, markFor }: WeekStripProps
           );
         })}
       </View>
-    </View>
+    </Glass>
   );
 }
 
@@ -117,7 +118,7 @@ function Arrow({
       accessibilityRole="button"
       accessibilityLabel={label}
       hitSlop={6}
-      style={({ pressed }) => [styles.arrow, pressed && styles.arrowPressed]}>
+      style={({ pressed }) => [glassSurface.flat, styles.arrow, pressed && styles.arrowPressed]}>
       <Icon size={17} color={Colors.text} strokeWidth={2.3} />
     </Pressable>
   );
@@ -129,11 +130,6 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.three - 4,
     paddingBottom: Spacing.two + 2,
     paddingHorizontal: Spacing.two + 2,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
   },
   header: {
     flexDirection: 'row',
@@ -158,15 +154,13 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     color: Colors.primaryDeep,
   },
+  // A small round of glass set into the card.
   arrow: {
     width: 32,
     height: 32,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
   },
   arrowPressed: {
     backgroundColor: Colors.well,

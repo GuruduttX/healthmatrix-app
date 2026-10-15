@@ -17,7 +17,9 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
-import { Colors, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Radius, Spacing } from '@/constants/theme';
+
+import { glassSurface } from './glass';
 
 const PULSE_MS = 850;
 const DIMMEST = 0.45;
@@ -146,7 +148,7 @@ export function SkeletonList({
   style,
 }: SkeletonListProps) {
   return (
-    <SkeletonGroup label={label} style={[styles.card, style]}>
+    <SkeletonGroup label={label} style={[glassSurface.card, styles.card, style]}>
       {Array.from({ length: rows }, (_, i) => (
         <View key={i} style={[styles.row, i > 0 && styles.divider]}>
           {leading === 'circle' ? <SkeletonCircle size={42} /> : null}
@@ -173,7 +175,7 @@ export function SkeletonCard({
   style?: StyleProp<ViewStyle>;
 }) {
   return (
-    <SkeletonGroup label={label} style={[styles.card, styles.cardPad, style]}>
+    <SkeletonGroup label={label} style={[glassSurface.card, styles.card, styles.cardPad, style]}>
       <View style={styles.cardTop}>
         <SkeletonCircle size={40} />
         <View style={styles.rowText}>
@@ -194,10 +196,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three - 2,
     paddingVertical: Spacing.one,
     borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
   },
   cardPad: {
     gap: Spacing.three,

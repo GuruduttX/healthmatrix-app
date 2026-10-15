@@ -1,6 +1,7 @@
 import { StyleSheet } from 'react-native';
 
-import { Colors, Fonts, Radius, Shadows } from '@/constants/theme';
+import { webBlur } from '@/components/ui/glass';
+import { Colors, Fonts, Glass, Radius } from '@/constants/theme';
 
 /**
  * Shared bits of the emergency profile's list and contact editors (and the medicine form's
@@ -14,7 +15,8 @@ export const formStyles = StyleSheet.create({
     borderRadius: Radius.lg,
     borderWidth: 1.5,
     borderColor: Colors.border,
-    backgroundColor: Colors.backgroundElement,
+    backgroundColor: 'rgba(255, 255, 255, 0.62)',
+    boxShadow: Glass.glowSmall,
     color: Colors.text,
     fontFamily: Fonts.medium,
     fontSize: 16,
@@ -22,7 +24,7 @@ export const formStyles = StyleSheet.create({
   pressed: {
     opacity: 0.75,
   },
-  // A small white round button with a peach edge and an orange icon, like Home's add button.
+  // A small round of glass with an orange icon, like Home's bell.
   roundButton: {
     width: 34,
     height: 34,
@@ -30,9 +32,10 @@ export const formStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: Colors.primaryTintStrong,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
+    borderColor: Glass.rim,
+    backgroundColor: Glass.fillSoft,
+    boxShadow: `${Glass.glowSmall}, ${Glass.shadowSmall}`,
+    ...webBlur,
   },
   roundButtonPressed: {
     backgroundColor: Colors.primaryTint,
@@ -40,9 +43,9 @@ export const formStyles = StyleSheet.create({
   },
   roundButtonDisabled: {
     opacity: 0.4,
-    boxShadow: 'none',
+    boxShadow: Glass.glowSmall,
   },
-  // A value the member entered: a white pill with an edge a step stronger than the card's.
+  // A value the member entered: a pill of glass on the card.
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -54,8 +57,9 @@ export const formStyles = StyleSheet.create({
     paddingRight: 9,
     borderRadius: Radius.pill,
     borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.backgroundElement,
+    borderColor: Glass.rim,
+    backgroundColor: Glass.fillSoft,
+    boxShadow: `${Glass.glowSmall}, ${Glass.shadowSmall}`,
   },
   pillText: {
     flexShrink: 1,

@@ -29,6 +29,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { EmptyState, ErrorState } from '@/components/ui/empty-state';
+import { Glass, glassSurface } from '@/components/ui/glass';
 import { PageBackground } from '@/components/ui/morning-light';
 import { Section } from '@/components/ui/section';
 import { Skeleton, SkeletonGroup } from '@/components/ui/skeleton';
@@ -37,10 +38,10 @@ import { TextField } from '@/components/ui/text-field';
 import {
   Colors,
   Fonts,
+  Glass as GlassTokens,
   Gutter,
   MaxContentWidth,
   Radius,
-  Shadows,
   Spacing,
 } from '@/constants/theme';
 import { DatePicker } from '@/features/reminders/date-picker';
@@ -408,7 +409,13 @@ export default function MedicineFormScreen() {
                   {form.times.map((time, index) => {
                     const active = timeEditor?.index === index;
                     return (
-                      <View key={time} style={[styles.timePill, active && styles.timePillActive]}>
+                      <View
+                        key={time}
+                        style={[
+                          glassSurface.small,
+                          styles.timePill,
+                          active && styles.timePillActive,
+                        ]}>
                         <Pressable
                           onPress={() => setTimeEditor({ index, value: time })}
                           accessibilityRole="button"
@@ -449,7 +456,11 @@ export default function MedicineFormScreen() {
                         setTimeEditor({ index: null, value: suggestNextTime(form.times) })
                       }
                       accessibilityRole="button"
-                      style={({ pressed }) => [styles.addTime, pressed && styles.addTimePressed]}>
+                      style={({ pressed }) => [
+                        glassSurface.small,
+                        styles.addTime,
+                        pressed && styles.addTimePressed,
+                      ]}>
                       <Plus size={15} color={Colors.primaryDeep} strokeWidth={2.6} />
                       <ThemedText style={styles.addTimeText}>Add a time</ThemedText>
                     </Pressable>
@@ -530,6 +541,7 @@ export default function MedicineFormScreen() {
                             accessibilityState={{ checked: on }}
                             accessibilityLabel={WEEKDAY_NAMES[day]}
                             style={({ pressed }) => [
+                              glassSurface.flat,
                               styles.weekday,
                               on && styles.weekdayOn,
                               pressed && styles.pressed,
@@ -692,7 +704,7 @@ export default function MedicineFormScreen() {
       {/* Save stays in reach above the tab bar, on a fade of the page rather than a hard bar. */}
       <View style={[styles.footer, { paddingBottom: clearance + Spacing.two }]}>
         <LinearGradient
-          colors={['rgba(248, 245, 240, 0)', Colors.canvas]}
+          colors={['rgba(251, 250, 248, 0)', Colors.canvas]}
           locations={[0, 0.4]}
           style={[StyleSheet.absoluteFill, styles.noTouch]}
         />
@@ -721,7 +733,7 @@ function suggestNextTime(times: TimeKey[]): TimeKey {
   return `${String(hour).padStart(2, '0')}:${last.slice(3)}`;
 }
 
-/** The page around the form: the warm canvas and morning light, then a back bar. */
+/** The page around the form: the glass design's page and its soft light, then a back bar. */
 function Shell({
   title,
   onBack,
@@ -742,9 +754,9 @@ function Shell({
   );
 }
 
-/** A white card holding a few fields, a hairline between each group. */
+/** A pane of glass holding a few fields, a hairline between each group. */
 function Card({ children }: { children: ReactNode }) {
-  return <View style={styles.card}>{children}</View>;
+  return <Glass style={styles.card}>{children}</Glass>;
 }
 
 /** Edge to edge across the card, between its groups of fields. */
@@ -774,19 +786,19 @@ function FormSkeleton() {
       {[0, 1].map((i) => (
         <View key={i} style={styles.skeletonSection}>
           <Skeleton width={110} height={18} />
-          <View style={styles.card}>
+          <Card>
             <Skeleton width={60} height={12} />
             <Skeleton height={52} radius={Radius.lg} />
             <Skeleton width={90} height={12} />
             <Skeleton height={52} radius={Radius.lg} />
-          </View>
+          </Card>
         </View>
       ))}
     </SkeletonGroup>
   );
 }
 
-/** A small suggestion: white with a hairline, solid ink once chosen. */
+/** A small suggestion: a pill of glass set into the card, solid ink once chosen. */
 function SmallChip({
   label,
   selected,
@@ -804,6 +816,7 @@ function SmallChip({
       accessibilityRole="button"
       accessibilityState={{ selected }}
       style={({ pressed }) => [
+        glassSurface.flat,
         styles.smallChip,
         selected && styles.smallChipOn,
         pressed && styles.pressed,
@@ -832,6 +845,7 @@ function StepButton({
       accessibilityRole="button"
       accessibilityLabel={label}
       style={({ pressed }) => [
+        glassSurface.small,
         styles.stepButton,
         disabled && styles.disabled,
         pressed && styles.stepButtonPressed,
@@ -869,6 +883,9 @@ function DateRow({
   );
 }
 
+/** Light on the top edge of a solid ink choice, as on a chosen `Chip`. */
+const INK_SHINE = 'inset 0 1px 1px rgba(255, 255, 255, 0.18)';
+
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -900,16 +917,11 @@ const styles = StyleSheet.create({
   card: {
     gap: Spacing.three - 2,
     padding: Spacing.three,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
   },
   rule: {
     height: StyleSheet.hairlineWidth,
     marginHorizontal: -Spacing.three,
-    backgroundColor: Colors.hairline,
+    backgroundColor: GlassTokens.hairline,
   },
   field: {
     gap: Spacing.two + 2,
@@ -938,13 +950,12 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 11,
     borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
   },
+  // Solid ink, with only light on its top edge: the glass's frost would haze it.
   smallChipOn: {
     borderColor: Colors.text,
     backgroundColor: Colors.text,
+    boxShadow: INK_SHINE,
   },
   smallChipText: {
     fontFamily: Fonts.semibold,
@@ -952,20 +963,17 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     color: Colors.textSoft,
   },
-  // A set time: white with a hairline like a chip, solid ink while it is being changed.
+  // A set time: a pill of glass like a chip, solid ink while it is being changed.
   timePill: {
     flexDirection: 'row',
     alignItems: 'center',
     minHeight: 38,
     borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
   },
   timePillActive: {
     borderColor: Colors.text,
     backgroundColor: Colors.text,
+    boxShadow: `${INK_SHINE}, 0 4px 12px rgba(14, 42, 51, 0.18)`,
   },
   timePillMain: {
     flexDirection: 'row',
@@ -987,7 +995,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingRight: 12,
   },
-  // White with a peach edge and orange words, like Home's add button.
+  // Glass with orange words, like Home's add button.
   addTime: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -997,9 +1005,6 @@ const styles = StyleSheet.create({
     paddingLeft: 12,
     paddingRight: 15,
     borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.primaryTintStrong,
-    backgroundColor: Colors.backgroundElement,
   },
   addTimePressed: {
     backgroundColor: Colors.primaryTint,
@@ -1016,7 +1021,7 @@ const styles = StyleSheet.create({
     gap: Spacing.three - 4,
     paddingTop: Spacing.two,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: Colors.hairline,
+    borderTopColor: GlassTokens.hairline,
   },
   editorActions: {
     flexDirection: 'row',
@@ -1036,13 +1041,11 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
   },
   weekdayOn: {
     borderColor: Colors.text,
     backgroundColor: Colors.text,
+    boxShadow: INK_SHINE,
   },
   weekdayText: {
     fontFamily: Fonts.bold,
@@ -1071,18 +1074,15 @@ const styles = StyleSheet.create({
     borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
   },
   stepButtonPressed: {
     backgroundColor: Colors.well,
     transform: [{ scale: 0.96 }],
   },
+  // No lift while it can't be pressed; the glass keeps its glow.
   disabled: {
     opacity: 0.35,
-    boxShadow: 'none',
+    boxShadow: GlassTokens.glowSmall,
   },
   dateRow: {
     flexDirection: 'row',

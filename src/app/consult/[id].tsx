@@ -14,8 +14,8 @@ import { useAppointments } from '@/features/doctors/use-appointments';
 /**
  * A video consult, from the waiting room to the end of the call. Opened from the appointment's
  * "Join" button, which shows from five minutes before the slot. The doctor admits the member from
- * the console; see `features/consult-call/video-call*.tsx`. Everything here is on the warm page
- * except the call itself, which turns the status bar light while it shows.
+ * the console; see `features/consult-call/video-call*.tsx`. Everything here is glass on the lit
+ * page except the call itself, a dark stage that turns the status bar light while it shows.
  */
 export default function ConsultCallScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

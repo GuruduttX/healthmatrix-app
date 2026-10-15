@@ -4,7 +4,7 @@ import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, View } from 
 
 import { ThemedText } from '@/components/themed-text';
 import { LIST_LEAD } from '@/components/ui/list';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Glass, Radius, Spacing } from '@/constants/theme';
 import { istToday } from '@/features/doctors/time';
 import { daysBetween, formatDay, formatShortDate } from '@/features/reminders/schedule';
 
@@ -40,7 +40,7 @@ const RAIL: Record<
   given: { ring: Colors.good, fill: Colors.good, text: Colors.good, icon: Check },
   due: { ring: Colors.watch, fill: Colors.watchSoft, text: Colors.watch, icon: Clock },
   overdue: { ring: Colors.high, fill: Colors.highSoft, text: Colors.high, icon: AlertCircle },
-  upcoming: { ring: Colors.border, fill: Colors.backgroundElement, text: Colors.textSoft },
+  upcoming: { ring: Colors.border, fill: Glass.fillSoft, text: Colors.textSoft },
 };
 
 /**
@@ -298,7 +298,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primaryInk,
     transform: [{ scale: 0.97 }],
   },
-  // Like a checkbox waiting for a tick: white, with a peach ring.
+  // Like a checkbox waiting for a tick: a round of glass with a peach ring.
   tick: {
     width: 34,
     height: 34,
@@ -307,7 +307,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1.5,
     borderColor: Colors.primaryLight,
-    backgroundColor: Colors.backgroundElement,
+    backgroundColor: Glass.fillSoft,
+    boxShadow: Glass.glowSmall,
   },
   tickPressed: {
     backgroundColor: Colors.primaryTintStrong,

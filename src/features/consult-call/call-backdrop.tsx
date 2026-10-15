@@ -6,7 +6,7 @@ import { Colors } from '@/constants/theme';
 /**
  * The dark stage behind the call while no video shows (connecting, or the doctor's camera off):
  * ink deepening to teal. The only dark screen in the app; the waiting room and the notes around
- * the call are on the warm page. Place it first inside a full-screen View.
+ * the call are glass on the lit page. Place it first inside a full-screen View.
  */
 export function CallBackdrop() {
   return (

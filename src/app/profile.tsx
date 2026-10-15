@@ -24,6 +24,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
+import { glassSurface } from '@/components/ui/glass';
 import { PageBackground } from '@/components/ui/morning-light';
 import { StackHeader } from '@/components/ui/stack-header';
 import { Surface } from '@/components/ui/surface';
@@ -174,12 +175,13 @@ export default function ProfileScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Change profile photo"
                 style={({ pressed }) => pressed && styles.pressed}>
-                <View style={styles.photoRing}>
+                <View style={[glassSurface.small, styles.photoRing]}>
                   <MemberAvatar
                     name={trimmedName || member.name}
                     photoUrl={member.photoUrl}
                     localUri={photo?.uri}
                     size={PHOTO}
+                    tone="glass"
                   />
                 </View>
                 <View style={styles.cameraBadge}>
@@ -323,7 +325,6 @@ function Field({
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.canvas,
   },
   safeArea: {
     flex: 1,
@@ -352,13 +353,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.three - 4,
   },
-  // A white ring and a soft lift, so the photo sits on the page like Home's round buttons.
+  // A ring of glass, so the photo sits on the page like Home's round buttons.
   photoRing: {
     padding: 4,
-    borderRadius: PHOTO / 2 + 4,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.raised,
+    borderRadius: PHOTO / 2 + 5,
   },
+  // The one orange on the photo: it's the way to change it.
   cameraBadge: {
     position: 'absolute',
     right: 2,
@@ -368,10 +368,10 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
+    borderWidth: 2.5,
     borderColor: Colors.backgroundElement,
-    backgroundColor: Colors.primaryBright,
-    boxShadow: Shadows.soft,
+    backgroundColor: Colors.primaryDeep,
+    boxShadow: Shadows.button,
   },
   names: {
     alignItems: 'center',

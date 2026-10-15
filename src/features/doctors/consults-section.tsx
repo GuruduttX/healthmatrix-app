@@ -33,17 +33,33 @@ type PastItem =
  * "Your consults" on the Care tab, with Upcoming and Past tabs. Opens on Upcoming when there is
  * one, otherwise on Past; placeholder rows while they load, and hidden once loaded if the member
  * has never booked a consult. A custom-time request moves to Past once its time has passed,
- * answered or not, newest first among the finished consults. `past` comes from `usePastConsults`, held by the Care screen so
- * pull-to-refresh reloads it. `index` is its place on the page, for the section's ease-in.
+ * answered or not, newest first among the finished consults. `past` comes from `usePastConsults`,
+ * held by the Care screen so pull-to-refresh reloads it, with its `pastError`. `index` is its
+ * place on the page, for the section's ease-in.
  */
-export function ConsultsSection({ past, index }: { past: PastConsult[] | null; index?: number }) {
-  const { appointments } = useAppointments();
-  const { requests } = useConsultRequests();
+export function ConsultsSection({
+  past,
+  pastError,
+  index,
+}: {
+  past: PastConsult[] | null;
+  pastError?: string | null;
+  index?: number;
+}) {
+  const { appointments, error: appointmentsError } = useAppointments();
+  const { requests, error: requestsError } = useConsultRequests();
   const [chosen, setChosen] = useState<Tab | null>(null);
   // Ticks each minute, so a request moves to Past when its time comes.
   const now = useNow().getTime();
 
-  if (appointments === null && past === null) {
+  // Placeholder rows until all three lists have loaded (or failed): drawing as each one arrives
+  // opened the section on Past with one consult, then filled it in and jumped to Upcoming.
+  const settled = (list: unknown[] | null, error?: string | null) => list !== null || !!error;
+  if (
+    !settled(appointments, appointmentsError) ||
+    !settled(requests, requestsError) ||
+    !settled(past, pastError)
+  ) {
     return (
       <Section title={TITLE} index={index}>
         <SkeletonList rows={2} label="Loading your consults" />
@@ -82,8 +98,8 @@ export function ConsultsSection({ past, index }: { past: PastConsult[] | null; i
 
       {tab === 'upcoming' ? (
         upcomingCount ? (
-          // Requests and booked consults share one card, a hairline between them, three at a time.
-          <ScrollingListCard rows={3}>
+          // Requests and booked consults share one card, a hairline between them, two at a time.
+          <ScrollingListCard rows={2}>
             {asked.length ? <ConsultRequestsList requests={asked} /> : null}
             {upcoming.length ? <UpcomingList appointments={upcoming} /> : null}
           </ScrollingListCard>
@@ -96,7 +112,8 @@ export function ConsultsSection({ past, index }: { past: PastConsult[] | null; i
           />
         )
       ) : done.length ? (
-        <ScrollingListCard rows={3}>
+        // Two at a time, like Upcoming.
+        <ScrollingListCard rows={2}>
           {done.map((item) =>
             item.kind === 'consult' ? (
               <PastConsultRow key={item.consult.id} consult={item.consult} />

@@ -13,11 +13,12 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
+import { Glass, glassSurface } from '@/components/ui/glass';
 import { IconTile } from '@/components/ui/icon-tile';
 import { Chevron } from '@/components/ui/list';
 import { PageBackground } from '@/components/ui/morning-light';
 import { HeaderIconButton } from '@/components/ui/stack-header';
-import { Colors, Fonts, Gutter, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Gutter, Radius, Spacing } from '@/constants/theme';
 import { DoctorAvatar } from '@/features/doctors/doctor-avatar';
 import { formatSlot } from '@/features/doctors/time';
 
@@ -49,7 +50,7 @@ export type WaitingRoomProps = {
 };
 
 const AVATAR = 96;
-/** The photo in a white ring, like a framed picture on the warm page. */
+/** The photo in a ring of glass, like a framed picture on the page. */
 const RING = AVATAR + 8;
 
 /** A ring that grows out of the doctor's photo and fades, on a loop. */
@@ -98,8 +99,8 @@ const STATUS_DOT: Record<LobbyStatus, string> = {
 /**
  * Where the member waits until the doctor admits them from the console. The call opens by itself
  * when they do; meanwhile the member can check how they look and set mic and camera. Nothing is
- * sent to the doctor from here: the camera preview stays on the phone. On the warm page, like the
- * rest of the app; only the call itself is dark.
+ * sent to the doctor from here: the camera preview stays on the phone. Glass on the lit page, like
+ * the rest of the app; only the call itself is dark.
  */
 export function WaitingRoom({
   status,
@@ -150,7 +151,7 @@ export function WaitingRoom({
                 <Pulse delay={1200} />
               </>
             )}
-            <View style={styles.avatarRing}>
+            <View style={[glassSurface.small, styles.avatarRing]}>
               <DoctorAvatar name={doctorName} photoUrl={doctorPhotoUrl} size={AVATAR} />
             </View>
           </View>
@@ -161,7 +162,7 @@ export function WaitingRoom({
             {scheduledAt ? `Video consult · ${formatSlot(scheduledAt)}` : 'Video consult'}
           </ThemedText>
 
-          <View style={styles.status} accessibilityLiveRegion="polite">
+          <View style={[glassSurface.small, styles.status]} accessibilityLiveRegion="polite">
             <View style={[styles.dot, { backgroundColor: STATUS_DOT[status] }]} />
             <ThemedText style={styles.statusText} numberOfLines={1}>
               {STATUS_TEXT[status].title}
@@ -178,27 +179,29 @@ export function WaitingRoom({
           ) : null}
         </View>
 
-        {/* The shadow sits outside the preview, which clips the camera to its corners. */}
-        <View style={styles.previewShadow}>
-          <View style={[styles.preview, showCamera && styles.previewLive]}>
-            {showCamera ? (
-              <CameraView style={StyleSheet.absoluteFill} facing="front" mirror />
-            ) : (
-              <View style={styles.previewOff}>
-                <IconTile icon={VideoOff} tone="neutral" size={52} />
-                <ThemedText style={styles.previewOffText}>
-                  {canUseCamera ? 'Your camera is off' : 'Camera not allowed'}
-                </ThemedText>
-              </View>
-            )}
-            <View style={styles.previewLabel}>
-              <ThemedText style={styles.previewLabelText}>You</ThemedText>
-              {!micOn || !canUseMic ? (
-                <MicOff size={12} color={Colors.text} strokeWidth={2.4} />
-              ) : null}
+        {/* A pane of glass that clips the camera to its corners: dark, without the peach and blue
+            light, while the camera shows. */}
+        <Glass
+          wrapperStyle={styles.previewWrap}
+          style={[styles.preview, showCamera && styles.previewLive]}
+          tinted={!showCamera}>
+          {showCamera ? (
+            <CameraView style={StyleSheet.absoluteFill} facing="front" mirror />
+          ) : (
+            <View style={styles.previewOff}>
+              <IconTile icon={VideoOff} tone="neutral" size={52} />
+              <ThemedText style={styles.previewOffText}>
+                {canUseCamera ? 'Your camera is off' : 'Camera not allowed'}
+              </ThemedText>
             </View>
+          )}
+          <View style={[glassSurface.small, styles.previewLabel]}>
+            <ThemedText style={styles.previewLabelText}>You</ThemedText>
+            {!micOn || !canUseMic ? (
+              <MicOff size={12} color={Colors.text} strokeWidth={2.4} />
+            ) : null}
           </View>
-        </View>
+        </Glass>
 
         {missing.length > 0 && !permissionsPending ? (
           <Pressable
@@ -206,14 +209,16 @@ export function WaitingRoom({
               if (Platform.OS !== 'web') void Linking.openSettings();
             }}
             accessibilityRole="button"
-            style={({ pressed }) => [styles.permission, pressed && styles.pressed]}>
-            <IconTile icon={ShieldAlert} tone="warning" size={36} />
-            <ThemedText style={styles.permissionText}>
-              {Platform.OS === 'web'
-                ? `Allow your ${missing.join(' and ')} for this site in your browser so ${doctorName} can ${senses.join(' and ')} you.`
-                : `Allow your ${missing.join(' and ')} in Settings so ${doctorName} can ${senses.join(' and ')} you. Tap to open Settings.`}
-            </ThemedText>
-            {Platform.OS === 'web' ? null : <Chevron />}
+            style={({ pressed }) => pressed && styles.pressed}>
+            <Glass style={styles.permission}>
+              <IconTile icon={ShieldAlert} tone="warning" size={36} />
+              <ThemedText style={styles.permissionText}>
+                {Platform.OS === 'web'
+                  ? `Allow your ${missing.join(' and ')} for this site in your browser so ${doctorName} can ${senses.join(' and ')} you.`
+                  : `Allow your ${missing.join(' and ')} in Settings so ${doctorName} can ${senses.join(' and ')} you. Tap to open Settings.`}
+              </ThemedText>
+              {Platform.OS === 'web' ? null : <Chevron />}
+            </Glass>
           </Pressable>
         ) : null}
 
@@ -241,9 +246,9 @@ export function WaitingRoom({
 }
 
 const styles = StyleSheet.create({
+  // No fill of its own: the page's light shows through the glass.
   root: {
     flex: 1,
-    backgroundColor: Colors.canvas,
   },
   content: {
     flex: 1,
@@ -290,10 +295,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.primaryLight,
   },
   avatarRing: {
-    padding: 4,
+    padding: 3,
     borderRadius: RING / 2,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.dish,
   },
   name: {
     fontFamily: Fonts.displaySemibold,
@@ -309,7 +312,7 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     color: Colors.textSoft,
   },
-  // A white pill on the page: the dot and the words carry the state.
+  // A pill of glass on the page: the dot and the words carry the state.
   status: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -319,10 +322,6 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     paddingHorizontal: 14,
     borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
   },
   dot: {
     width: 8,
@@ -363,23 +362,15 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     color: Colors.high,
   },
-  previewShadow: {
+  previewWrap: {
     flex: 1,
     minHeight: 160,
-    borderRadius: Radius.xl,
-    boxShadow: Shadows.soft,
   },
   preview: {
     flex: 1,
-    borderRadius: Radius.xl,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
   },
   // Behind the camera while it starts: dark, like the video it is about to show.
   previewLive: {
-    borderWidth: 0,
     backgroundColor: Colors.ink,
   },
   previewOff: {
@@ -394,7 +385,7 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     color: Colors.textSoft,
   },
-  // White, so it reads on the camera's picture and on the white card alike.
+  // Frosted glass, bright enough to read on the camera's picture as on the pane.
   previewLabel: {
     position: 'absolute',
     left: Spacing.three - 4,
@@ -405,9 +396,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 10,
     borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
+    backgroundColor: 'rgba(255, 255, 255, 0.86)',
   },
   previewLabelText: {
     fontFamily: Fonts.bold,
@@ -421,11 +410,6 @@ const styles = StyleSheet.create({
     gap: Spacing.three - 4,
     paddingVertical: Spacing.three - 4,
     paddingHorizontal: Spacing.three - 2,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
   },
   permissionText: {
     flex: 1,

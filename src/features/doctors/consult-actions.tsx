@@ -3,14 +3,15 @@ import { type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { glassSurface } from '@/components/ui/glass';
 import { LIST_LEAD } from '@/components/ui/list';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Glass, Radius, Spacing } from '@/constants/theme';
 
 import { DoctorAvatar } from './doctor-avatar';
 
 /**
  * A line's one action with a word on it, as on Home's Today card: Join, Book. Solid when it is the
- * thing to do now, soft (deep orange on peach) otherwise.
+ * thing to do now, otherwise a pill of glass with deep orange words.
  */
 export function PillButton({
   label,
@@ -33,7 +34,7 @@ export function PillButton({
       hitSlop={8}
       style={({ pressed }) => [
         styles.pill,
-        solid ? styles.solid : styles.soft,
+        solid ? styles.solid : [glassSurface.flat, styles.soft],
         pressed && (solid ? styles.solidPressed : styles.softPressed),
       ]}>
       {Icon ? (
@@ -164,10 +165,10 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.97 }],
   },
   soft: {
-    backgroundColor: Colors.primaryTint,
+    backgroundColor: Glass.fillSoft,
   },
   softPressed: {
-    backgroundColor: Colors.primaryTintStrong,
+    backgroundColor: Colors.primaryTint,
     transform: [{ scale: 0.97 }],
   },
   pillText: {

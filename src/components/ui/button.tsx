@@ -2,16 +2,18 @@ import { type LucideIcon } from 'lucide-react-native';
 import { ActivityIndicator, Pressable, StyleSheet, type PressableProps } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Glass, Radius, Shadows, Spacing } from '@/constants/theme';
+
+import { webBlur } from './glass';
 
 type Variant = 'primary' | 'secondary' | 'soft' | 'danger';
 
 type ButtonProps = Omit<PressableProps, 'style' | 'children'> & {
   label: string;
   /**
-   * `primary` orange, for the one main action. `secondary` white with a hairline, beside it.
-   * `soft` deep orange on a peach tint, for a quiet call to act. `danger` for removing or
-   * cancelling: crimson words on white, never orange.
+   * `primary` orange with light on its top edge, for the one main action. `secondary` a pill of
+   * glass, beside it. `soft` deep orange on a see-through peach, for a quiet call to act. `danger`
+   * for removing or cancelling: crimson words on glass, never orange.
    */
   variant?: Variant;
   size?: 'md' | 'sm';
@@ -63,7 +65,8 @@ export function Button({
         styles.base,
         size === 'sm' && styles.small,
         styles[variant],
-        !shadow && styles.flat,
+        variant !== 'primary' && webBlur,
+        !shadow && (variant === 'primary' ? styles.flatPrimary : styles.flat),
         off && styles.off,
         loading && styles.busy,
         pressed && [styles.pressed, PRESSED[variant]],
@@ -111,23 +114,29 @@ const styles = StyleSheet.create({
   primary: {
     borderColor: Colors.primaryBright,
     backgroundColor: Colors.primaryBright,
-    boxShadow: Shadows.button,
+    boxShadow: `inset 0 1px 1px rgba(255, 255, 255, 0.3), ${Shadows.button}`,
   },
   secondary: {
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
+    borderColor: Glass.rim,
+    backgroundColor: Glass.fillSoft,
+    boxShadow: `${Glass.glowSmall}, ${Glass.shadowSmall}`,
   },
   soft: {
-    borderColor: Colors.primaryTint,
+    borderColor: 'rgba(255, 255, 255, 0.7)',
     backgroundColor: Colors.primaryTint,
+    boxShadow: Glass.glowSmall,
   },
   danger: {
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
+    borderColor: Glass.rim,
+    backgroundColor: Glass.fillSoft,
+    boxShadow: `${Glass.glowSmall}, ${Glass.shadowFlat}`,
   },
+  // Inside a card: no lift, but the glass keeps its glow and the orange its top light.
   flat: {
-    boxShadow: 'none',
+    boxShadow: Glass.glowSmall,
+  },
+  flatPrimary: {
+    boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.3)',
   },
   off: {
     borderColor: Colors.hairline,

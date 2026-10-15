@@ -3,10 +3,11 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ErrorState } from '@/components/ui/empty-state';
+import { glassSurface } from '@/components/ui/glass';
 import { IconTile } from '@/components/ui/icon-tile';
 import { Skeleton, SkeletonCircle, SkeletonGroup } from '@/components/ui/skeleton';
 import { Surface } from '@/components/ui/surface';
-import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 
 import {
   EMERGENCY_FIELDS,
@@ -75,7 +76,7 @@ function ProfileSkeleton() {
   );
 }
 
-/** One detail a scan can show: a white pill with a tick when shown, a quiet one when hidden. */
+/** One detail a scan can show: a glass pill with a tick when shown, a quiet one when hidden. */
 function FieldToggle({
   label,
   shown,
@@ -95,7 +96,7 @@ function FieldToggle({
       hitSlop={4}
       style={({ pressed }) => [
         styles.pill,
-        shown ? styles.pillOn : styles.pillOff,
+        shown ? glassSurface.small : styles.pillOff,
         pressed && styles.pillPressed,
       ]}>
       {shown ? (
@@ -149,7 +150,7 @@ export function EmergencyProfileCard({
           hitSlop={8}
           style={({ pressed }) => [
             styles.action,
-            empty ? styles.actionSolid : styles.actionSoft,
+            empty ? styles.actionSolid : glassSurface.small,
             pressed && (empty ? styles.actionSolidPressed : styles.actionSoftPressed),
           ]}>
           {empty ? (
@@ -260,13 +261,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: Radius.pill,
   },
-  // White, with a peach edge, like Home's add button.
-  actionSoft: {
-    borderWidth: 1,
-    borderColor: Colors.primaryTintStrong,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
-  },
+  // Edit is a pill of glass with the orange in its word; pressed, the glass warms to peach.
   actionSoftPressed: {
     backgroundColor: Colors.primaryTint,
     transform: [{ scale: 0.97 }],
@@ -319,10 +314,6 @@ const styles = StyleSheet.create({
     paddingRight: 12,
     borderRadius: Radius.pill,
     borderWidth: 1,
-  },
-  pillOn: {
-    borderColor: Colors.border,
-    backgroundColor: Colors.backgroundElement,
   },
   pillOff: {
     borderColor: Colors.well,

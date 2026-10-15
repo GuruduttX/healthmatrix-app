@@ -24,7 +24,9 @@ import {
 } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+
+import { Glass } from './glass';
 
 /** The usual size of a row's round lead: an `IconTile`, an avatar, a 3D picture in a dish. */
 export const LIST_LEAD = 40;
@@ -38,14 +40,14 @@ type ListCardProps = {
 };
 
 /**
- * Rows on one white card, as on Home's Today card: a hairline between each, starting where the
+ * Rows on one pane of glass, as on Home's Today card: a hairline between each, starting where the
  * words do. No shaded boxes inside: the rows and dividers are the structure.
  */
 export function ListCard({ children, inset = LIST_LEAD, style }: ListCardProps) {
   return (
-    <View style={[styles.card, style]}>
+    <Glass style={[styles.card, style]}>
       <Divided inset={inset}>{children}</Divided>
-    </View>
+    </Glass>
   );
 }
 
@@ -98,14 +100,15 @@ export function ScrollingListCard({ children, inset = LIST_LEAD, rows = 3, style
   };
 
   return (
-    <View style={[styles.card, styles.scrollingCard, style]}>
+    <Glass style={[styles.card, styles.scrollingCard, style]}>
       <ScrollView
         style={maxHeight ? { maxHeight } : undefined}
         contentContainerStyle={styles.scrollingContent}
         scrollEnabled={!!maxHeight}
         // Android scrolls a list inside the page only when told to.
         nestedScrollEnabled
-        showsVerticalScrollIndicator={!!maxHeight}
+        // No scrollbar: the fade at the bottom says there's more.
+        showsVerticalScrollIndicator={false}
         onScroll={onScroll}
         scrollEventThrottle={64}>
         <RowLayoutContext.Provider value={report}>
@@ -114,12 +117,12 @@ export function ScrollingListCard({ children, inset = LIST_LEAD, rows = 3, style
       </ScrollView>
       {maxHeight && !atEnd ? (
         <LinearGradient
-          colors={['rgba(255, 255, 255, 0)', Colors.backgroundElement]}
+          colors={['rgba(255, 255, 255, 0)', 'rgba(255, 255, 255, 0.8)']}
           style={styles.fade}
           pointerEvents="none"
         />
       ) : null}
-    </View>
+    </Glass>
   );
 }
 
@@ -247,11 +250,6 @@ const styles = StyleSheet.create({
   card: {
     paddingHorizontal: Spacing.three - 2,
     paddingVertical: Spacing.one,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
   },
   // The padding moves inside the scroll, so rows don't stop short of the card's edge.
   scrollingCard: {

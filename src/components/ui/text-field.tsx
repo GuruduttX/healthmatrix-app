@@ -2,7 +2,7 @@ import { useState, type ReactNode, type Ref } from 'react';
 import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Glass, Radius, Spacing } from '@/constants/theme';
 
 type TextFieldProps = TextInputProps & {
   /** Shown above the field, so it stays clear what to type once the placeholder is gone. */
@@ -116,7 +116,9 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     borderWidth: 1.5,
     borderColor: Colors.border,
-    backgroundColor: Colors.backgroundElement,
+    // Frosted glass: a field reads as a pane set into the page, its edge still clear when empty.
+    backgroundColor: 'rgba(255, 255, 255, 0.62)',
+    boxShadow: Glass.glowSmall,
   },
   boxMultiline: {
     alignItems: 'flex-start',

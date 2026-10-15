@@ -1,11 +1,11 @@
 import { Image, type ImageSource } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowDown, ArrowUp, Check, Eye, type LucideIcon } from 'lucide-react-native';
 import { Fragment } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Glass } from '@/components/ui/glass';
+import { Colors, Fonts, Glass as GlassTokens, Radius, Spacing } from '@/constants/theme';
 import { type ReadingFlag } from '@/types';
 
 import { type Reading } from './sample-data';
@@ -15,11 +15,11 @@ export const FLAGS: Record<
   ReadingFlag,
   { label: string; icon: LucideIcon; color: string; soft: string }
 > = {
-  normal: { label: 'Normal', icon: Check, color: Colors.good, soft: Colors.goodSoft },
-  watch: { label: 'Watch', icon: Eye, color: Colors.watch, soft: Colors.watchSoft },
-  borderline: { label: 'Borderline', icon: Eye, color: Colors.watch, soft: Colors.watchSoft },
-  high: { label: 'High', icon: ArrowUp, color: Colors.high, soft: Colors.highSoft },
-  low: { label: 'Low', icon: ArrowDown, color: Colors.high, soft: Colors.highSoft },
+  normal: { label: 'Normal', icon: Check, color: Colors.good, soft: GlassTokens.goodTint },
+  watch: { label: 'Watch', icon: Eye, color: Colors.watch, soft: GlassTokens.watchTint },
+  borderline: { label: 'Borderline', icon: Eye, color: Colors.watch, soft: GlassTokens.watchTint },
+  high: { label: 'High', icon: ArrowUp, color: Colors.high, soft: GlassTokens.highTint },
+  low: { label: 'Low', icon: ArrowDown, color: Colors.high, soft: GlassTokens.highTint },
 };
 
 /**
@@ -70,18 +70,12 @@ function Vital({ reading }: { reading: Reading }) {
       accessible
       accessibilityLabel={`${reading.label}: ${reading.value} ${reading.unit}, ${FLAGS[reading.flag].label}`}>
       {look ? (
-        // A plain View rounds and clips; the tint is a layer, the art one more above it.
-        <View style={styles.dish}>
-          <LinearGradient
-            colors={['#FFF9F5', '#F6E9DF']}
-            start={{ x: 0.2, y: 0 }}
-            end={{ x: 0.8, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
+        // Glass on the glass card; the art is a layer of its own, above the frost.
+        <Glass variant="flat" radius={DISH / 2} wrapperStyle={styles.dishBox} style={styles.dish}>
           <View style={[StyleSheet.absoluteFill, styles.center]}>
             <Image source={look.art} style={art} contentFit="contain" aria-hidden />
           </View>
-        </View>
+        </Glass>
       ) : null}
       <ThemedText style={styles.value} numberOfLines={1} adjustsFontSizeToFit>
         {reading.value}
@@ -95,17 +89,17 @@ function Vital({ reading }: { reading: Reading }) {
   );
 }
 
-/** Home's vitals: all four side by side in one card, a hairline between each. */
+/** Home's vitals: all four side by side on one pane of glass, a hairline between each. */
 export function VitalsCard({ readings }: { readings: Reading[] }) {
   return (
-    <View style={styles.card}>
+    <Glass style={styles.card}>
       {readings.map((reading, i) => (
         <Fragment key={reading.id}>
           {i ? <View style={styles.divider} /> : null}
           <Vital reading={reading} />
         </Fragment>
       ))}
-    </View>
+    </Glass>
   );
 }
 
@@ -114,16 +108,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingVertical: Spacing.two + 3,
     paddingHorizontal: Spacing.one,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
   },
   divider: {
     width: StyleSheet.hairlineWidth,
     marginVertical: Spacing.one,
-    backgroundColor: Colors.hairline,
+    backgroundColor: GlassTokens.hairline,
   },
   vital: {
     flex: 1,
@@ -131,12 +120,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 4,
   },
+  dishBox: {
+    marginBottom: Spacing.one + 1,
+  },
   dish: {
     width: DISH,
     height: DISH,
-    marginBottom: Spacing.one + 1,
-    borderRadius: DISH / 2,
-    overflow: 'hidden',
   },
   center: {
     alignItems: 'center',

@@ -1,10 +1,9 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { type ReactNode } from 'react';
-import { Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
-import { GLOW_TOP, MorningLight, PageBackground } from '@/components/ui/morning-light';
+import { Aurora } from '@/components/ui/glass';
 import { StackHeader } from '@/components/ui/stack-header';
 import { Colors, Fonts, Gutter, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useRefreshControl } from '@/hooks/use-refresh-control';
@@ -16,8 +15,8 @@ type ScreenProps = {
   /** At the right of the title, e.g. a round `HeaderIconButton` like Home's bell. */
   headerRight?: ReactNode;
   /**
-   * A tab's own page, laid out like Home: the morning light at the top, a large title with a
-   * quiet line under it, and `heroContent` (a search bar, filter chips) below, all scrolling.
+   * A tab's own page, laid out like Home: a large title with a quiet line under it, and
+   * `heroContent` (a search bar, filter chips) below, all scrolling over the fixed light.
    */
   hero?: boolean;
   heroContent?: ReactNode;
@@ -37,8 +36,9 @@ type ScreenProps = {
 };
 
 /**
- * Scrollable page shell shared by the screens under the tabs, on Home's warm light design. Leaves
- * room for the floating tab bar. Tabs use `hero`; screens opened from a tab use `onBack`.
+ * Scrollable page shell shared by the screens under the tabs, on Home's glass design: the light
+ * stands still behind the page, so its panes of glass slide over it and take its tint. Leaves room
+ * for the floating tab bar. Tabs use `hero`; screens opened from a tab use `onBack`.
  */
 export function Screen(props: ScreenProps) {
   return props.hero ? <TabScreen {...props} /> : <StackScreen {...props} />;
@@ -55,23 +55,22 @@ function TabScreen({
 }: ScreenProps) {
   const insets = useSafeAreaInsets();
   const clearance = useTabBarClearance();
-  const refreshControl = useRefreshControl(onRefresh, { progressViewOffset: insets.top });
+  const refreshControl = useRefreshControl(onRefresh);
 
   return (
     <View style={styles.screen}>
-      {/* Peach behind the page, so pulling down shows the light's colour above the title. */}
+      <Aurora />
+      {/* Starts under the status bar: the page scrolls away there instead of under the clock. */}
       <ScrollView
-        style={styles.scroll}
+        style={[styles.flex, { marginTop: insets.top }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        refreshControl={refreshControl}
-        contentContainerStyle={styles.page}>
-        <MorningLight />
+        refreshControl={refreshControl}>
         <View
           style={[
             styles.content,
             {
-              paddingTop: insets.top + Spacing.three,
+              paddingTop: Spacing.three,
               paddingBottom: clearance + Spacing.four + (floating ? 56 : 0),
             },
           ]}>
@@ -93,15 +92,7 @@ function TabScreen({
           </View>
           {children}
         </View>
-        {/* The page colour below the last section too, for the bounce at the bottom on iOS. */}
-        {Platform.OS === 'web' ? null : <View style={styles.bounce} />}
       </ScrollView>
-
-      {/* Content fades out under the status bar instead of running into the clock. */}
-      <LinearGradient
-        colors={['rgba(248, 245, 240, 0.94)', 'rgba(248, 245, 240, 0)']}
-        style={[styles.scrim, { height: insets.top + Spacing.two }]}
-      />
 
       {floating ? (
         <View style={[styles.floating, { bottom: clearance + Spacing.two }]}>{floating}</View>
@@ -127,7 +118,7 @@ function StackScreen({
 
   return (
     <View style={styles.screen}>
-      <PageBackground />
+      <Aurora />
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         {onBack ? (
           <StackHeader onBack={onBack} backLabel={backLabel} title={barTitle} right={barRight} />
@@ -170,29 +161,6 @@ const styles = StyleSheet.create({
   },
   flex: {
     flex: 1,
-  },
-  scroll: {
-    flex: 1,
-    backgroundColor: GLOW_TOP,
-  },
-  page: {
-    flexGrow: 1,
-    backgroundColor: Colors.canvas,
-  },
-  bounce: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
-    height: 1000,
-    backgroundColor: Colors.canvas,
-  },
-  scrim: {
-    pointerEvents: 'none',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
   },
   safeArea: {
     flex: 1,

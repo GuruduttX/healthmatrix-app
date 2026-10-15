@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import {
   AlertCircle,
@@ -14,19 +13,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
+import { Dish } from '@/components/ui/dish';
+import { Glass, glassSurface } from '@/components/ui/glass';
 import { PageBackground } from '@/components/ui/morning-light';
 import { StackHeader } from '@/components/ui/stack-header';
 import { Surface } from '@/components/ui/surface';
 import { TextField } from '@/components/ui/text-field';
-import {
-  Colors,
-  Fonts,
-  Gradients,
-  Gutter,
-  MaxContentWidth,
-  Shadows,
-  Spacing,
-} from '@/constants/theme';
+import { Colors, Fonts, Gutter, MaxContentWidth, Spacing } from '@/constants/theme';
 import { aboutLine, RELATIONS } from '@/features/family/relations';
 import { type FamilyMember, type Relation } from '@/features/family/types';
 import { familyApi, useFamily } from '@/features/family/use-family';
@@ -228,24 +221,9 @@ export default function AddFamilyMemberScreen() {
               <>
                 <Intro
                   lead={
-                    // The shadow sits outside; a plain View rounds and clips the tint below the icon.
-                    <View style={styles.dishShadow}>
-                      <View style={styles.dish}>
-                        <LinearGradient
-                          colors={Gradients.dish}
-                          start={{ x: 0.2, y: 0 }}
-                          end={{ x: 0.8, y: 1 }}
-                          style={StyleSheet.absoluteFill}
-                        />
-                        <View style={[StyleSheet.absoluteFill, styles.center]}>
-                          <MessageSquareText
-                            size={23}
-                            color={Colors.primaryDeep}
-                            strokeWidth={2.1}
-                          />
-                        </View>
-                      </View>
-                    </View>
+                    <Dish size={DISH} tint="warm" lifted style={styles.dish}>
+                      <MessageSquareText size={23} color={Colors.primaryDeep} strokeWidth={2.1} />
+                    </Dish>
                   }
                   title={`Enter ${firstName}’s code`}>
                   We sent a 6-digit code to {formatPhone(phone)}. Ask {firstName} to read it out to
@@ -318,9 +296,15 @@ export default function AddFamilyMemberScreen() {
               </>
             ) : member ? (
               <>
-                <Surface style={styles.done}>
-                  <View style={styles.photoRing}>
-                    <MemberAvatar name={member.name} photoUrl={member.photoUrl} size={PHOTO} />
+                {/* The margin sits on the pane's outer box, which carries its lift. */}
+                <Glass style={styles.done} wrapperStyle={styles.doneSpace}>
+                  <View style={[glassSurface.small, styles.photoRing]}>
+                    <MemberAvatar
+                      name={member.name}
+                      photoUrl={member.photoUrl}
+                      size={PHOTO}
+                      tone="glass"
+                    />
                     <View style={styles.doneBadge}>
                       <Check size={16} color={Colors.onInk} strokeWidth={3.2} />
                     </View>
@@ -334,7 +318,7 @@ export default function AddFamilyMemberScreen() {
                     {aboutLine(member)}. You can now see their prescriptions, reports, vaccines and
                     medicines from your Card.
                   </ThemedText>
-                </Surface>
+                </Glass>
                 <View style={styles.doneActions}>
                   <Button
                     label={`See ${member.name.split(/\s+/)[0]}’s records`}
@@ -356,14 +340,9 @@ export default function AddFamilyMemberScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.canvas,
   },
   flex: {
     flex: 1,
-  },
-  center: {
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   centerText: {
     textAlign: 'center',
@@ -403,18 +382,10 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: Colors.textSoft,
   },
-  // The step's picture, lifted like Home's quick actions: a warm dish and a soft shadow, no rim.
-  dishShadow: {
+  // The step's picture, lifted like Home's quick actions: a warm dish of glass.
+  dish: {
     alignSelf: 'flex-start',
     marginBottom: Spacing.two,
-    borderRadius: DISH / 2,
-    boxShadow: Shadows.dish,
-  },
-  dish: {
-    width: DISH,
-    height: DISH,
-    borderRadius: DISH / 2,
-    overflow: 'hidden',
   },
   card: {
     gap: Spacing.three + 2,
@@ -486,21 +457,21 @@ const styles = StyleSheet.create({
     borderRadius: 1.5,
     backgroundColor: Colors.textMuted,
   },
+  doneSpace: {
+    marginTop: Spacing.three,
+  },
   done: {
     alignItems: 'center',
     gap: Spacing.two,
-    marginTop: Spacing.three,
     paddingTop: Spacing.four,
     paddingBottom: Spacing.four - 4,
     paddingHorizontal: Spacing.four - 4,
   },
-  // A hairline ring around the photo, as on Home's family strip.
+  // A ring of glass around the photo, as on Home's family strip.
   photoRing: {
     marginBottom: Spacing.two,
     padding: 3,
     borderRadius: PHOTO / 2 + 4,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
   },
   doneBadge: {
     position: 'absolute',

@@ -17,6 +17,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ArtDish } from '@/components/ui/dish';
 import { Chip } from '@/components/ui/chip';
 import { ErrorState } from '@/components/ui/empty-state';
+import { glassSurface } from '@/components/ui/glass';
 import { IconTile } from '@/components/ui/icon-tile';
 import { Chevron, LIST_LEAD, ListCard, ListRow, listText } from '@/components/ui/list';
 import { Section } from '@/components/ui/section';
@@ -203,8 +204,8 @@ export default function FamilyMemberScreen() {
       {/* Who they are, and what anyone treating them should know first. */}
       <Surface style={styles.member}>
         <View style={styles.who}>
-          <View style={styles.photoRing}>
-            <MemberAvatar name={member.name} photoUrl={member.photoUrl} size={PHOTO} />
+          <View style={[glassSurface.small, styles.photoRing]}>
+            <MemberAvatar name={member.name} photoUrl={member.photoUrl} size={PHOTO} tone="glass" />
           </View>
           <View style={styles.flex}>
             <ThemedText style={styles.name} accessibilityRole="header" numberOfLines={2}>
@@ -375,12 +376,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.three - 2,
   },
-  // A hairline ring around the photo, as on Home's family strip.
+  // A ring of glass around the photo, as on Home's family strip.
   photoRing: {
     padding: 2,
     borderRadius: PHOTO / 2 + 3,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
   },
   name: {
     fontFamily: Fonts.displaySemibold,
@@ -433,16 +432,19 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   // Bleeds to the screen edges so the chips scroll under the page's gutters; the vertical padding
-  // leaves room for the chips' shadows, which the scroll view would otherwise clip.
+  // lets the chips' shadows fade out (further below, where they fall) before the scroll view
+  // clips them, or the cut reads as a band across the page's light.
   tabs: {
     flexGrow: 0,
     marginHorizontal: -Gutter,
-    marginVertical: -Spacing.one - 2,
+    marginTop: -(Spacing.two + 2),
+    marginBottom: -(Spacing.four - 4),
   },
   tabsContent: {
     gap: Spacing.two,
     paddingHorizontal: Gutter,
-    paddingVertical: Spacing.one + 2,
+    paddingTop: Spacing.two + 2,
+    paddingBottom: Spacing.four - 4,
   },
   faint: {
     fontFamily: Fonts.medium,

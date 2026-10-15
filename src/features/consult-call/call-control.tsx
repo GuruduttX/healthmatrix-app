@@ -2,7 +2,8 @@ import { type LucideIcon } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Fonts, Shadows } from '@/constants/theme';
+import { glassSurface } from '@/components/ui/glass';
+import { Colors, Fonts, Glass } from '@/constants/theme';
 
 type CallControlProps = {
   icon: LucideIcon;
@@ -11,7 +12,7 @@ type CallControlProps = {
   onPress: () => void;
   /** `off` is a muted mic or a stopped camera: it flips colour, so it stands out. */
   tone?: 'on' | 'off' | 'end';
-  /** `light` in the waiting room, on the warm page; `dark` over the call's video. */
+  /** `light` in the waiting room, on the glass page; `dark` over the call's video. */
   surface?: 'dark' | 'light';
   size?: number;
   disabled?: boolean;
@@ -26,9 +27,9 @@ const TONES = {
     off: { background: Colors.onInk, icon: Colors.ink },
     end: { background: END_RED, icon: Colors.onInk },
   },
-  // White rounds like Home's header buttons; a muted mic turns solid ink, as a chosen chip does.
+  // Rounds of glass like Home's bell; a muted mic turns solid ink, as a chosen chip does.
   light: {
-    on: { background: Colors.backgroundElement, icon: Colors.text },
+    on: { background: Glass.fillSoft, icon: Colors.text },
     off: { background: Colors.text, icon: Colors.onInk },
     end: { background: END_RED, icon: Colors.onInk },
   },
@@ -45,11 +46,11 @@ export function CallControl({
   disabled,
 }: CallControlProps) {
   const light = surface === 'light';
-  // On the warm page a control that can't be used stays white, its icon greyed, instead of a
+  // On the glass page a control that can't be used stays glass, its icon greyed, instead of a
   // faded ink round.
   const colors =
     light && disabled
-      ? { background: Colors.backgroundElement, icon: Colors.textMuted }
+      ? { background: Glass.fillSoft, icon: Colors.textMuted }
       : TONES[surface][tone];
   return (
     <View style={styles.item}>
@@ -63,8 +64,7 @@ export function CallControl({
         style={({ pressed }) => [
           styles.button,
           { width: size, height: size, borderRadius: size / 2, backgroundColor: colors.background },
-          light && (tone === 'on' || disabled) && styles.lightOn,
-          light && !disabled && styles.lightShadow,
+          light && (tone === 'on' || disabled ? glassSurface.small : styles.lightShadow),
           pressed && styles.pressed,
           disabled && (light ? styles.disabledLight : styles.disabled),
         ]}>
@@ -87,12 +87,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  lightOn: {
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-  },
+  // The ink and red rounds take the glass's lift.
   lightShadow: {
-    boxShadow: Shadows.soft,
+    boxShadow: Glass.shadowSmall,
   },
   label: {
     fontFamily: Fonts.semibold,

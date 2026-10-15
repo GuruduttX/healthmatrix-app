@@ -3,8 +3,9 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { EkaayMark } from '@/components/ui/ekaay-mark';
+import { glassSurface } from '@/components/ui/glass';
 import { TrendChart } from '@/components/ui/trend-chart';
-import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Glass, Radius, Spacing } from '@/constants/theme';
 
 import { type ChatMessage } from './chat';
 
@@ -27,7 +28,7 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
         <EkaayMark size={AVATAR} />
       </View>
       {/* A chart needs a known width, so those bubbles take the full bubble width. */}
-      <View style={[styles.bubble, styles.ekaay, message.chart && styles.wide]}>
+      <View style={[styles.bubble, glassSurface.card, styles.ekaay, message.chart && styles.wide]}>
         {message.pending ? (
           <View style={styles.pending} accessibilityLiveRegion="polite">
             <ActivityIndicator size="small" color={Colors.primary} />
@@ -55,7 +56,11 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
                 key={action.label}
                 accessibilityRole="button"
                 onPress={action.href ? () => router.navigate(action.href!) : undefined}
-                style={({ pressed }) => [styles.action, pressed && styles.actionPressed]}>
+                style={({ pressed }) => [
+                  glassSurface.flat,
+                  styles.action,
+                  pressed && styles.actionPressed,
+                ]}>
                 <ThemedText style={styles.actionText} numberOfLines={1}>
                   {action.label}
                 </ThemedText>
@@ -79,7 +84,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
     borderBottomRightRadius: 6,
     backgroundColor: Colors.text,
-    boxShadow: Shadows.soft,
+    boxShadow: Glass.shadowSmall,
   },
   ekaayRow: {
     flexDirection: 'row',
@@ -89,18 +94,14 @@ const styles = StyleSheet.create({
   avatar: {
     marginTop: 2,
     borderRadius: AVATAR / 2,
-    boxShadow: Shadows.dish,
+    boxShadow: Glass.shadowSmall,
   },
-  // Ekaay's answers: white cards with a hairline, like Home's.
+  // Ekaay's answers: panes of glass like Home's cards, the corner by the mark cut tight.
   ekaay: {
     flexShrink: 1,
     alignSelf: 'flex-start',
     gap: Spacing.three - 4,
     borderTopLeftRadius: 6,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
   },
   wide: {
     flex: 1,
@@ -139,15 +140,12 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: Spacing.two,
   },
-  // Compact white pills: the words carry the orange, never a peach fill behind them.
+  // Compact pills of glass set into the answer: the words carry the orange, never a peach fill.
   action: {
     justifyContent: 'center',
     height: 34,
     paddingHorizontal: 13,
     borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
   },
   actionPressed: {
     backgroundColor: Colors.well,

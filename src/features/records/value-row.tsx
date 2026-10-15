@@ -46,7 +46,9 @@ export function ValueRow({ item, divided }: ValueRowProps) {
               <View
                 key={band.upTo}
                 style={{
-                  flex: band.upTo - from,
+                  // As shares of 100: on web, flex weights adding up to less than 1 (a 0–0.9
+                  // scale) leave the end of the bar empty.
+                  flex: ((band.upTo - from) / span) * 100,
                   backgroundColor: TONES[band.tone].color,
                   opacity: BAND_OPACITY,
                 }}

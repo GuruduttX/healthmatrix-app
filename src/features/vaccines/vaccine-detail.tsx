@@ -13,11 +13,12 @@ import {
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { Glass } from '@/components/ui/glass';
 import { IconTile, type Tone } from '@/components/ui/icon-tile';
 import { Chevron, Divided, LIST_LEAD, ListCard, ListRow } from '@/components/ui/list';
 import { Section } from '@/components/ui/section';
 import { Tag } from '@/components/ui/tag';
-import { Colors, Fonts, Gradients, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Glass as GlassTokens, Gradients, Spacing } from '@/constants/theme';
 import { DoctorAvatar } from '@/features/doctors/doctor-avatar';
 import { istParts } from '@/features/doctors/time';
 import { formatShortDate } from '@/features/reminders/schedule';
@@ -46,8 +47,8 @@ type VaccineDetailProps = {
 };
 
 /**
- * A vaccine opened up: its doses on one card (how far along, then every dose and its status),
- * how it is given, and who prescribed it.
+ * A vaccine opened up: its doses on one pane of glass (how far along, then every dose and its
+ * status), how it is given, and who prescribed it.
  */
 export function VaccineDetail({ vaccination, onChange, readOnly }: VaccineDetailProps) {
   const { markDose } = useVaccinations();
@@ -65,52 +66,43 @@ export function VaccineDetail({ vaccination, onChange, readOnly }: VaccineDetail
   return (
     <>
       <View style={styles.dosesBlock}>
-        {/* The shadow sits outside the card, which clips the corner light. */}
-        <View style={styles.shadow}>
-          <View style={styles.card}>
-            <LinearGradient
-              colors={['rgba(250, 190, 160, 0.26)', 'rgba(250, 190, 160, 0)']}
-              locations={[0, 0.5]}
-              start={{ x: 1, y: 0 }}
-              end={{ x: 0.3, y: 0.7 }}
-              style={[StyleSheet.absoluteFill, styles.noTouch]}
-            />
-            <View style={styles.header}>
-              {/* A plain View rounds and clips; the tint is a layer, the art one more above it. */}
-              <View style={styles.dish}>
-                <LinearGradient
-                  colors={Gradients.dish}
-                  start={{ x: 0.2, y: 0 }}
-                  end={{ x: 0.8, y: 1 }}
-                  style={StyleSheet.absoluteFill}
-                />
-                <View style={[StyleSheet.absoluteFill, styles.center]}>
-                  <Image source={SYRINGE} style={styles.art} contentFit="contain" aria-hidden />
-                </View>
+        {/* The pane carries its own light: peach in the top right, sky blue in the bottom left. */}
+        <Glass style={styles.card}>
+          <View style={styles.header}>
+            {/* A plain View rounds and clips; the tint is a layer, the art one more above it. */}
+            <View style={styles.dish}>
+              <LinearGradient
+                colors={Gradients.dish}
+                start={{ x: 0.2, y: 0 }}
+                end={{ x: 0.8, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <View style={[StyleSheet.absoluteFill, styles.center]}>
+                <Image source={SYRINGE} style={styles.art} contentFit="contain" aria-hidden />
               </View>
-              <View style={styles.flex}>
-                <ThemedText style={styles.title} numberOfLines={1}>
-                  {vaccination.givenDoses} of {vaccination.totalDoses}{' '}
-                  {vaccination.totalDoses === 1 ? 'dose' : 'doses'} given
-                </ThemedText>
-                <ThemedText style={styles.subtitle} numberOfLines={1}>
-                  {vaccination.schedule}
-                </ThemedText>
-              </View>
-              <Tag label={vaccination.tag.label} tone={vaccination.tag.tone} icon={TagIcon} />
             </View>
-            <View style={styles.rule} />
-            <DoseTimeline
-              vaccination={vaccination}
-              onMark={
-                readOnly
-                  ? undefined
-                  : async (dose, given, givenOn) =>
-                      onChange?.(await markDose(vaccination.id, dose.number, given, givenOn))
-              }
-            />
+            <View style={styles.flex}>
+              <ThemedText style={styles.title} numberOfLines={1}>
+                {vaccination.givenDoses} of {vaccination.totalDoses}{' '}
+                {vaccination.totalDoses === 1 ? 'dose' : 'doses'} given
+              </ThemedText>
+              <ThemedText style={styles.subtitle} numberOfLines={1}>
+                {vaccination.schedule}
+              </ThemedText>
+            </View>
+            <Tag label={vaccination.tag.label} tone={vaccination.tag.tone} icon={TagIcon} />
           </View>
-        </View>
+          <View style={styles.rule} />
+          <DoseTimeline
+            vaccination={vaccination}
+            onMark={
+              readOnly
+                ? undefined
+                : async (dose, given, givenOn) =>
+                    onChange?.(await markDose(vaccination.id, dose.number, given, givenOn))
+            }
+          />
+        </Glass>
 
         <View style={styles.note}>
           <Info size={14} color={Colors.textFaint} strokeWidth={2.2} style={styles.noteIcon} />
@@ -124,7 +116,7 @@ export function VaccineDetail({ vaccination, onChange, readOnly }: VaccineDetail
 
       {howGiven.length || vaccination.instructions ? (
         <Section title="How it’s given" index={1}>
-          <View style={styles.facts}>
+          <Glass style={styles.facts}>
             <Divided inset={0}>
               {howGiven.map(({ label, value }) => (
                 <View key={label} style={styles.fact}>
@@ -141,7 +133,7 @@ export function VaccineDetail({ vaccination, onChange, readOnly }: VaccineDetail
                 </View>
               ) : null}
             </Divided>
-          </View>
+          </Glass>
         </Section>
       ) : null}
 
@@ -201,36 +193,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  noTouch: {
-    pointerEvents: 'none',
-  },
   dosesBlock: {
     gap: Spacing.three - 4,
-  },
-  shadow: {
-    borderRadius: Radius.xl,
-    boxShadow: Shadows.soft,
   },
   card: {
     paddingHorizontal: Spacing.three - 2,
     paddingTop: Spacing.three - 2,
     paddingBottom: Spacing.three,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    overflow: 'hidden',
-    backgroundColor: Colors.backgroundElement,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three - 4,
   },
+  // A round of glass, like the shared `Dish`: a bright rim and the faint edge line.
   dish: {
     width: DISH,
     height: DISH,
     borderRadius: DISH / 2,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: GlassTokens.rim,
+    boxShadow: GlassTokens.shadowFlat,
   },
   art: {
     width: 23,
@@ -256,7 +240,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.three - 4,
     marginBottom: Spacing.three - 2,
     marginHorizontal: -(Spacing.three - 2),
-    backgroundColor: Colors.hairline,
+    backgroundColor: GlassTokens.hairline,
   },
   note: {
     flexDirection: 'row',
@@ -277,11 +261,6 @@ const styles = StyleSheet.create({
   facts: {
     paddingHorizontal: Spacing.three - 2,
     paddingVertical: Spacing.one,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
   },
   // A label on the left, its value on the right, like a spec sheet.
   fact: {

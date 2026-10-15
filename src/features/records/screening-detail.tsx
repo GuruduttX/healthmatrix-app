@@ -5,11 +5,12 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { Glass } from '@/components/ui/glass';
 import { IconTile } from '@/components/ui/icon-tile';
 import { Chevron, LIST_LEAD, ListCard, ListRow, listText } from '@/components/ui/list';
 import { Section } from '@/components/ui/section';
 import { Tag } from '@/components/ui/tag';
-import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { api } from '@/services/api';
 
 import { type ScreeningRecord } from './types';
@@ -62,19 +63,19 @@ export function ScreeningDetail({ record, readOnly }: ScreeningDetailProps) {
           title={group.title}
           meta={`${group.values.length} ${group.values.length === 1 ? 'test' : 'tests'}`}
           index={index + 1}>
-          <View style={styles.card}>
+          <Glass style={styles.card}>
             {group.values.map((value, i) => (
               <ValueRow key={value.id} item={value} divided={i > 0} />
             ))}
-          </View>
+          </Glass>
         </Section>
       ))}
 
       {screening.remarks ? (
         <Section title="Pathologist’s note" index={screening.groups.length + 1}>
-          <View style={[styles.card, styles.remarks]}>
+          <Glass style={[styles.card, styles.remarks]}>
             <ThemedText style={styles.remarksText}>{screening.remarks}</ThemedText>
-          </View>
+          </Glass>
         </Section>
       ) : null}
 
@@ -158,14 +159,9 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
-  // A white card for the value rows, which draw their own dividers.
+  // A pane of glass for the value rows, which draw their own dividers.
   card: {
     paddingHorizontal: Spacing.three,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
   },
   sample: {
     flexDirection: 'row',

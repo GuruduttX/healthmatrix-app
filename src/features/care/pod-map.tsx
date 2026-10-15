@@ -5,7 +5,8 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import Svg, { Line, Path } from 'react-native-svg';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Fonts, Gradients, Radius, Shadows } from '@/constants/theme';
+import { glassSurface } from '@/components/ui/glass';
+import { Colors, Fonts, Glass, Gradients, Radius, Shadows } from '@/constants/theme';
 
 import { MAP_SPOTS, type MapPoint } from './sample-data';
 import { type Pod } from './types';
@@ -153,13 +154,13 @@ export function PodMap({ pods: all, selectedId, user, inset, onSelect }: PodMapP
                       styles.labelWrap,
                       labelBelow(pod, pods) ? styles.labelBelow : styles.labelAbove,
                     ]}>
-                    <View style={styles.label}>
+                    <View style={[glassSurface.small, styles.label]}>
                       <ThemedText style={styles.labelText} numberOfLines={1}>
                         {pod.name}
                       </ThemedText>
                     </View>
                   </View>
-                  {/* The chosen pod: its picture in a white dish. The shadow sits outside. */}
+                  {/* The chosen pod: its picture in a glass dish. The shadow sits outside. */}
                   <View style={styles.pinSelectedShadow}>
                     <View style={styles.pinSelected}>
                       <LinearGradient
@@ -296,15 +297,16 @@ const styles = StyleSheet.create({
   },
   pinSelectedShadow: {
     borderRadius: PIN_SELECTED / 2,
-    boxShadow: Shadows.raised,
+    boxShadow: Glass.shadowSmall,
   },
+  // A bright rim a step thicker than a card's, so the dish stands clear of the roads.
   pinSelected: {
     width: PIN_SELECTED,
     height: PIN_SELECTED,
     borderRadius: PIN_SELECTED / 2,
     overflow: 'hidden',
-    borderWidth: 2.5,
-    borderColor: MAP.road,
+    borderWidth: 2,
+    borderColor: Glass.rim,
   },
   // Framed like Home's pod: large and cut at the floor, so the arch and seat fill the dish.
   podArt: {
@@ -325,14 +327,11 @@ const styles = StyleSheet.create({
   labelAbove: {
     bottom: HIT + 2,
   },
+  // A pill of glass: the map blurs behind it on web.
   label: {
     paddingVertical: 5,
     paddingHorizontal: 10,
     borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
   },
   labelText: {
     fontFamily: Fonts.bold,

@@ -3,7 +3,7 @@ import { StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Chip } from '@/components/ui/chip';
-import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Glass, Radius, Spacing } from '@/constants/theme';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.two,
   },
-  // White on the warm page, like the time slots: a hairline edge, barely lifted.
+  // Frosted glass, like a `TextField`: its edge still clear while empty.
   field: {
     width: 66,
     minHeight: 56,
@@ -129,8 +129,8 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     borderWidth: 1.5,
     borderColor: Colors.border,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
+    backgroundColor: 'rgba(255, 255, 255, 0.62)',
+    boxShadow: Glass.glowSmall,
     color: Colors.text,
     fontFamily: Fonts.displaySemibold,
     fontSize: 24,

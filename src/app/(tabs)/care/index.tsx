@@ -25,7 +25,7 @@ export default function CareScreen() {
   const { catalog, error: podError, refresh: refreshPods } = usePodCatalog();
   const { bookings: podBookings } = usePodBookings();
   const memberId = useAuth().member?.id;
-  const { consults: pastConsults, refresh: refreshPast } = usePastConsults();
+  const { consults: pastConsults, error: pastError, refresh: refreshPast } = usePastConsults();
 
   // The cards below read shared stores; refreshing those updates each card.
   const refresh = async () => {
@@ -69,7 +69,7 @@ export default function CareScreen() {
         <SpecialtyList />
       </Section>
 
-      <ConsultsSection past={pastConsults} index={1} />
+      <ConsultsSection past={pastConsults} pastError={pastError} index={1} />
 
       <Section title="Pods near you" actionLabel="Map" onAction={openPods} index={3}>
         <FindPodCard pods={catalog?.pods ?? null} error={podError} onPress={openPods} />

@@ -2,7 +2,7 @@ import { useState, type Ref } from 'react';
 import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Fonts, Radius } from '@/constants/theme';
+import { Colors, Fonts, Glass, Radius } from '@/constants/theme';
 
 type OtpFieldProps = Omit<TextInputProps, 'value'> & {
   label: string;
@@ -98,7 +98,9 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md + 2,
     borderWidth: 1.5,
     borderColor: Colors.border,
-    backgroundColor: Colors.backgroundElement,
+    // TextField's frosted glass, so the boxes read as panes set into the form.
+    backgroundColor: 'rgba(255, 255, 255, 0.62)',
+    boxShadow: Glass.glowSmall,
   },
   // TextField's focus ring, on the box being typed in.
   boxCurrent: {

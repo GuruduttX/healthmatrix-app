@@ -6,7 +6,7 @@ import { Chip } from '@/components/ui/chip';
 import { IconTile } from '@/components/ui/icon-tile';
 import { ListCard, ListRow } from '@/components/ui/list';
 import { Section } from '@/components/ui/section';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Glass, Spacing } from '@/constants/theme';
 
 import { type LabProfile, type LabTest } from './types';
 
@@ -110,7 +110,10 @@ export function TestPicker({
   );
 }
 
-/** A tick box: solid ink with a tick once chosen, like every other choice in the app. */
+/**
+ * A tick box: glass with a clear edge while empty, solid ink with a tick once chosen, like every
+ * other choice in the app.
+ */
 function Box({ selected }: { selected: boolean }) {
   return (
     <View style={[styles.box, selected && styles.boxSelected]}>
@@ -136,10 +139,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1.5,
     borderColor: Colors.border,
-    backgroundColor: Colors.backgroundElement,
+    backgroundColor: Glass.fillSoft,
+    boxShadow: Glass.glowSmall,
   },
   boxSelected: {
     borderColor: Colors.text,
     backgroundColor: Colors.text,
+    boxShadow: 'none',
   },
 });

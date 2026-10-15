@@ -2,7 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { type LucideIcon } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 
-import { Colors, Gradients } from '@/constants/theme';
+import { Colors, Glass, Gradients } from '@/constants/theme';
 
 export type Tone = 'primary' | 'success' | 'warning' | 'danger' | 'neutral';
 
@@ -56,8 +56,12 @@ export function IconTile({ icon: Icon, tone = 'primary', size = 40 }: IconTilePr
 }
 
 const styles = StyleSheet.create({
+  // A round of glass: a bright rim and the faint edge line.
   dish: {
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Glass.rim,
+    boxShadow: Glass.shadowFlat,
   },
   center: {
     alignItems: 'center',

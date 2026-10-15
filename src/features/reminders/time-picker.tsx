@@ -3,7 +3,8 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
+import { webBlur } from '@/components/ui/glass';
+import { Colors, Fonts, Glass, Radius, Spacing } from '@/constants/theme';
 
 import { type TimeKey } from './types';
 
@@ -61,7 +62,7 @@ export function TimePicker({ value, onChange }: TimePickerProps) {
         onUp={() => stepMinute(1)}
         onDown={() => stepMinute(-1)}
       />
-      <View style={styles.meridiem}>
+      <View style={[styles.meridiem, webBlur]}>
         {[
           { label: 'AM', active: !pm, value: false },
           { label: 'PM', active: pm, value: true },
@@ -171,14 +172,15 @@ const styles = StyleSheet.create({
   stepPressed: {
     backgroundColor: Colors.well,
   },
-  // Warm like a text field, ringed in ink while a number is typed.
+  // Frosted glass like a text field, ringed in ink while a number is typed.
   valueBox: {
     width: 68,
     paddingVertical: 4,
     borderRadius: Radius.lg,
     borderWidth: 1.5,
     borderColor: Colors.border,
-    backgroundColor: Colors.backgroundElement,
+    backgroundColor: 'rgba(255, 255, 255, 0.62)',
+    boxShadow: Glass.glowSmall,
     textAlign: 'center',
     // The box draws the focus; no second outline from the browser on web.
     outlineStyle: 'solid',
@@ -200,13 +202,16 @@ const styles = StyleSheet.create({
     lineHeight: 42,
     color: Colors.textFaint,
   },
-  // AM and PM as a small segmented control: a warm track with the choice raised in white.
+  // AM and PM as a small segmented control: a track of glass with the choice a brighter pane.
   meridiem: {
     marginLeft: Spacing.two,
     gap: 3,
     padding: 3,
     borderRadius: Radius.lg,
-    backgroundColor: Colors.backgroundSelected,
+    borderWidth: 1,
+    borderColor: Glass.rim,
+    backgroundColor: 'rgba(255, 255, 255, 0.32)',
+    boxShadow: `${Glass.glowSmall}, ${Glass.shadowFlat}`,
   },
   meridiemOption: {
     width: 54,
@@ -216,8 +221,8 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md + 1,
   },
   meridiemActive: {
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    boxShadow: Glass.shadowSmall,
   },
   meridiemText: {
     fontFamily: Fonts.bold,

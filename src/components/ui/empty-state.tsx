@@ -2,9 +2,10 @@ import { CloudOff, RotateCw, type LucideIcon } from 'lucide-react-native';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Glass, Radius, Spacing } from '@/constants/theme';
 
 import { Button } from './button';
+import { glassSurface } from './glass';
 import { TONES, type Tone } from './icon-tile';
 
 type EmptyStateProps = {
@@ -13,7 +14,7 @@ type EmptyStateProps = {
   body?: string;
   tone?: Tone;
   action?: { label: string; icon?: LucideIcon; onPress: () => void };
-  /** Draws it on a white card; leave off when it already sits inside one. */
+  /** Draws it on a pane of glass; leave off when it already sits inside one. */
   card?: boolean;
   style?: StyleProp<ViewStyle>;
 };
@@ -34,7 +35,7 @@ export function EmptyState({
   const { color } = TONES[tone];
 
   return (
-    <View style={[styles.wrap, card && styles.card, style]}>
+    <View style={[styles.wrap, card && [glassSurface.card, styles.card], style]}>
       <View style={styles.halo}>
         <View style={styles.icon}>
           <Icon size={24} color={color} strokeWidth={2} />
@@ -69,7 +70,9 @@ export function ErrorState({
   style,
 }: ErrorStateProps) {
   return (
-    <View style={[styles.wrap, card && styles.card, style]} accessibilityRole="alert">
+    <View
+      style={[styles.wrap, card && [glassSurface.card, styles.card], style]}
+      accessibilityRole="alert">
       <View style={[styles.halo, styles.haloAlert]}>
         <View style={styles.icon}>
           <CloudOff size={24} color={Colors.high} strokeWidth={2} />
@@ -95,19 +98,18 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
   },
-  // A warm halo around a white dish, lifted like Home's quick actions.
+  // A ring of soft sky-blue glass around a bright dish, lifted like Home's quick actions.
   halo: {
     width: 80,
     height: 80,
     borderRadius: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.well,
+    borderWidth: 1,
+    borderColor: Glass.rim,
+    backgroundColor: 'rgba(217, 233, 244, 0.45)',
+    boxShadow: Glass.glowSmall,
   },
   haloAlert: {
     backgroundColor: Colors.highSoft,
@@ -118,8 +120,10 @@ const styles = StyleSheet.create({
     borderRadius: 27,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.dish,
+    borderWidth: 1,
+    borderColor: Glass.rim,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    boxShadow: Glass.shadowSmall,
   },
   text: {
     gap: 4,

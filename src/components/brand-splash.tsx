@@ -4,7 +4,7 @@ import { Animated, Platform, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { LogoMark } from '@/components/ui/logo-mark';
-import { MorningLight } from '@/components/ui/morning-light';
+import { Aurora } from '@/components/ui/glass';
 import { Colors, Fonts, Shadows, Spacing } from '@/constants/theme';
 
 const MIN_VISIBLE_MS = 1500;
@@ -12,7 +12,7 @@ const FADE_MS = 300;
 const LOGO = 96;
 
 /**
- * In-app splash with the logo and app name, on the warm page in the morning light, as sign-in and
+ * In-app splash with the logo and app name, on the glass design's lit white page, as sign-in and
  * Home open. Takes over from the native splash (which can only show an image) and fades out once
  * the app is ready.
  */
@@ -42,7 +42,7 @@ export function BrandSplash({ ready }: { ready: boolean }) {
 
   return (
     <Animated.View style={[StyleSheet.absoluteFill, styles.container, { opacity }]}>
-      <MorningLight height={520} />
+      <Aurora />
       <View style={styles.content}>
         {/* The shadow sits on its own wrapper, outside the tile's rounded clip. */}
         <View style={styles.logoShadow}>

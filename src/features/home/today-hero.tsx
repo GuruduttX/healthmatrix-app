@@ -1,5 +1,4 @@
 import { Image, type ImageSource } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import {
   AlertCircle,
@@ -25,8 +24,9 @@ import Animated, {
 import Svg, { Circle } from 'react-native-svg';
 
 import { ThemedText } from '@/components/themed-text';
+import { Glass } from '@/components/ui/glass';
 import { Skeleton, SkeletonCircle, SkeletonGroup } from '@/components/ui/skeleton';
-import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Glass as GlassTokens, Radius, Spacing } from '@/constants/theme';
 import { DoctorAvatar } from '@/features/doctors/doctor-avatar';
 import { istParts, istToday } from '@/features/doctors/time';
 import { type DoseState } from '@/features/reminders/dose-item';
@@ -36,8 +36,8 @@ import { countdown, type TodayItem, type TodaySummary } from './today-summary';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
-/** The ring's empty part, a warm grey. */
-const TRACK = '#EFE5DC';
+/** The ring's empty part: a see-through grey, so it takes the glass's tint. */
+const TRACK = 'rgba(40, 64, 84, 0.1)';
 /** The ring, the dishes and the doctor's photo at the start of each line share one size. */
 const LEAD = 34;
 
@@ -119,7 +119,7 @@ function DoseRing({ taken, total }: { taken: number; total: number }) {
   );
 }
 
-/** A 3D picture in a round, neutral dish. */
+/** A 3D picture in a small round of glass. */
 function Dish({ art, size = 21 }: { art: ImageSource; size?: number }) {
   return (
     <View style={[styles.lead, styles.dish]}>
@@ -406,23 +406,9 @@ function Lines({ children }: { children: ReactNode[] }) {
   );
 }
 
-/** The card itself: white, with a faint warm light in the top right corner. */
+/** The card itself: a pane of glass. */
 function Shell({ children }: { children: ReactNode }) {
-  return (
-    // The shadow sits outside the card, which clips its corners and gradient.
-    <View style={styles.shadow}>
-      <View style={styles.card}>
-        <LinearGradient
-          colors={['rgba(250, 190, 160, 0.3)', 'rgba(250, 190, 160, 0)']}
-          locations={[0, 0.5]}
-          start={{ x: 1, y: 0 }}
-          end={{ x: 0.3, y: 0.7 }}
-          style={[StyleSheet.absoluteFill, styles.noTouch]}
-        />
-        {children}
-      </View>
-    </View>
-  );
+  return <Glass style={styles.card}>{children}</Glass>;
 }
 
 /** A dose just ticked off, with a way to take it back. */
@@ -621,21 +607,9 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.6,
   },
-  noTouch: {
-    pointerEvents: 'none',
-  },
-  shadow: {
-    borderRadius: Radius.xl,
-    boxShadow: Shadows.soft,
-  },
   card: {
     paddingHorizontal: Spacing.three - 2,
     paddingVertical: Spacing.three - 4,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    overflow: 'hidden',
-    backgroundColor: Colors.backgroundElement,
   },
   header: {
     flexDirection: 'row',
@@ -679,11 +653,15 @@ const styles = StyleSheet.create({
     lineHeight: 14,
     color: Colors.textFaint,
   },
+  // Small glass on the card: frost, a bright rim and the warm edge line.
   dish: {
     borderRadius: LEAD / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.well,
+    borderWidth: 1,
+    borderColor: GlassTokens.rim,
+    backgroundColor: GlassTokens.fillSoft,
+    boxShadow: `${GlassTokens.glowSmall}, ${GlassTokens.shadowFlat}`,
   },
   dishAlert: {
     backgroundColor: Colors.highSoft,
@@ -694,7 +672,7 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
     marginTop: Spacing.two + 2,
     marginHorizontal: -(Spacing.three - 2),
-    backgroundColor: Colors.hairline,
+    backgroundColor: GlassTokens.hairline,
   },
   // The last line's own padding is most of the card's bottom edge.
   lines: {
@@ -704,7 +682,7 @@ const styles = StyleSheet.create({
   divider: {
     height: StyleSheet.hairlineWidth,
     marginLeft: LEAD + Spacing.three - 6,
-    backgroundColor: Colors.hairline,
+    backgroundColor: GlassTokens.hairline,
   },
   row: {
     flexDirection: 'row',
@@ -781,14 +759,19 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primaryInk,
     transform: [{ scale: 0.97 }],
   },
+  // A pill of glass with deep orange words, never orange on peach.
   actionSoft: {
-    backgroundColor: Colors.primaryTint,
+    borderWidth: 1,
+    borderColor: GlassTokens.rim,
+    backgroundColor: GlassTokens.fillSoft,
+    boxShadow: GlassTokens.glowSmall,
   },
-  // Like a checkbox waiting for a tick: white, with a peach ring.
+  // Like a checkbox waiting for a tick: a round of glass with a peach ring.
   takeSoft: {
     borderWidth: 1.5,
     borderColor: Colors.primaryLight,
-    backgroundColor: Colors.backgroundElement,
+    backgroundColor: GlassTokens.fillSoft,
+    boxShadow: GlassTokens.glowSmall,
   },
   actionSoftPressed: {
     backgroundColor: Colors.primaryTintStrong,
@@ -812,7 +795,7 @@ const styles = StyleSheet.create({
     paddingLeft: 12,
     paddingRight: 6,
     borderRadius: Radius.md,
-    backgroundColor: Colors.goodSoft,
+    backgroundColor: GlassTokens.goodTint,
   },
   undoText: {
     flex: 1,
@@ -847,7 +830,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     color: Colors.high,
   },
-  // A white button with a peach edge and an orange plus.
+  // A round of glass with an orange plus.
   addIcon: {
     width: 36,
     height: 36,
@@ -855,9 +838,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: Colors.primaryTintStrong,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
+    borderColor: GlassTokens.rim,
+    backgroundColor: GlassTokens.fillSoft,
+    boxShadow: `${GlassTokens.glowSmall}, ${GlassTokens.shadowSmall}`,
   },
   addIconPressed: {
     backgroundColor: Colors.primaryTint,

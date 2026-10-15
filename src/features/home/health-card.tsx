@@ -3,7 +3,8 @@ import { ChevronRight, QrCode, ShieldCheck } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Fonts, Gradients, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Glass } from '@/components/ui/glass';
+import { Colors, Fonts, Glass as GlassTokens, Radius, Spacing } from '@/constants/theme';
 
 type HealthCardProps = {
   /** Twelve digits; only the last four are shown here. */
@@ -27,60 +28,64 @@ export function HealthCard({ memberId, abhaLinked, qrOn, carriers, onPress }: He
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`Your health card, ending ${memberId?.slice(-4) ?? ''}. Emergency QR is ${qrOn ? 'on' : 'off'}. ${qrOn ? carriers : 'Turn it on so responders can help you'}`}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
-      {/* A small copy of the card: a plain View rounds and clips the gradient layer. */}
-      <View style={styles.mini}>
-        <LinearGradient
-          colors={Gradients.brand}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-        {/* A sheen, and two short lines where the card's name and number sit. */}
-        <LinearGradient
-          colors={['rgba(255, 255, 255, 0.3)', 'rgba(255, 255, 255, 0)']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0.7, y: 0.9 }}
-          style={StyleSheet.absoluteFill}
-        />
-        <View style={styles.miniLines}>
-          <View style={[styles.miniLine, { width: 18 }]} />
-          <View style={[styles.miniLine, { width: 11, opacity: 0.6 }]} />
-        </View>
-        <View style={styles.miniQr}>
-          <QrCode size={18} color={Colors.ink} strokeWidth={2.2} />
-        </View>
-      </View>
-
-      <View style={styles.flex}>
-        <View style={styles.titleRow}>
-          <ThemedText style={styles.title} numberOfLines={1}>
-            Emergency QR
-          </ThemedText>
-          <View style={[styles.state, !qrOn && styles.stateOff]}>
-            <View style={[styles.dot, !qrOn && styles.dotOff]} />
-            <ThemedText style={[styles.stateText, !qrOn && styles.stateTextOff]}>
-              {qrOn ? 'On' : 'Off'}
-            </ThemedText>
+      style={({ pressed }) => pressed && styles.pressed}>
+      <Glass style={styles.card}>
+        {/* A small copy of the card in glass: a plain View rounds and clips its layers. */}
+        <View style={styles.mini}>
+          <LinearGradient
+            colors={['#FFCBA9', '#C4DCF1']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+          {/* A sheen, and two short lines where the card's name and number sit. */}
+          <LinearGradient
+            colors={['rgba(255, 255, 255, 0.6)', 'rgba(255, 255, 255, 0)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0.7, y: 0.9 }}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={styles.miniLines}>
+            <View style={[styles.miniLine, { width: 18 }]} />
+            <View style={[styles.miniLine, { width: 11, opacity: 0.6 }]} />
+          </View>
+          <View style={styles.miniQr}>
+            <QrCode size={18} color={Colors.ink} strokeWidth={2.2} />
           </View>
         </View>
-        <ThemedText style={styles.carriers} numberOfLines={2}>
-          {qrOn ? carriers : 'Turn it on so responders can help you'}
-        </ThemedText>
-        <View style={styles.idRow}>
-          <ThemedText style={styles.id} numberOfLines={1}>
-            {masked}
-          </ThemedText>
-          {abhaLinked ? (
-            <View style={styles.abha}>
-              <ShieldCheck size={12} color={Colors.good} strokeWidth={2.6} />
-              <ThemedText style={styles.abhaText}>ABHA linked</ThemedText>
-            </View>
-          ) : null}
-        </View>
-      </View>
 
-      <ChevronRight size={20} color={Colors.textFaint} strokeWidth={2.2} />
+        <View style={styles.flex}>
+          <View style={styles.titleRow}>
+            <ThemedText style={styles.title} numberOfLines={1}>
+              Emergency QR
+            </ThemedText>
+            <View style={[styles.state, !qrOn && styles.stateOff]}>
+              <View style={[styles.dot, !qrOn && styles.dotOff]} />
+              <ThemedText style={[styles.stateText, !qrOn && styles.stateTextOff]}>
+                {qrOn ? 'On' : 'Off'}
+              </ThemedText>
+            </View>
+          </View>
+          <ThemedText style={styles.carriers} numberOfLines={2}>
+            {qrOn ? carriers : 'Turn it on so responders can help you'}
+          </ThemedText>
+          <View style={styles.idRow}>
+            <ThemedText style={styles.id} numberOfLines={1}>
+              {masked}
+            </ThemedText>
+            {abhaLinked ? (
+              <View style={styles.abha}>
+                <ShieldCheck size={12} color={Colors.good} strokeWidth={2.6} />
+                <ThemedText style={styles.abhaText}>ABHA linked</ThemedText>
+              </View>
+            ) : null}
+          </View>
+        </View>
+
+        <View>
+          <ChevronRight size={20} color={Colors.textFaint} strokeWidth={2.2} />
+        </View>
+      </Glass>
     </Pressable>
   );
 }
@@ -92,11 +97,6 @@ const styles = StyleSheet.create({
     gap: Spacing.three - 2,
     padding: 14,
     paddingRight: Spacing.three - 4,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
   },
   pressed: {
     opacity: 0.9,
@@ -107,6 +107,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   // Card proportions (85.6 × 54 mm), small.
+  // Peach to sky blue under a sheen, with a bright rim, like the banner's glass.
   mini: {
     width: 66,
     height: 44,
@@ -115,6 +116,9 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     justifyContent: 'center',
     paddingRight: 6,
+    borderWidth: 1,
+    borderColor: GlassTokens.rim,
+    boxShadow: `${GlassTokens.glowSmall}, ${GlassTokens.shadowSmall}`,
   },
   miniLines: {
     position: 'absolute',
@@ -125,7 +129,7 @@ const styles = StyleSheet.create({
   miniLine: {
     height: 3,
     borderRadius: 1.5,
-    backgroundColor: Colors.onInk,
+    backgroundColor: 'rgba(14, 42, 51, 0.28)',
   },
   miniQr: {
     width: 28,
@@ -133,7 +137,8 @@ const styles = StyleSheet.create({
     borderRadius: 7,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.backgroundElement,
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    boxShadow: '0 1px 3px rgba(30, 50, 70, 0.12)',
   },
   titleRow: {
     flexDirection: 'row',
@@ -154,10 +159,10 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     paddingHorizontal: 8,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.goodSoft,
+    backgroundColor: GlassTokens.goodTint,
   },
   stateOff: {
-    backgroundColor: Colors.well,
+    backgroundColor: GlassTokens.hairline,
   },
   stateText: {
     fontFamily: Fonts.bold,
@@ -196,7 +201,7 @@ const styles = StyleSheet.create({
     paddingVertical: 1,
     paddingHorizontal: 6,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.goodSoft,
+    backgroundColor: GlassTokens.goodTint,
   },
   abhaText: {
     fontFamily: Fonts.bold,

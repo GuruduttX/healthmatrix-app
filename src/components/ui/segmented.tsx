@@ -2,7 +2,9 @@ import { type LucideIcon } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Fonts, Radius, Shadows } from '@/constants/theme';
+import { Colors, Fonts, Glass, Radius } from '@/constants/theme';
+
+import { webBlur } from './glass';
 
 export type SegmentedOption<T extends string> = {
   value: T;
@@ -19,7 +21,10 @@ type SegmentedProps<T extends string> = {
   disabled?: boolean;
 };
 
-/** A row of two to four mutually exclusive options on a warm track, the chosen one raised white. */
+/**
+ * A row of two to four mutually exclusive options on a track of glass, the chosen one a brighter
+ * pane raised above it.
+ */
 export function Segmented<T extends string>({
   options,
   value,
@@ -27,7 +32,7 @@ export function Segmented<T extends string>({
   disabled = false,
 }: SegmentedProps<T>) {
   return (
-    <View style={styles.track} accessibilityRole="tablist">
+    <View style={[styles.track, webBlur]} accessibilityRole="tablist">
       {options.map(({ value: option, label, icon: Icon, count }) => {
         const selected = option === value;
         return (
@@ -75,8 +80,9 @@ const styles = StyleSheet.create({
     padding: 4,
     borderRadius: Radius.pill,
     borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundSelected,
+    borderColor: Glass.rim,
+    backgroundColor: 'rgba(255, 255, 255, 0.32)',
+    boxShadow: `${Glass.glowSmall}, ${Glass.shadowFlat}`,
   },
   segment: {
     flex: 1,
@@ -90,8 +96,8 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
   },
   selected: {
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    boxShadow: Glass.shadowSmall,
   },
   pressed: {
     opacity: 0.7,

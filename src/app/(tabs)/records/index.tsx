@@ -6,10 +6,11 @@ import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native
 import { Screen } from '@/components/screen';
 import { Chip } from '@/components/ui/chip';
 import { EmptyState, ErrorState } from '@/components/ui/empty-state';
+import { glassSurface } from '@/components/ui/glass';
 import { ListCard } from '@/components/ui/list';
 import { Section } from '@/components/ui/section';
 import { Skeleton, SkeletonGroup } from '@/components/ui/skeleton';
-import { Colors, Fonts, Gutter, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Gutter, Radius, Spacing } from '@/constants/theme';
 import { RecordRow, RecordRowSkeleton } from '@/features/records/record-row';
 import { type RecordSummary } from '@/features/records/types';
 import { api } from '@/services/api';
@@ -202,7 +203,7 @@ export default function RecordsScreen() {
       onRefresh={() => load(() => true)}
       heroContent={
         <View style={styles.tools}>
-          <View style={[styles.search, searching && styles.searchFocused]}>
+          <View style={[glassSurface.small, styles.search, searching && styles.searchFocused]}>
             <Search size={18} color={Colors.textFaint} strokeWidth={2.2} />
             <TextInput
               value={query}
@@ -256,7 +257,7 @@ const styles = StyleSheet.create({
   tools: {
     gap: Spacing.three - 4,
   },
-  // A white field with a hairline, lifted as little as Home's round header buttons.
+  // A pill of glass, like Home's round header buttons: the page's light shows through it.
   search: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -265,10 +266,6 @@ const styles = StyleSheet.create({
     paddingLeft: Spacing.three,
     paddingRight: Spacing.three - 4,
     borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
   },
   searchFocused: {
     borderColor: Colors.primaryLight,
@@ -296,16 +293,19 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   // Bleeds to the screen edges so the chips scroll under the page's gutters; the vertical padding
-  // leaves room for the chips' shadows, which the scroll view would otherwise clip.
+  // lets the chips' shadows fade out (further below, where they fall) before the scroll view
+  // clips them, or the cut reads as a band across the page's light.
   filters: {
     flexGrow: 0,
     marginHorizontal: -Gutter,
-    marginVertical: -Spacing.one - 2,
+    marginTop: -(Spacing.two + 2),
+    marginBottom: -(Spacing.four - 4),
   },
   filtersContent: {
     gap: Spacing.two,
     paddingHorizontal: Gutter,
-    paddingVertical: Spacing.one + 2,
+    paddingTop: Spacing.two + 2,
+    paddingBottom: Spacing.four - 4,
   },
   group: {
     gap: Spacing.three - 2,

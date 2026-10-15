@@ -20,7 +20,7 @@ type DoctorCardProps = {
 };
 
 /**
- * A doctor in the list, as one white card: their photo and name, what they've done in one quiet
+ * A doctor in the list, as one pane of glass: their photo and name, what they've done in one quiet
  * line, their registration, then their next free slot beside the one action, Book.
  */
 export function DoctorCard({ doctor, specialty, onBook }: DoctorCardProps) {

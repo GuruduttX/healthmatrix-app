@@ -4,10 +4,11 @@ import { Fragment, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { Glass, glassSurface } from '@/components/ui/glass';
 import { IconTile } from '@/components/ui/icon-tile';
 import { Chevron, Divided } from '@/components/ui/list';
 import { Skeleton, SkeletonCircle, SkeletonGroup } from '@/components/ui/skeleton';
-import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Glass as GlassTokens, Spacing } from '@/constants/theme';
 import { type VaccinationRecord, type VaccineDose } from '@/features/vaccines/types';
 
 import { doseState, type DoseState } from './dose-item';
@@ -42,9 +43,9 @@ function headline(total: number, taken: number, dosesLeft: number, vaccinesDue: 
   return taken === total ? 'Every dose taken today' : 'Today’s doses are done';
 }
 
-/** A white card, as on Home. */
+/** A pane of glass, as on Home. */
 function Card({ children }: { children: ReactNode }) {
-  return <View style={styles.card}>{children}</View>;
+  return <Glass style={styles.card}>{children}</Glass>;
 }
 
 /** The card's top, one line, opening every medicine and reminder. */
@@ -170,7 +171,11 @@ export function NoMedicinesCard() {
           accessibilityRole="button"
           accessibilityLabel="Add medicine"
           hitSlop={6}
-          style={({ pressed }) => [styles.addIcon, pressed && styles.addIconPressed]}>
+          style={({ pressed }) => [
+            glassSurface.small,
+            styles.addIcon,
+            pressed && styles.addIconPressed,
+          ]}>
           <Plus size={18} color={Colors.primaryDeep} strokeWidth={2.4} />
         </Pressable>
       </View>
@@ -181,28 +186,30 @@ export function NoMedicinesCard() {
 /** The medicines card's shape while it loads: the header, then three dose lines. */
 export function MedicinesSkeleton() {
   return (
-    <SkeletonGroup label="Loading today’s medicines" style={styles.card}>
-      <View style={styles.header}>
-        <SkeletonCircle size={LEAD} />
-        <View style={styles.flex}>
-          <Skeleton width="55%" height={15} />
-        </View>
-      </View>
-      <View style={styles.rule} />
-      {[0, 1, 2].map((i) => (
-        <Fragment key={i}>
-          {i ? <View style={styles.divider} /> : null}
-          <View style={styles.row}>
-            <SkeletonCircle size={LEAD} />
-            <View style={[styles.flex, styles.skeletonText]}>
-              <Skeleton width={i === 1 ? '45%' : '58%'} height={13} />
-              <Skeleton width={i === 1 ? '66%' : '50%'} height={10} />
-            </View>
-            <SkeletonCircle size={LEAD} />
+    <Card>
+      <SkeletonGroup label="Loading today’s medicines">
+        <View style={styles.header}>
+          <SkeletonCircle size={LEAD} />
+          <View style={styles.flex}>
+            <Skeleton width="55%" height={15} />
           </View>
-        </Fragment>
-      ))}
-    </SkeletonGroup>
+        </View>
+        <View style={styles.rule} />
+        {[0, 1, 2].map((i) => (
+          <Fragment key={i}>
+            {i ? <View style={styles.divider} /> : null}
+            <View style={styles.row}>
+              <SkeletonCircle size={LEAD} />
+              <View style={[styles.flex, styles.skeletonText]}>
+                <Skeleton width={i === 1 ? '45%' : '58%'} height={13} />
+                <Skeleton width={i === 1 ? '66%' : '50%'} height={10} />
+              </View>
+              <SkeletonCircle size={LEAD} />
+            </View>
+          </Fragment>
+        ))}
+      </SkeletonGroup>
+    </Card>
   );
 }
 
@@ -216,19 +223,21 @@ export function NothingDueCard({ includesVaccines = false }: { includesVaccines?
       onPress={openMedicines}
       accessibilityRole="button"
       accessibilityHint="Manage medicines"
-      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}>
-      <View style={styles.header}>
-        <IconTile icon={CircleCheck} tone="success" size={LEAD} />
-        <View style={styles.flex}>
-          <ThemedText style={styles.title}>Nothing due today</ThemedText>
-          <ThemedText style={styles.subtitle}>
-            {includesVaccines
-              ? 'No medicines or vaccines scheduled. Enjoy your day.'
-              : 'No medicines scheduled today. Enjoy your day.'}
-          </ThemedText>
+      style={({ pressed }) => pressed && styles.cardPressed}>
+      <Card>
+        <View style={styles.header}>
+          <IconTile icon={CircleCheck} tone="success" size={LEAD} />
+          <View style={styles.flex}>
+            <ThemedText style={styles.title}>Nothing due today</ThemedText>
+            <ThemedText style={styles.subtitle}>
+              {includesVaccines
+                ? 'No medicines or vaccines scheduled. Enjoy your day.'
+                : 'No medicines scheduled today. Enjoy your day.'}
+            </ThemedText>
+          </View>
+          <Chevron />
         </View>
-        <Chevron />
-      </View>
+      </Card>
     </Pressable>
   );
 }
@@ -326,11 +335,6 @@ const styles = StyleSheet.create({
   card: {
     paddingHorizontal: Spacing.three - 2,
     paddingVertical: Spacing.three - 4,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
   },
   cardPressed: {
     transform: [{ scale: 0.99 }],
@@ -367,7 +371,7 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
     marginTop: Spacing.two + 2,
     marginHorizontal: -(Spacing.three - 2),
-    backgroundColor: Colors.hairline,
+    backgroundColor: GlassTokens.hairline,
   },
   // The last line's own padding is most of the card's bottom edge.
   lines: {
@@ -376,7 +380,7 @@ const styles = StyleSheet.create({
   divider: {
     height: StyleSheet.hairlineWidth,
     marginLeft: LEAD + Spacing.three - 4,
-    backgroundColor: Colors.hairline,
+    backgroundColor: GlassTokens.hairline,
   },
   row: {
     flexDirection: 'row',
@@ -421,17 +425,13 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     color: Colors.high,
   },
-  // A white button with a peach edge and an orange plus, as on Home.
+  // A round of glass with an orange plus, as on Home.
   addIcon: {
     width: 36,
     height: 36,
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.primaryTintStrong,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
   },
   addIconPressed: {
     backgroundColor: Colors.primaryTint,

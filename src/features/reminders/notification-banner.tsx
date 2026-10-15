@@ -3,9 +3,10 @@ import { useEffect, useState } from 'react';
 import { AppState, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { Glass } from '@/components/ui/glass';
 import { IconTile } from '@/components/ui/icon-tile';
 import { LIST_LEAD } from '@/components/ui/list';
-import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 
 import { getPermission, requestPermission, type PermissionState } from './notifications';
 
@@ -47,8 +48,8 @@ export function NotificationBanner() {
   const denied = state === 'denied';
 
   return (
-    // A white card like the rest of the page; the watch-tinted dish says it needs a look.
-    <View style={styles.card}>
+    // A pane of glass like the rest of the page; the watch-tinted dish says it needs a look.
+    <Glass style={styles.card}>
       <IconTile icon={denied ? BellOff : BellRing} tone="warning" size={LIST_LEAD} />
       <View style={styles.text}>
         <ThemedText style={styles.title}>
@@ -67,7 +68,7 @@ export function NotificationBanner() {
         style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}>
         <ThemedText style={styles.buttonText}>{denied ? 'Settings' : 'Allow'}</ThemedText>
       </Pressable>
-    </View>
+    </Glass>
   );
 }
 
@@ -78,11 +79,6 @@ const styles = StyleSheet.create({
     gap: Spacing.three - 4,
     paddingVertical: Spacing.three - 2,
     paddingHorizontal: Spacing.three - 2,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
   },
   text: {
     flex: 1,

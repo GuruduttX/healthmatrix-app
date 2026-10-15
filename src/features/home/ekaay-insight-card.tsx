@@ -12,8 +12,9 @@ import Svg, {
 
 import { ThemedText } from '@/components/themed-text';
 import { EkaayMark } from '@/components/ui/ekaay-mark';
+import { Glass, webBlur } from '@/components/ui/glass';
 import { smoothPath } from '@/components/ui/sparkline';
-import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Glass as GlassTokens, Radius, Spacing } from '@/constants/theme';
 
 import { type Insight } from './sample-data';
 
@@ -66,7 +67,7 @@ function MiniTrend({ insight }: { insight: Insight }) {
               width={width}
               height={plotBottom - bandTop}
               rx={6}
-              fill={Colors.goodSoft}
+              fill={GlassTokens.goodTint}
             />
             <Path
               d={`${line} L ${last.x} ${plotBottom} L ${first.x} ${plotBottom} Z`}
@@ -141,7 +142,7 @@ export function EkaayInsightCard({
   const change = first && latest ? latest.value - first.value : 0;
 
   return (
-    <View style={styles.card}>
+    <Glass style={styles.card}>
       <View style={styles.header}>
         <EkaayMark size={28} shape="square" />
         <ThemedText style={styles.kicker}>Ekaay noticed</ThemedText>
@@ -185,7 +186,7 @@ export function EkaayInsightCard({
         <Pressable
           onPress={onSecondary}
           accessibilityRole="button"
-          style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}>
+          style={({ pressed }) => [styles.secondary, webBlur, pressed && styles.pressed]}>
           <MessageCircle size={16} color={Colors.text} strokeWidth={2.2} />
           <ThemedText style={styles.secondaryText}>{secondaryLabel}</ThemedText>
         </Pressable>
@@ -205,7 +206,7 @@ export function EkaayInsightCard({
           <ChevronRight size={15} color={Colors.primaryDeep} strokeWidth={2.4} />
         </View>
       </Pressable>
-    </View>
+    </Glass>
   );
 }
 
@@ -214,11 +215,6 @@ const styles = StyleSheet.create({
     gap: Spacing.three - 2,
     padding: Spacing.three,
     paddingBottom: Spacing.two,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
   },
   header: {
     flexDirection: 'row',
@@ -238,7 +234,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: Colors.hairline,
+    borderColor: GlassTokens.hairline,
   },
   aiTagText: {
     fontFamily: Fonts.bold,
@@ -263,6 +259,7 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     color: Colors.textSoft,
   },
+  // A lighter pane set into the card: frost, a bright rim and the warm edge line.
   panel: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -271,7 +268,10 @@ const styles = StyleSheet.create({
     paddingLeft: 4,
     paddingRight: 12,
     borderRadius: Radius.lg,
-    backgroundColor: Colors.well,
+    borderWidth: 1,
+    borderColor: GlassTokens.rim,
+    backgroundColor: GlassTokens.fillFlat,
+    boxShadow: `${GlassTokens.glowSmall}, ${GlassTokens.shadowFlat}`,
   },
   chart: {
     flex: 1,
@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
     width: 1,
     alignSelf: 'stretch',
     marginVertical: 6,
-    backgroundColor: Colors.hairline,
+    backgroundColor: GlassTokens.hairline,
   },
   metric: {
     minWidth: 60,
@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     paddingHorizontal: 7,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.highSoft,
+    backgroundColor: GlassTokens.highTint,
   },
   deltaText: {
     fontFamily: Fonts.bold,
@@ -362,6 +362,8 @@ const styles = StyleSheet.create({
     minHeight: 48,
     borderRadius: Radius.pill,
     backgroundColor: Colors.primaryBright,
+    // Light along the top edge, like the glass around it.
+    boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.3), 0 4px 12px rgba(160, 50, 0, 0.18)',
   },
   primaryPressed: {
     backgroundColor: Colors.primaryDeep,
@@ -382,8 +384,9 @@ const styles = StyleSheet.create({
     minHeight: 48,
     borderRadius: Radius.pill,
     borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
+    borderColor: GlassTokens.rim,
+    backgroundColor: GlassTokens.fillSoft,
+    boxShadow: `${GlassTokens.glowSmall}, ${GlassTokens.shadowSmall}`,
   },
   secondaryText: {
     fontFamily: Fonts.bold,
@@ -399,7 +402,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     marginTop: -2,
     borderTopWidth: 1,
-    borderTopColor: Colors.hairline,
+    borderTopColor: GlassTokens.hairline,
     paddingTop: Spacing.one,
   },
   humanNote: {

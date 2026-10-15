@@ -24,13 +24,14 @@ import { ThemedText } from '@/components/themed-text';
 import { ArtDish } from '@/components/ui/dish';
 import { EkaayMark } from '@/components/ui/ekaay-mark';
 import { ErrorState } from '@/components/ui/empty-state';
+import { glassSurface } from '@/components/ui/glass';
 import { IconTile } from '@/components/ui/icon-tile';
 import { Chevron, LIST_LEAD, ListCard, ListRow, listText } from '@/components/ui/list';
 import { Section } from '@/components/ui/section';
 import { Skeleton, SkeletonGroup, SkeletonList } from '@/components/ui/skeleton';
 import { HeaderIconButton } from '@/components/ui/stack-header';
 import { Tag } from '@/components/ui/tag';
-import { Colors, Fonts, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { LinkButton, LinkRow, PillButton } from '@/features/doctors/consult-actions';
 import { DoctorAvatar } from '@/features/doctors/doctor-avatar';
 import { specialtyLabel } from '@/features/doctors/specialties';
@@ -435,7 +436,11 @@ function PrescriptionBody({
                           accessibilityRole="button"
                           accessibilityLabel={`Set a reminder for ${item}`}
                           hitSlop={6}
-                          style={({ pressed }) => [styles.remind, pressed && styles.remindPressed]}>
+                          style={({ pressed }) => [
+                            glassSurface.small,
+                            styles.remind,
+                            pressed && styles.remindPressed,
+                          ]}>
                           <BellPlus size={16} color={Colors.primaryDeep} strokeWidth={2.4} />
                         </Pressable>
                       )
@@ -631,17 +636,13 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: Colors.text,
   },
-  // A white button with a peach edge and an orange bell, like Home's add button.
+  // A round of glass with an orange bell, like Home's add button.
   remind: {
     width: 36,
     height: 36,
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.primaryTintStrong,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
   },
   remindPressed: {
     backgroundColor: Colors.primaryTint,

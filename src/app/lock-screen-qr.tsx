@@ -8,9 +8,10 @@ import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorState } from '@/components/ui/empty-state';
+import { Glass, glassSurface } from '@/components/ui/glass';
 import { Section } from '@/components/ui/section';
 import { Skeleton, SkeletonGroup } from '@/components/ui/skeleton';
-import { Colors, Fonts, Gutter, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Glass as GlassTokens, Gutter, Radius, Spacing } from '@/constants/theme';
 import { putQrOnLockScreen, takeQrOffLockScreen, useLockScreenQr } from '@/features/card/lock-screen-qr';
 import { LockScreenWallpaperArt } from '@/features/card/lock-screen-wallpaper';
 import { useEmergencyQr } from '@/features/card/use-emergency-qr';
@@ -24,6 +25,8 @@ const IOS_STEPS = [
 
 /** The preview never runs wider than this, so it reads as a phone on a tablet or the web. */
 const MAX_PREVIEW = 360;
+/** The glass frame around the preview, like a phone's edge. It reaches into the page's margins. */
+const BEZEL = 6;
 
 /**
  * Puts the emergency QR on this phone's lock screen as its wallpaper, so a responder can scan it
@@ -88,9 +91,12 @@ export default function LockScreenQrScreen() {
       <Section index={1}>
         <View style={styles.previewWrap}>
           {qr ? (
-            <View style={[styles.preview, { width }]}>
-              <LockScreenWallpaperArt ref={art} url={qr.url} width={width} ratio={ratio} />
-            </View>
+            // Only the picture inside is saved; the frame is the screen's own.
+            <Glass variant="small" radius={Radius.xl + BEZEL} style={styles.bezel}>
+              <View style={[styles.preview, { width }]}>
+                <LockScreenWallpaperArt ref={art} url={qr.url} width={width} ratio={ratio} />
+              </View>
+            </Glass>
           ) : error ? (
             <ErrorState title="Couldn’t load your QR" message={error} onRetry={() => void refresh()} />
           ) : (
@@ -156,7 +162,7 @@ export default function LockScreenQrScreen() {
           <View style={styles.steps}>
             {IOS_STEPS.map((step, index) => (
               <View key={step} style={styles.step}>
-                <View style={styles.stepNumber}>
+                <View style={[glassSurface.small, styles.stepNumber]}>
                   <ThemedText style={styles.stepNumberText}>{index + 1}</ThemedText>
                 </View>
                 <ThemedText style={[styles.stepText, styles.flex]}>{step}</ThemedText>
@@ -191,11 +197,14 @@ const styles = StyleSheet.create({
   previewWrap: {
     alignItems: 'center',
   },
-  // Rounded like a phone screen; the shadow lifts it off the page.
+  bezel: {
+    padding: BEZEL,
+  },
+  // Rounded like a phone screen, set into its frame.
   preview: {
     borderRadius: Radius.xl,
     overflow: 'hidden',
-    boxShadow: Shadows.raised,
+    boxShadow: GlassTokens.shadowFlat,
   },
   actions: {
     gap: Spacing.two,
@@ -225,19 +234,19 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: Spacing.three - 4,
   },
+  // A small round of glass.
   stepNumber: {
     width: 26,
     height: 26,
     borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.ink,
   },
   stepNumberText: {
     fontFamily: Fonts.bold,
     fontSize: 13,
     lineHeight: 17,
-    color: Colors.onInk,
+    color: Colors.text,
   },
   stepText: {
     paddingTop: 3,

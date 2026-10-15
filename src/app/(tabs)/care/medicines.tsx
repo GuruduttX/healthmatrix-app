@@ -7,11 +7,12 @@ import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorState } from '@/components/ui/empty-state';
+import { Glass } from '@/components/ui/glass';
 import { Divided, ListCard } from '@/components/ui/list';
 import { Section } from '@/components/ui/section';
 import { Skeleton, SkeletonCircle, SkeletonGroup, SkeletonList } from '@/components/ui/skeleton';
 import { HeaderIconButton } from '@/components/ui/stack-header';
-import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Glass as GlassTokens, Radius, Spacing } from '@/constants/theme';
 import { DoseItem, doseState, type DoseState } from '@/features/reminders/dose-item';
 import { DoseRing, LEAD, MedicineDish } from '@/features/reminders/dose-ui';
 import { MedicineRow } from '@/features/reminders/medicine-row';
@@ -61,15 +62,15 @@ function dayStatus(states: DoseState[], isToday: boolean, isFuture: boolean) {
 function MedicinesSkeleton() {
   return (
     <SkeletonGroup label="Loading your medicines" style={styles.skeleton}>
-      <View style={styles.card}>
+      <Glass style={styles.card}>
         <Skeleton width={130} height={16} />
         <View style={styles.skeletonDays}>
           {[0, 1, 2, 3, 4, 5, 6].map((i) => (
             <Skeleton key={i} height={56} radius={Radius.lg} style={styles.flex} />
           ))}
         </View>
-      </View>
-      <View style={styles.card}>
+      </Glass>
+      <Glass style={styles.card}>
         <View style={styles.dayHeader}>
           <SkeletonCircle size={LEAD} />
           <View style={[styles.flex, styles.skeletonText]}>
@@ -87,7 +88,7 @@ function MedicinesSkeleton() {
             <SkeletonCircle size={LEAD} />
           </View>
         ))}
-      </View>
+      </Glass>
       <Skeleton width={140} height={20} />
       <SkeletonList rows={3} leading="tile" trailing={false} />
     </SkeletonGroup>
@@ -97,7 +98,7 @@ function MedicinesSkeleton() {
 /** Before the first medicine: what reminders do, and the one way to start. */
 function NoMedicinesYet({ onAdd }: { onAdd: () => void }) {
   return (
-    <View style={[styles.card, styles.invite]}>
+    <Glass style={[styles.card, styles.invite]}>
       <View style={styles.inviteDish}>
         <MedicineDish size={72} />
       </View>
@@ -111,7 +112,7 @@ function NoMedicinesYet({ onAdd }: { onAdd: () => void }) {
         </ThemedText>
       </View>
       <Button label="Add medicine" icon={Plus} onPress={onAdd} />
-    </View>
+    </Glass>
   );
 }
 
@@ -187,8 +188,8 @@ export default function MedicinesScreen() {
           </Section>
 
           <Section index={1}>
-            {/* The chosen day on one card, like Home's Today: how it is going, then its doses. */}
-            <View style={styles.card}>
+            {/* The chosen day on one pane, like Home's Today: how it is going, then its doses. */}
+            <Glass style={styles.card}>
               {doses.length ? (
                 <View
                   style={styles.dayHeader}
@@ -244,7 +245,7 @@ export default function MedicinesScreen() {
                   <ThemedText style={styles.errorText}>{actionError}</ThemedText>
                 </View>
               ) : null}
-            </View>
+            </Glass>
           </Section>
 
           <Section title="Your medicines" meta={`${reminders.length}`} index={2}>
@@ -276,11 +277,6 @@ const styles = StyleSheet.create({
   card: {
     paddingHorizontal: Spacing.three - 2,
     paddingVertical: Spacing.three - 4,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
   },
   dayHeader: {
     flexDirection: 'row',
@@ -306,7 +302,7 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
     marginTop: Spacing.two + 2,
     marginHorizontal: -(Spacing.three - 2),
-    backgroundColor: Colors.hairline,
+    backgroundColor: GlassTokens.hairline,
   },
   part: {
     marginTop: Spacing.two + 2,
@@ -340,7 +336,7 @@ const styles = StyleSheet.create({
   },
   inviteDish: {
     borderRadius: 36,
-    boxShadow: Shadows.dish,
+    boxShadow: GlassTokens.shadowSmall,
   },
   inviteText: {
     gap: 4,

@@ -3,7 +3,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Fonts, Gradients } from '@/constants/theme';
+import { Fonts, Glass } from '@/constants/theme';
+
+/** Sky-blue glass, so doctors read apart from the orange actions beside them. */
+const DISH = ['rgba(255, 255, 255, 0.92)', 'rgba(190, 219, 242, 0.7)'] as const;
 
 /** "Dr Atul Mishra" -> "AM" */
 function initials(name: string) {
@@ -19,7 +22,10 @@ function initials(name: string) {
 
 type DoctorAvatarProps = { name: string; photoUrl?: string; size?: number };
 
-/** The doctor's photo when their profile has one, otherwise initials on the ink gradient. */
+/**
+ * The doctor's photo when their profile has one, otherwise their initials in deep blue on a round
+ * of sky-blue glass with a bright rim, like a row's `Dish`.
+ */
 export function DoctorAvatar({ name, photoUrl, size = 56 }: DoctorAvatarProps) {
   const round = { width: size, height: size, borderRadius: size / 2 };
 
@@ -36,10 +42,10 @@ export function DoctorAvatar({ name, photoUrl, size = 56 }: DoctorAvatarProps) {
 
   return (
     <LinearGradient
-      colors={Gradients.dish}
+      colors={DISH}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
-      style={[round, styles.center]}>
+      style={[round, styles.center, styles.dish]}>
       <ThemedText style={[styles.initials, { fontSize: size * 0.34, lineHeight: size * 0.42 }]}>
         {initials(name)}
       </ThemedText>
@@ -52,8 +58,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  dish: {
+    borderWidth: 1,
+    borderColor: Glass.rim,
+    boxShadow: Glass.shadowFlat,
+  },
+  // 7:1 on the glass.
   initials: {
     fontFamily: Fonts.bold,
-    color: Colors.primaryInk,
+    color: '#1D5573',
   },
 });

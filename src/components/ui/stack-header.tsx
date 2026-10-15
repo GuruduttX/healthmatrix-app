@@ -3,7 +3,9 @@ import { type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Fonts, Gutter, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Gutter, Radius, Spacing } from '@/constants/theme';
+
+import { glassSurface } from './glass';
 
 /** Home's header buttons are 46; a screen's bar is a touch quieter. */
 const BUTTON = 44;
@@ -21,8 +23,8 @@ type StackHeaderProps = {
 };
 
 /**
- * The bar at the top of a screen opened from a tab, on the warm page: a white round back button
- * like Home's bell, a centred title, and one action.
+ * The bar at the top of a screen opened from a tab: a round glass back button like Home's bell, a
+ * centred title, and one action.
  */
 export function StackHeader({ onBack, backLabel, title, close = false, right }: StackHeaderProps) {
   const Icon = close ? X : ChevronLeft;
@@ -34,7 +36,7 @@ export function StackHeader({ onBack, backLabel, title, close = false, right }: 
         accessibilityRole="button"
         accessibilityLabel={backLabel ? `Back to ${backLabel}` : close ? 'Close' : 'Back'}
         hitSlop={6}
-        style={({ pressed }) => [styles.button, pressed && styles.pressed]}>
+        style={({ pressed }) => [glassSurface.small, styles.button, pressed && styles.pressed]}>
         <Icon size={21} color={Colors.text} strokeWidth={2.2} />
       </Pressable>
 
@@ -48,8 +50,8 @@ export function StackHeader({ onBack, backLabel, title, close = false, right }: 
 }
 
 /**
- * A white round button that matches the back button, for `right` or a tab page's `headerRight`.
- * With `text`, a white pill with the icon and a word: "Share", "Add".
+ * A round glass button that matches the back button, for `right` or a tab page's `headerRight`.
+ * With `text`, a glass pill with the icon and a word: "Share", "Add".
  */
 export function HeaderIconButton({
   icon,
@@ -69,7 +71,12 @@ export function HeaderIconButton({
       accessibilityRole="button"
       accessibilityLabel={label}
       hitSlop={6}
-      style={({ pressed }) => [styles.button, text ? styles.pill : null, pressed && styles.pressed]}>
+      style={({ pressed }) => [
+        glassSurface.small,
+        styles.button,
+        text ? styles.pill : null,
+        pressed && styles.pressed,
+      ]}>
       {icon}
       {text ? <ThemedText style={styles.pillText}>{text}</ThemedText> : null}
     </Pressable>
@@ -92,10 +99,6 @@ const styles = StyleSheet.create({
     borderRadius: BUTTON / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
   },
   pill: {
     width: 'auto',

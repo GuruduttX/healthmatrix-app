@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Eye, Share2, Smartphone } from 'lucide-react-native';
+import { Eye, Smartphone } from 'lucide-react-native';
 import { useState } from 'react';
 import { Alert, Platform } from 'react-native';
 
@@ -8,9 +8,8 @@ import { IconTile } from '@/components/ui/icon-tile';
 import { Chevron, ListCard, ListRow } from '@/components/ui/list';
 import { Section } from '@/components/ui/section';
 import { Skeleton, SkeletonGroup } from '@/components/ui/skeleton';
-import { HeaderIconButton } from '@/components/ui/stack-header';
 import { Toggle } from '@/components/ui/toggle';
-import { Colors, Radius } from '@/constants/theme';
+import { Radius } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-context';
 import { useEmergencyProfile, type EmergencyFieldId } from '@/features/card/emergency-profile';
 import { EmergencyProfileCard } from '@/features/card/emergency-profile-card';
@@ -91,13 +90,6 @@ export default function CardScreen() {
       subtitle="Health ID, emergency QR and family"
       onRefresh={() =>
         Promise.allSettled([refreshMember(), refreshQr(), refreshProfile(), refreshFamily()])
-      }
-      headerRight={
-        <HeaderIconButton
-          icon={<Share2 size={16} color={Colors.text} strokeWidth={2.3} />}
-          text="Share"
-          label="Share your card"
-        />
       }>
       <Section index={0}>
         {member ? (

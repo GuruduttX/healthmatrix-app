@@ -4,7 +4,8 @@ import { StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ArtDish } from '@/components/ui/dish';
-import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Glass } from '@/components/ui/glass';
+import { Colors, Fonts, Glass as GlassTokens, Spacing } from '@/constants/theme';
 
 import { type PodBooking } from './types';
 
@@ -19,15 +20,15 @@ type BookingConfirmedProps = {
 };
 
 /**
- * Shown in place of the booking sheet once the pod has the booking: where to go, and the
- * reference to read out at the pod if the operator asks.
+ * Shown in place of the booking sheet once the pod has the booking, on the same pane of glass:
+ * where to go, and the reference to read out at the pod if the operator asks.
  */
 export function BookingConfirmed({ booking, onDone }: BookingConfirmedProps) {
   const tests = `${booking.testCount} in total`;
 
   return (
     <View style={styles.root}>
-      <View style={styles.card}>
+      <Glass style={styles.card}>
         <ArtDish
           art={POD_ART}
           size={DISH}
@@ -70,7 +71,7 @@ export function BookingConfirmed({ booking, onDone }: BookingConfirmedProps) {
             <ThemedText style={styles.factValue}>{tests}</ThemedText>
           </View>
         </View>
-      </View>
+      </Glass>
 
       <Button label="Done" onPress={onDone} />
     </View>
@@ -86,11 +87,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.four,
     paddingBottom: Spacing.three,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.raised,
   },
   status: {
     flexDirection: 'row',
@@ -126,7 +122,7 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
     marginTop: Spacing.three,
     marginHorizontal: -Spacing.four,
-    backgroundColor: Colors.hairline,
+    backgroundColor: GlassTokens.hairline,
   },
   facts: {
     alignSelf: 'stretch',

@@ -1,11 +1,11 @@
-import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { MapPin } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { ArtDish } from '@/components/ui/dish';
+import { Glass } from '@/components/ui/glass';
 import { Chevron, listText } from '@/components/ui/list';
-import { Colors, Fonts, Gradients, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 
 import { type Pod } from './types';
 
@@ -35,46 +35,38 @@ export function FindPodCard({ pods, error, onPress }: FindPodCardProps) {
       accessibilityLabel={
         where ? `Find a pod near you. ${count} to choose from, including ${where}` : 'Find a pod near you'
       }
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
-      {/* Cloudspital's Arc pod, as on Home's Book pod button (assets/images/home/3d/LICENSE). */}
-      <View style={styles.dish}>
-        <LinearGradient
-          colors={Gradients.dish}
-          start={{ x: 0.2, y: 0 }}
-          end={{ x: 0.8, y: 1 }}
-          style={StyleSheet.absoluteFill}
+      style={({ pressed }) => pressed && styles.pressed}>
+      <Glass style={styles.card}>
+        {/* Cloudspital's Arc pod (assets/images/home/3d/LICENSE), large and cut at the floor. */}
+        <ArtDish
+          art={require('@/assets/images/home/3d/pod.png')}
+          size={DISH}
+          artSize={DISH * 1.16}
+          aspect={POD_ASPECT}
+          drop={0.15}
+          tint="warm"
         />
-        {/* A layer of its own, so it paints above the gradient on web too. */}
-        <View style={[StyleSheet.absoluteFill, styles.center]}>
-          <Image
-            source={require('@/assets/images/home/3d/pod.png')}
-            style={styles.pod}
-            contentFit="contain"
-            accessibilityIgnoresInvertColors
-            aria-hidden
-          />
-        </View>
-      </View>
 
-      <View style={styles.text}>
-        <ThemedText style={listText.title} numberOfLines={1}>
-          Screening pods near you
-        </ThemedText>
-        <ThemedText style={listText.subtitle} numberOfLines={1}>
-          {pods === null
-            ? (error ?? 'Finding pods…')
-            : (where ?? 'See pods on the map and book a slot')}
-        </ThemedText>
-        {count ? (
-          <View style={styles.distance}>
-            <MapPin size={12} color={Colors.textFaint} strokeWidth={2.4} />
-            <ThemedText style={styles.distanceText} numberOfLines={1}>
-              {count} {count === 1 ? 'pod' : 'pods'} to choose from
-            </ThemedText>
-          </View>
-        ) : null}
-      </View>
-      <Chevron />
+        <View style={styles.text}>
+          <ThemedText style={listText.title} numberOfLines={1}>
+            Screening pods near you
+          </ThemedText>
+          <ThemedText style={listText.subtitle} numberOfLines={1}>
+            {pods === null
+              ? (error ?? 'Finding pods…')
+              : (where ?? 'See pods on the map and book a slot')}
+          </ThemedText>
+          {count ? (
+            <View style={styles.distance}>
+              <MapPin size={12} color={Colors.textFaint} strokeWidth={2.4} />
+              <ThemedText style={styles.distanceText} numberOfLines={1}>
+                {count} {count === 1 ? 'pod' : 'pods'} to choose from
+              </ThemedText>
+            </View>
+          ) : null}
+        </View>
+        <Chevron />
+      </Glass>
     </Pressable>
   );
 }
@@ -87,31 +79,10 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.three - 4,
     paddingLeft: Spacing.three - 2,
     paddingRight: Spacing.three - 4,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
   },
   pressed: {
     opacity: 0.85,
     transform: [{ scale: 0.99 }],
-  },
-  dish: {
-    width: DISH,
-    height: DISH,
-    borderRadius: DISH / 2,
-    overflow: 'hidden',
-  },
-  center: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  // Framed like Home's: large, cut at the floor, so the arch, screen and seat fill the dish.
-  pod: {
-    width: DISH * 1.16 * POD_ASPECT,
-    height: DISH * 1.16,
-    transform: [{ translateY: DISH * 0.15 }],
   },
   text: {
     flex: 1,

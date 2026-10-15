@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import {
   Activity,
@@ -20,6 +19,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { ErrorState } from '@/components/ui/empty-state';
+import { webBlur } from '@/components/ui/glass';
 import { IconTile } from '@/components/ui/icon-tile';
 import { Divided } from '@/components/ui/list';
 import { PageBackground } from '@/components/ui/morning-light';
@@ -71,9 +71,6 @@ const LIST_ICONS: Record<ListKey, LucideIcon> = {
 
 /** Every part's round lead. */
 const LEAD = 36;
-
-/** The page colour, from clear to solid, above the Save button. */
-const FADE = ['rgba(248, 245, 240, 0)', Colors.canvas] as const;
 
 type Form = {
   bloodGroup?: BloodGroup;
@@ -182,7 +179,6 @@ export default function EmergencyProfileScreen() {
       setBusy(false);
     }
   };
-
 
   return (
     <View style={styles.screen}>
@@ -321,12 +317,8 @@ export default function EmergencyProfileScreen() {
               </Surface>
             </ScrollView>
 
-            {/* Save stays in reach at the bottom; the form fades out under it. */}
-            <View style={styles.footer}>
-              <LinearGradient
-                colors={FADE}
-                style={[styles.fade, styles.noTouch]}
-              />
+            {/* Save stays in reach at the bottom, on a frosted bar with a hairline above it. */}
+            <View style={[styles.footer, webBlur]}>
               {error ? (
                 <View style={styles.error} accessibilityLiveRegion="polite">
                   <AlertCircle size={16} color={Colors.high} strokeWidth={2.4} />
@@ -402,7 +394,6 @@ function FormSkeleton() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.canvas,
   },
   safeArea: {
     flex: 1,
@@ -412,9 +403,6 @@ const styles = StyleSheet.create({
   },
   flex: {
     flex: 1,
-  },
-  noTouch: {
-    pointerEvents: 'none',
   },
   content: {
     gap: Spacing.three,
@@ -492,17 +480,11 @@ const styles = StyleSheet.create({
   footer: {
     gap: Spacing.two + 2,
     paddingHorizontal: Gutter,
-    paddingTop: Spacing.two,
+    paddingTop: Spacing.three - 4,
     paddingBottom: Spacing.three - 4,
-    backgroundColor: Colors.canvas,
-  },
-  // The last of the form fades into the footer instead of stopping at a hard edge.
-  fade: {
-    position: 'absolute',
-    top: -28,
-    left: 0,
-    right: 0,
-    height: 28,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.hairline,
+    backgroundColor: 'rgba(251, 250, 248, 0.82)',
   },
   error: {
     flexDirection: 'row',

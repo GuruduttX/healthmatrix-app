@@ -14,16 +14,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { EkaayMark } from '@/components/ui/ekaay-mark';
+import { glassSurface } from '@/components/ui/glass';
 import { PageBackground } from '@/components/ui/morning-light';
-import {
-  Colors,
-  Fonts,
-  Gutter,
-  MaxContentWidth,
-  Radius,
-  Shadows,
-  Spacing,
-} from '@/constants/theme';
+import { Colors, Fonts, Glass, Gutter, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { greeting, suggestedQuestions, type ChatMessage } from '@/features/ekaay/chat';
 import { ekaayApi } from '@/features/ekaay/ekaay-api';
 import { MessageBubble } from '@/features/ekaay/message-bubble';
@@ -162,7 +155,11 @@ export default function EkaayScreen() {
                 disabled={asking}
                 accessibilityRole="button"
                 accessibilityLabel={`Ask: ${question}`}
-                style={({ pressed }) => [styles.suggestion, pressed && styles.suggestionPressed]}>
+                style={({ pressed }) => [
+                  glassSurface.small,
+                  styles.suggestion,
+                  pressed && styles.suggestionPressed,
+                ]}>
                 <Sparkles size={13} color={Colors.primary} strokeWidth={2.4} />
                 <ThemedText style={styles.suggestionText} numberOfLines={1}>
                   {question}
@@ -171,7 +168,7 @@ export default function EkaayScreen() {
             ))}
           </ScrollView>
 
-          <View style={styles.composer}>
+          <View style={[glassSurface.small, styles.composer]}>
             <TextInput
               value={draft}
               onChangeText={setDraft}
@@ -195,7 +192,11 @@ export default function EkaayScreen() {
                 !canSend && styles.sendDisabled,
                 pressed && styles.sendPressed,
               ]}>
-              <SendHorizontal size={18} color={Colors.onInk} strokeWidth={2.4} />
+              <SendHorizontal
+                size={18}
+                color={canSend ? Colors.onInk : Colors.textFaint}
+                strokeWidth={2.4}
+              />
             </Pressable>
           </View>
         </View>
@@ -205,9 +206,9 @@ export default function EkaayScreen() {
 }
 
 const styles = StyleSheet.create({
+  // No fill of its own: the page's light shows behind the header, the chat and the composer.
   container: {
     flex: 1,
-    backgroundColor: Colors.canvas,
   },
   flex: {
     flex: 1,
@@ -225,7 +226,7 @@ const styles = StyleSheet.create({
   },
   markShadow: {
     borderRadius: MARK / 2,
-    boxShadow: Shadows.dish,
+    boxShadow: Glass.shadowSmall,
   },
   titleRow: {
     flexDirection: 'row',
@@ -246,8 +247,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
+    borderColor: Glass.hairline,
   },
   aiTagText: {
     fontFamily: Fonts.bold,
@@ -292,18 +292,20 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
-    gap: Spacing.two + 2,
-    paddingTop: Spacing.two,
+    paddingTop: 2,
   },
   suggestions: {
     flexGrow: 0,
   },
-  // Inside the gutters, with room for the pills' shadows.
+  // Inside the gutters. The row clips, so the space above the pills and the gap down to the
+  // composer are its own padding, which leaves room for the pills' lift.
   suggestionsContent: {
     gap: Spacing.two,
     paddingHorizontal: Gutter,
-    paddingVertical: 2,
+    paddingTop: Spacing.two,
+    paddingBottom: Spacing.three - 4,
   },
+  // Pills of glass, like Home's round buttons.
   suggestion: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -311,10 +313,6 @@ const styles = StyleSheet.create({
     height: 36,
     paddingHorizontal: 13,
     borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
   },
   suggestionPressed: {
     backgroundColor: Colors.well,
@@ -326,7 +324,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     color: Colors.text,
   },
-  // The one raised thing on the screen.
+  // A long pill of glass; the send button is its one orange.
   composer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -336,10 +334,6 @@ const styles = StyleSheet.create({
     paddingRight: 5,
     paddingVertical: 5,
     borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.raised,
   },
   input: {
     flex: 1,
@@ -363,7 +357,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primaryDeep,
     transform: [{ scale: 0.95 }],
   },
+  // Nothing to send yet: a quiet see-through grey, as Button does, not a faded disc of orange.
   sendDisabled: {
-    opacity: 0.35,
+    backgroundColor: Colors.backgroundSelected,
   },
 });

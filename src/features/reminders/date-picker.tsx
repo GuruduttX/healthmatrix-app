@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { glassSurface } from '@/components/ui/glass';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 
 import { fromDateKey, MONTH_NAMES, toDateKey, WEEKDAY_LETTERS } from './schedule';
@@ -105,7 +106,7 @@ function NavButton({
       accessibilityRole="button"
       accessibilityLabel={label}
       hitSlop={6}
-      style={({ pressed }) => [styles.nav, pressed && styles.navPressed]}>
+      style={({ pressed }) => [glassSurface.flat, styles.nav, pressed && styles.navPressed]}>
       <Icon size={17} color={Colors.text} strokeWidth={2.3} />
     </Pressable>
   );
@@ -127,16 +128,13 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
     color: Colors.text,
   },
-  // White and round like the page's other small buttons.
+  // A small round of glass, like the week's arrows.
   nav: {
     width: 32,
     height: 32,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
   },
   navPressed: {
     backgroundColor: Colors.well,

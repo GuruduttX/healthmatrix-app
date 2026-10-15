@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { EmptyState, ErrorState } from '@/components/ui/empty-state';
+import { glassSurface } from '@/components/ui/glass';
 import { Chevron, LIST_LEAD, ListCard, ListRow } from '@/components/ui/list';
 import { Section } from '@/components/ui/section';
 import { SkeletonList } from '@/components/ui/skeleton';
@@ -63,7 +64,14 @@ export function FamilySection({ index }: { index?: number } = {}) {
           {members.map((member) => (
             <ListRow
               key={member.linkId}
-              leading={<MemberAvatar name={member.name} photoUrl={member.photoUrl} size={LIST_LEAD} />}
+              leading={
+                <MemberAvatar
+                  name={member.name}
+                  photoUrl={member.photoUrl}
+                  size={LIST_LEAD}
+                  tone="glass"
+                />
+              }
               title={member.name}
               subtitle={aboutLine(member)}
               trailing={<Chevron />}
@@ -94,7 +102,12 @@ export function FamilySection({ index }: { index?: number } = {}) {
               <ListRow
                 key={viewer.linkId}
                 leading={
-                  <MemberAvatar name={viewer.name} photoUrl={viewer.photoUrl} size={LIST_LEAD} />
+                  <MemberAvatar
+                    name={viewer.name}
+                    photoUrl={viewer.photoUrl}
+                    size={LIST_LEAD}
+                    tone="glass"
+                  />
                 }
                 title={viewer.name}
                 subtitle={`Added you as their ${relationLabel(viewer.relation, viewer.relationName).toLowerCase()}`}
@@ -105,7 +118,11 @@ export function FamilySection({ index }: { index?: number } = {}) {
                     accessibilityRole="button"
                     accessibilityLabel={`Stop ${viewer.name} seeing your records`}
                     hitSlop={8}
-                    style={({ pressed }) => [styles.remove, pressed && styles.removePressed]}>
+                    style={({ pressed }) => [
+                      glassSurface.flat,
+                      styles.remove,
+                      pressed && styles.removePressed,
+                    ]}>
                     {removing === viewer.linkId ? (
                       <ActivityIndicator size="small" color={Colors.high} />
                     ) : (
@@ -143,7 +160,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     color: Colors.textSoft,
   },
-  // A small white pill with crimson words: removing, never orange.
+  // A small pill of glass with crimson words: removing, never orange.
   remove: {
     minWidth: 76,
     height: 32,
@@ -151,9 +168,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 12,
     borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
   },
   removePressed: {
     backgroundColor: Colors.highSoft,

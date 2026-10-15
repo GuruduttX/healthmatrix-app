@@ -4,9 +4,10 @@ import { Plus, UserPlus } from 'lucide-react-native';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { Glass } from '@/components/ui/glass';
 import { Section } from '@/components/ui/section';
 import { Skeleton, SkeletonCircle, SkeletonGroup } from '@/components/ui/skeleton';
-import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Glass as GlassTokens, Radius, Spacing } from '@/constants/theme';
 import { aboutLine } from '@/features/family/relations';
 import { useFamily } from '@/features/family/use-family';
 import { MemberAvatar } from '@/features/profile/member-avatar';
@@ -25,15 +26,17 @@ export function FamilyStrip({ index }: { index: number }) {
   if (members === null) {
     return (
       <Section title="Family" index={index}>
-        <SkeletonGroup label="Loading your family" style={[styles.card, styles.strip]}>
-          {[0, 1, 2].map((i) => (
-            <View key={i} style={styles.person}>
-              <SkeletonCircle size={AVATAR} />
-              <Skeleton width={48} height={12} />
-              <Skeleton width={36} height={10} />
-            </View>
-          ))}
-        </SkeletonGroup>
+        <Glass>
+          <SkeletonGroup label="Loading your family" style={styles.strip}>
+            {[0, 1, 2].map((i) => (
+              <View key={i} style={styles.person}>
+                <SkeletonCircle size={AVATAR} />
+                <Skeleton width={48} height={12} />
+                <Skeleton width={36} height={10} />
+              </View>
+            ))}
+          </SkeletonGroup>
+        </Glass>
       </Section>
     );
   }
@@ -41,7 +44,7 @@ export function FamilyStrip({ index }: { index: number }) {
   if (!members.length) {
     return (
       <Section title="Family" index={index}>
-        <View style={styles.invite}>
+        <Glass style={styles.invite}>
           {/* Photo: Pexels (free to use), assets/images/home. */}
           <Image
             source={require('@/assets/images/home/ask-ekaay.jpg')}
@@ -62,7 +65,7 @@ export function FamilyStrip({ index }: { index: number }) {
               <ThemedText style={styles.inviteButtonText}>Add family</ThemedText>
             </Pressable>
           </View>
-        </View>
+        </Glass>
       </Section>
     );
   }
@@ -73,7 +76,7 @@ export function FamilyStrip({ index }: { index: number }) {
       actionLabel="Manage"
       onAction={() => router.navigate('/card')}
       index={index}>
-      <View style={styles.card}>
+      <Glass>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -90,7 +93,12 @@ export function FamilyStrip({ index }: { index: number }) {
                 accessibilityLabel={`${member.name}, ${relation}. Open their records.`}
                 style={({ pressed }) => [styles.person, pressed && styles.pressed]}>
                 <View style={styles.ring}>
-                  <MemberAvatar name={member.name} photoUrl={member.photoUrl} size={AVATAR} />
+                  <MemberAvatar
+                    name={member.name}
+                    photoUrl={member.photoUrl}
+                    size={AVATAR}
+                    tone="glass"
+                  />
                 </View>
                 <View style={styles.names}>
                   <ThemedText style={styles.name} numberOfLines={1}>
@@ -118,20 +126,12 @@ export function FamilyStrip({ index }: { index: number }) {
             </View>
           </Pressable>
         </ScrollView>
-      </View>
+      </Glass>
     </Section>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    overflow: 'hidden',
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
-  },
   strip: {
     flexDirection: 'row',
     gap: Spacing.two + 2,
@@ -147,11 +147,14 @@ const styles = StyleSheet.create({
     opacity: 0.75,
     transform: [{ scale: 0.97 }],
   },
+  // A ring of glass around each face.
   ring: {
     padding: 2,
-    borderRadius: AVATAR / 2 + 2,
+    borderRadius: AVATAR / 2 + 3,
     borderWidth: 1,
-    borderColor: Colors.hairline,
+    borderColor: GlassTokens.rim,
+    backgroundColor: GlassTokens.fillSoft,
+    boxShadow: `${GlassTokens.glowSmall}, ${GlassTokens.shadowSmall}`,
   },
   names: {
     alignItems: 'center',
@@ -178,19 +181,14 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderStyle: 'dashed',
     borderColor: Colors.primaryLight,
-    backgroundColor: Colors.primaryTint,
+    backgroundColor: GlassTokens.fillSoft,
+    boxShadow: GlassTokens.glowSmall,
   },
   addLabel: {
     color: Colors.primaryDeep,
   },
   invite: {
     flexDirection: 'row',
-    overflow: 'hidden',
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
   },
   invitePhoto: {
     width: 116,

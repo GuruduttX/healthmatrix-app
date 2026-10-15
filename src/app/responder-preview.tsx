@@ -21,6 +21,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { ThemedText } from '@/components/themed-text';
 import { ErrorState } from '@/components/ui/empty-state';
+import { Glass, glassSurface } from '@/components/ui/glass';
 import { IconTile, type Tone } from '@/components/ui/icon-tile';
 import { LIST_LEAD, ListCard, ListRow } from '@/components/ui/list';
 import { PageBackground } from '@/components/ui/morning-light';
@@ -30,11 +31,11 @@ import { StackHeader } from '@/components/ui/stack-header';
 import {
   Colors,
   Fonts,
+  Glass as GlassTokens,
   Gradients,
   Gutter,
   MaxContentWidth,
   Radius,
-  Shadows,
   Spacing,
 } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-context';
@@ -51,7 +52,7 @@ const PAD = Spacing.three;
 /** "Preview" in the bar, so nobody mistakes it for a real scan. */
 function PreviewPill() {
   return (
-    <View style={styles.previewPill}>
+    <View style={[glassSurface.small, styles.previewPill]}>
       <Eye size={14} color={Colors.textSoft} strokeWidth={2.4} />
       <ThemedText style={styles.previewText}>Preview</ThemedText>
     </View>
@@ -80,7 +81,7 @@ function Items({ items, flagged }: { items: string[]; flagged?: boolean }) {
   return (
     <>
       {items.map((item) => (
-        <View key={item} style={[styles.item, flagged && styles.itemFlagged]}>
+        <View key={item} style={[styles.item, flagged ? styles.itemFlagged : glassSurface.small]}>
           {flagged ? <TriangleAlert size={12} color={Colors.high} strokeWidth={2.6} /> : null}
           <ThemedText style={[styles.itemText, flagged && styles.itemTextFlagged]}>{item}</ThemedText>
         </View>
@@ -150,11 +151,11 @@ export default function ResponderPreviewScreen() {
             />
           ) : (
             <SkeletonGroup label="Loading the preview" style={styles.skeleton}>
-              <View style={[styles.identity, styles.skeletonIdentity]}>
+              <Glass style={[styles.identity, styles.skeletonIdentity]}>
                 <SkeletonCircle size={PHOTO} />
                 <Skeleton width="50%" height={22} />
                 <Skeleton width="25%" height={12} />
-              </View>
+              </Glass>
               <Skeleton height={72} radius={Radius.xl} />
               <SkeletonList rows={3} trailing={false} />
             </SkeletonGroup>
@@ -203,58 +204,57 @@ export default function ResponderPreviewScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={refreshControl}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + Spacing.five }]}>
-        {/* Who this is, and their blood group: the page's one raised card. */}
+        {/* Who this is, and their blood group: the page's first pane. */}
         <Section index={0}>
-          <View style={styles.identityShadow}>
-            <View style={styles.identity}>
-              {/* A faint crimson light at the top: an emergency page, without a red header. */}
-              <LinearGradient
-                colors={['rgba(251, 234, 238, 0.9)', 'rgba(251, 234, 238, 0)']}
-                locations={[0, 0.6]}
-                style={[StyleSheet.absoluteFill, styles.noTouch]}
-              />
-              <View style={styles.medicalId}>
-                <Siren size={12} color={Colors.high} strokeWidth={2.6} />
-                <ThemedText style={styles.medicalIdText}>Medical ID</ThemedText>
-              </View>
-              <View style={styles.photoRing}>
-                <MemberAvatar
-                  name={member.name}
-                  photoUrl={shows('photo') ? member.photoUrl : undefined}
-                  size={PHOTO}
-                />
-              </View>
-              <View style={styles.names}>
-                <ThemedText style={styles.name} numberOfLines={2}>
-                  {member.name}
-                </ThemedText>
-                {about ? <ThemedText style={styles.about}>{about}</ThemedText> : null}
-              </View>
-              {showBlood ? (
-                <>
-                  <View style={styles.rule} />
-                  <View
-                    style={styles.blood}
-                    accessible
-                    accessibilityLabel={`Blood group ${profile.bloodGroup}`}>
-                    <View style={styles.bloodLabelRow}>
-                      <Droplet size={13} color={Colors.high} strokeWidth={2.6} />
-                      <ThemedText style={styles.bloodLabel}>Blood group</ThemedText>
-                    </View>
-                    <ThemedText style={styles.bloodValue}>{profile.bloodGroup}</ThemedText>
-                  </View>
-                </>
-              ) : null}
+          <Glass style={styles.identity}>
+            {/* A faint crimson light at the top: an emergency page, without a red header. */}
+            <LinearGradient
+              colors={['rgba(251, 228, 234, 0.85)', 'rgba(251, 228, 234, 0)']}
+              locations={[0, 0.6]}
+              style={[StyleSheet.absoluteFill, styles.noTouch]}
+            />
+            <View style={styles.medicalId}>
+              <Siren size={12} color={Colors.high} strokeWidth={2.6} />
+              <ThemedText style={styles.medicalIdText}>Medical ID</ThemedText>
             </View>
-          </View>
+            <View style={[glassSurface.small, styles.photoRing]}>
+              <MemberAvatar
+                name={member.name}
+                photoUrl={shows('photo') ? member.photoUrl : undefined}
+                size={PHOTO}
+                tone="glass"
+              />
+            </View>
+            <View style={styles.names}>
+              <ThemedText style={styles.name} numberOfLines={2}>
+                {member.name}
+              </ThemedText>
+              {about ? <ThemedText style={styles.about}>{about}</ThemedText> : null}
+            </View>
+            {showBlood ? (
+              <>
+                <View style={styles.rule} />
+                <View
+                  style={styles.blood}
+                  accessible
+                  accessibilityLabel={`Blood group ${profile.bloodGroup}`}>
+                  <View style={styles.bloodLabelRow}>
+                    <Droplet size={13} color={Colors.high} strokeWidth={2.6} />
+                    <ThemedText style={styles.bloodLabel}>Blood group</ThemedText>
+                  </View>
+                  <ThemedText style={styles.bloodValue}>{profile.bloodGroup}</ThemedText>
+                </View>
+              </>
+            ) : null}
+          </Glass>
         </Section>
 
         <Section index={1}>
-          <View style={styles.helplines}>
+          <Glass style={styles.helplines}>
             <Helpline icon={Ambulance} number="108" label="Ambulance" />
             <View style={styles.helplineDivider} />
             <Helpline icon={Siren} number="112" label="Emergency" />
-          </View>
+          </Glass>
         </Section>
 
         {medical.length ? (
@@ -371,7 +371,6 @@ export default function ResponderPreviewScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.canvas,
   },
   safeArea: {
     flex: 1,
@@ -409,9 +408,6 @@ const styles = StyleSheet.create({
     paddingLeft: 10,
     paddingRight: 12,
     borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
   },
   previewText: {
     fontFamily: Fonts.bold,
@@ -420,22 +416,12 @@ const styles = StyleSheet.create({
     color: Colors.textSoft,
   },
 
-  // The shadow sits outside the card, which clips its corners and wash.
-  identityShadow: {
-    borderRadius: Radius.xl,
-    boxShadow: Shadows.raised,
-  },
   identity: {
     alignItems: 'center',
     gap: Spacing.three - 4,
     paddingTop: Spacing.three,
     paddingHorizontal: PAD,
     paddingBottom: Spacing.three + 2,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    overflow: 'hidden',
-    backgroundColor: Colors.backgroundElement,
   },
   medicalId: {
     flexDirection: 'row',
@@ -455,11 +441,10 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     color: Colors.high,
   },
+  // A ring of glass around the photo.
   photoRing: {
     padding: 4,
-    borderRadius: PHOTO / 2 + 4,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.dish,
+    borderRadius: PHOTO / 2 + 5,
   },
   names: {
     alignItems: 'center',
@@ -484,7 +469,7 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
     marginHorizontal: -PAD,
     marginTop: Spacing.one,
-    backgroundColor: Colors.hairline,
+    backgroundColor: GlassTokens.hairline,
   },
   blood: {
     alignItems: 'center',
@@ -508,19 +493,14 @@ const styles = StyleSheet.create({
     color: Colors.high,
   },
 
-  // Two helplines on one card, a hairline between them.
+  // Two helplines on one pane, a hairline between them.
   helplines: {
     flexDirection: 'row',
     paddingVertical: Spacing.three - 2,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
   },
   helplineDivider: {
     width: StyleSheet.hairlineWidth,
-    backgroundColor: Colors.hairline,
+    backgroundColor: GlassTokens.hairline,
   },
   helpline: {
     flex: 1,
@@ -570,6 +550,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     color: Colors.textSoft,
   },
+  // A pill of glass; an allergy is crimson, see-through so it takes the pane's light too.
   item: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -577,14 +558,12 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 10,
     borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.backgroundElement,
   },
   itemFlagged: {
     paddingLeft: 8,
-    borderColor: Colors.highSoft,
-    backgroundColor: Colors.highSoft,
+    borderWidth: 1,
+    borderColor: GlassTokens.highTint,
+    backgroundColor: GlassTokens.highTint,
   },
   itemText: {
     fontFamily: Fonts.bold,
@@ -595,11 +574,15 @@ const styles = StyleSheet.create({
   itemTextFlagged: {
     color: Colors.high,
   },
+  // A round of glass, like an `IconTile`.
   contactDish: {
     width: LIST_LEAD,
     height: LIST_LEAD,
     borderRadius: LIST_LEAD / 2,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: GlassTokens.rim,
+    boxShadow: GlassTokens.shadowFlat,
   },
   contactInitials: {
     fontFamily: Fonts.bold,

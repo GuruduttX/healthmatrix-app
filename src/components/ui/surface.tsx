@@ -1,22 +1,23 @@
-import { StyleSheet, View, type ViewProps } from 'react-native';
+import { StyleSheet, type ViewProps } from 'react-native';
 
-import { Colors, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
+
+import { Glass } from './glass';
 
 /**
- * A white card on the warm page, as on Home: a hairline edge, barely lifted. Lists inside it use
- * hairline dividers, not shaded boxes.
+ * A card on the page, as on Home: a pane of glass. Lists inside it use hairline dividers, not
+ * shaded boxes.
  */
-export function Surface({ style, ...props }: ViewProps) {
-  return <View style={[styles.surface, style]} {...props} />;
+export function Surface({ style, children, ...props }: ViewProps) {
+  return (
+    <Glass style={[styles.surface, style]} {...props}>
+      {children}
+    </Glass>
+  );
 }
 
 const styles = StyleSheet.create({
   surface: {
     padding: Spacing.three,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.soft,
   },
 });

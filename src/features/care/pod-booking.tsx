@@ -5,10 +5,11 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ArtDish } from '@/components/ui/dish';
 import { Button } from '@/components/ui/button';
+import { Glass } from '@/components/ui/glass';
 import { IconTile } from '@/components/ui/icon-tile';
 import { Divided, LIST_LEAD, ListCard, ListRow, listText } from '@/components/ui/list';
 import { Section } from '@/components/ui/section';
-import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Glass as GlassTokens, Spacing } from '@/constants/theme';
 
 import { type Pod } from './types';
 
@@ -33,9 +34,9 @@ type PodBookingProps = {
 };
 
 /**
- * Pick a pod, then the tests, and Book: the pods as rows on one card (raised, over the map), the
- * tests on the page under it. Walk-in: Mobilab bookings have no time, so there are no slots; the
- * booking waits in the pod's queue until the member arrives.
+ * Pick a pod, then the tests, and Book: the pods as rows on one pane of glass (riding over the
+ * map), the tests on the page under it. Walk-in: Mobilab bookings have no time, so there are no
+ * slots; the booking waits in the pod's queue until the member arrives.
  */
 export function PodBooking({
   pods,
@@ -51,7 +52,7 @@ export function PodBooking({
 
   return (
     <View style={styles.root}>
-      <View style={styles.card}>
+      <Glass style={styles.card}>
         <View style={styles.header}>
           <ThemedText style={styles.title} accessibilityRole="header">
             Pods near you
@@ -98,7 +99,7 @@ export function PodBooking({
             })}
           </Divided>
         </View>
-      </View>
+      </Glass>
 
       {pod ? children : null}
 
@@ -140,16 +141,11 @@ const styles = StyleSheet.create({
   root: {
     gap: Spacing.four - 4,
   },
-  // The screen's one raised card, riding over the bottom of the map.
+  // The screen's first pane, riding over the bottom of the map; the map blurs behind it on web.
   card: {
     paddingHorizontal: Spacing.three,
     paddingTop: Spacing.three,
     paddingBottom: Spacing.one,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.hairline,
-    backgroundColor: Colors.backgroundElement,
-    boxShadow: Shadows.raised,
   },
   header: {
     gap: 2,
@@ -172,7 +168,7 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
     marginTop: Spacing.three - 4,
     marginHorizontal: -Spacing.three,
-    backgroundColor: Colors.hairline,
+    backgroundColor: GlassTokens.hairline,
   },
   flex: {
     flex: 1,
@@ -189,6 +185,7 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.6,
   },
+  // A round of glass waiting for a tick, its edge clear while empty.
   radio: {
     width: RADIO,
     height: RADIO,
@@ -197,11 +194,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1.5,
     borderColor: Colors.border,
-    backgroundColor: Colors.backgroundElement,
+    backgroundColor: GlassTokens.fillSoft,
+    boxShadow: GlassTokens.glowSmall,
   },
   radioSelected: {
     borderColor: Colors.text,
     backgroundColor: Colors.text,
+    boxShadow: 'none',
   },
   footer: {
     gap: Spacing.two,

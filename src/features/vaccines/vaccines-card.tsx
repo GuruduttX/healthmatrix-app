@@ -15,7 +15,7 @@ import { IconTile, type Tone } from '@/components/ui/icon-tile';
 import { Chevron, LIST_LEAD, ListCard, ListRow, listText } from '@/components/ui/list';
 import { Section } from '@/components/ui/section';
 import { Tag } from '@/components/ui/tag';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Glass, Radius, Spacing } from '@/constants/theme';
 import { istToday } from '@/features/doctors/time';
 
 import { askGivenDay } from './dose-timeline';
@@ -104,7 +104,7 @@ export function VaccinesCard({ index }: { index?: number }) {
                   <ActivityIndicator size="small" color={Colors.primaryDeep} />
                 </View>
               ) : canMark ? (
-                // Like Home's tick for a dose: white, with a peach ring, waiting to be ticked.
+                // Like Home's tick for a dose: glass with a peach ring, waiting to be ticked.
                 <Pressable
                   onPress={() => markNext(vaccination)}
                   accessibilityRole="button"
@@ -177,7 +177,8 @@ const styles = StyleSheet.create({
   tickButton: {
     borderWidth: 1.5,
     borderColor: Colors.primaryLight,
-    backgroundColor: Colors.backgroundElement,
+    backgroundColor: Glass.fillSoft,
+    boxShadow: Glass.glowSmall,
   },
   tickPressed: {
     backgroundColor: Colors.primaryTintStrong,

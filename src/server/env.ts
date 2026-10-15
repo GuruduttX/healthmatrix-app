@@ -25,6 +25,10 @@ const schema = z.object({
    * turns every call away and results arrive when the member opens the app.
    */
   MOBILAB_WEBHOOK_SECRET: z.string().min(32, 'must be at least 32 characters').optional(),
+  /** OpenAI answers Ekaay's questions (see `server/ekaay.ts`). Without it Ekaay says it isn't set up. */
+  OPENAI_API_KEY: z.string().regex(/^sk-/, 'must look like sk-…').optional(),
+  /** The OpenAI model Ekaay uses. */
+  OPENAI_MODEL: z.string().min(1).default('gpt-6.1-sol'),
 });
 
 let cached: z.infer<typeof schema> | undefined;

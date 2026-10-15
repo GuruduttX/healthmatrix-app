@@ -1,7 +1,6 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Info, Mic, SendHorizontal, Sparkles } from 'lucide-react-native';
-import { useEffect, useRef, useState } from 'react';
+import { Info, SendHorizontal, Sparkles } from 'lucide-react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -19,65 +18,83 @@ import { PageBackground } from '@/components/ui/morning-light';
 import {
   Colors,
   Fonts,
-  Gradients,
   Gutter,
   MaxContentWidth,
   Radius,
   Shadows,
   Spacing,
 } from '@/constants/theme';
+import { greeting, suggestedQuestions, type ChatMessage } from '@/features/ekaay/chat';
+import { ekaayApi } from '@/features/ekaay/ekaay-api';
 import { MessageBubble } from '@/features/ekaay/message-bubble';
-import {
-  notConnectedReply,
-  sampleConversation,
-  suggestedQuestions,
-  type ChatMessage,
-} from '@/features/ekaay/sample-data';
 import { useKeyboardVisible } from '@/hooks/use-keyboard-visible';
 import { useTabBarClearance } from '@/hooks/use-tab-bar-clearance';
-
-// STUB: Ekaay is not connected yet, so every question gets the same honest reply.
-function exchange(question: string): ChatMessage[] {
-  const stamp = Date.now();
-  return [
-    { id: `u${stamp}`, from: 'user', text: question },
-    { id: `e${stamp}`, from: 'ekaay', text: notConnectedReply },
-  ];
-}
+import { ApiError } from '@/services/api';
 
 /** Ekaay's mark in the header, as big as Home's profile and bell buttons. */
 const MARK = 46;
 const SEND = 42;
 
 export default function EkaayScreen() {
-  const [messages, setMessages] = useState<ChatMessage[]>(sampleConversation);
+  const [messages, setMessages] = useState<ChatMessage[]>([greeting]);
   const [draft, setDraft] = useState('');
+  const [asking, setAsking] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
-  /** A question tapped on Home, e.g. `/ekaay?q=Explain my last report`. */
+  /** The chat as of the last render, for the history sent with each question. */
+  const messagesRef = useRef(messages);
+  /** Set at once on sending, so a second tap before the next render can't ask twice. */
+  const askingRef = useRef(false);
+  /** A question tapped on Home or a record, e.g. `/ekaay?q=Explain my last report`. */
   const { q } = useLocalSearchParams<{ q?: string }>();
-  const [askedQ, setAskedQ] = useState<string | undefined>(undefined);
 
   const keyboardVisible = useKeyboardVisible();
   const clearance = useTabBarClearance();
   const insets = useSafeAreaInsets();
-  const canSend = draft.trim().length > 0;
+  const canSend = draft.trim().length > 0 && !asking;
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  /** Shows the question with a waiting answer, then swaps in Ekaay's reply, or why there isn't one. */
+  const send = useCallback(async (text: string) => {
+    const question = text.trim();
+    if (!question || askingRef.current) return;
+    askingRef.current = true;
+    setAsking(true);
+
+    const stamp = Date.now();
+    const asked: ChatMessage = { id: `u${stamp}`, from: 'user', text: question };
+    const answerId = `e${stamp}`;
+    const history = [...messagesRef.current.filter((message) => !message.local), asked];
+    setMessages((current) => [
+      ...current,
+      asked,
+      { id: answerId, from: 'ekaay', text: 'Reading your records\u2026', pending: true, local: true },
+    ]);
+    setDraft('');
+
+    let reply: ChatMessage;
+    try {
+      reply = { id: answerId, from: 'ekaay', ...(await ekaayApi.ask(history)) };
+    } catch (error) {
+      const text =
+        error instanceof ApiError ? error.message : 'Something went wrong. Try again in a moment.';
+      reply = { id: answerId, from: 'ekaay', text, local: true };
+    } finally {
+      askingRef.current = false;
+      setAsking(false);
+    }
+    setMessages((current) => current.map((message) => (message.id === answerId ? reply : message)));
+  }, []);
 
   // Ask a question from Home once; the param is then cleared so it can be tapped again later.
-  if (q !== askedQ) {
-    setAskedQ(q);
-    const question = q?.trim();
-    if (question) setMessages((current) => [...current, ...exchange(question)]);
-  }
   useEffect(() => {
-    if (q) router.setParams({ q: undefined });
-  }, [q]);
-
-  const send = (text: string) => {
-    const question = text.trim();
+    const question = q?.trim();
     if (!question) return;
-    setMessages((current) => [...current, ...exchange(question)]);
-    setDraft('');
-  };
+    router.setParams({ q: undefined });
+    void send(question);
+  }, [q, send]);
 
   return (
     <View style={styles.container}>
@@ -141,7 +158,8 @@ export default function EkaayScreen() {
             {suggestedQuestions.map((question) => (
               <Pressable
                 key={question}
-                onPress={() => send(question)}
+                onPress={() => void send(question)}
+                disabled={asking}
                 accessibilityRole="button"
                 accessibilityLabel={`Ask: ${question}`}
                 style={({ pressed }) => [styles.suggestion, pressed && styles.suggestionPressed]}>
@@ -162,28 +180,12 @@ export default function EkaayScreen() {
               selectionColor={Colors.primary}
               returnKeyType="send"
               submitBehavior="submit"
-              onSubmitEditing={() => send(draft)}
+              onSubmitEditing={() => void send(draft)}
               accessibilityLabel="Ask Ekaay"
               style={styles.input}
             />
-            {/* A quiet dish, so the send button stays the one coloured thing in the bar. */}
             <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Speak"
-              hitSlop={8}
-              style={({ pressed }) => [styles.mic, pressed && styles.pressed]}>
-              <LinearGradient
-                colors={Gradients.dishQuiet}
-                start={{ x: 0.2, y: 0 }}
-                end={{ x: 0.8, y: 1 }}
-                style={StyleSheet.absoluteFill}
-              />
-              <View style={[StyleSheet.absoluteFill, styles.center]}>
-                <Mic size={18} color={Colors.textSoft} strokeWidth={2.2} />
-              </View>
-            </Pressable>
-            <Pressable
-              onPress={() => send(draft)}
+              onPress={() => void send(draft)}
               disabled={!canSend}
               accessibilityRole="button"
               accessibilityLabel="Send"
@@ -349,17 +351,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.medium,
     fontSize: 15,
   },
-  mic: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    overflow: 'hidden',
-  },
-  // The icon's own layer, so it paints above the dish's gradient on web.
-  center: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   send: {
     width: SEND,
     height: SEND,
@@ -374,8 +365,5 @@ const styles = StyleSheet.create({
   },
   sendDisabled: {
     opacity: 0.35,
-  },
-  pressed: {
-    opacity: 0.7,
   },
 });

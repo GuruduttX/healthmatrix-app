@@ -38,7 +38,11 @@ export class ApiError extends Error {
   }
 }
 
-type ApiOptions = Omit<RequestInit, 'body'> & { body?: unknown };
+type ApiOptions = Omit<RequestInit, 'body'> & {
+  body?: unknown;
+  /** For the few calls that take longer than `TIMEOUT_MS`, such as Ekaay's answers. */
+  timeoutMs?: number;
+};
 
 /**
  * Without this a request to an unreachable server spins for a minute before the OS gives up.
@@ -48,10 +52,10 @@ type ApiOptions = Omit<RequestInit, 'body'> & { body?: unknown };
 const TIMEOUT_MS = __DEV__ ? 90_000 : 30_000;
 
 export async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
-  const { body, headers, ...rest } = options;
+  const { body, headers, timeoutMs = TIMEOUT_MS, ...rest } = options;
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   let res: Response;
   try {
     res = await fetch(apiUrl(path), {
@@ -68,7 +72,7 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
   } catch (error) {
     // Network failures carry native stack text on iOS; show something a member can act on.
     if (controller.signal.aborted) {
-      console.warn(`${rest.method ?? 'GET'} ${path} timed out after ${TIMEOUT_MS / 1000}s`);
+      console.warn(`${rest.method ?? 'GET'} ${path} timed out after ${timeoutMs / 1000}s`);
       throw new ApiError(0, 'HealthMatrix is taking too long to answer. Try again in a moment.');
     }
     console.warn(`${rest.method ?? 'GET'} ${path} failed`, String(error));

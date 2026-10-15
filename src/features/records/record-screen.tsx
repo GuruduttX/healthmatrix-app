@@ -231,7 +231,12 @@ export function RecordScreen({
             icon={<EkaayMark size={20} />}
             label="Ask Ekaay"
             text="Ask Ekaay"
-            onPress={() => router.navigate('/ekaay')}
+            onPress={() =>
+              router.navigate({
+                pathname: '/ekaay',
+                params: { q: `Explain my ${record.title.toLowerCase()} from ${record.date}` },
+              })
+            }
           />
         ) : undefined
       }

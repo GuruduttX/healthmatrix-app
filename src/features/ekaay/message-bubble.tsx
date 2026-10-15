@@ -1,12 +1,12 @@
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { EkaayMark } from '@/components/ui/ekaay-mark';
 import { TrendChart } from '@/components/ui/trend-chart';
 import { Colors, Fonts, Radius, Shadows, Spacing } from '@/constants/theme';
 
-import { type ChatMessage } from './sample-data';
+import { type ChatMessage } from './chat';
 
 /** Ekaay's mark beside its answers. */
 const AVATAR = 28;
@@ -28,7 +28,14 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
       </View>
       {/* A chart needs a known width, so those bubbles take the full bubble width. */}
       <View style={[styles.bubble, styles.ekaay, message.chart && styles.wide]}>
-        <ThemedText style={styles.text}>{message.text}</ThemedText>
+        {message.pending ? (
+          <View style={styles.pending} accessibilityLiveRegion="polite">
+            <ActivityIndicator size="small" color={Colors.primary} />
+            <ThemedText style={styles.pendingText}>{message.text}</ThemedText>
+          </View>
+        ) : (
+          <ThemedText style={styles.text}>{message.text}</ThemedText>
+        )}
 
         {message.chart ? (
           <View style={styles.chart}>
@@ -106,6 +113,17 @@ const styles = StyleSheet.create({
   },
   userText: {
     color: Colors.onInk,
+  },
+  pending: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  pendingText: {
+    fontFamily: Fonts.medium,
+    fontSize: 14,
+    lineHeight: 20,
+    color: Colors.textFaint,
   },
   chart: {
     gap: Spacing.one,

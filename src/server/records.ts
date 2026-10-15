@@ -52,7 +52,7 @@ async function doctorsById(ids: (Id | null | undefined)[]) {
 }
 
 /** The member's prescriptions with their consults and doctors. */
-async function loadPrescriptions(memberId: Id, only?: Id) {
+export async function loadPrescriptions(memberId: Id, only?: Id) {
   const prescriptions = await PrescriptionModel.find({
     member: memberId,
     status: { $nin: HIDDEN_STATUSES },
@@ -87,7 +87,7 @@ type LoadedPrescription = Awaited<ReturnType<typeof loadPrescriptions>>[number];
 type LoadedVaccination = Awaited<ReturnType<typeof loadVaccinations>>[number];
 
 /** The tests a doctor ordered on a prescription, with names; entries missing a code are dropped. */
-function orderedTests(prescription: Pick<Prescription, 'tests'>) {
+export function orderedTests(prescription: Pick<Prescription, 'tests'>) {
   return (prescription.tests ?? []).flatMap((entry) =>
     entry.code && entry.name
       ? [

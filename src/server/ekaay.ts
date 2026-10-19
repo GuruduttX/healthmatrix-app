@@ -30,6 +30,7 @@ const ACTIONS = {
   book_pod: { label: 'Book a pod test', href: '/care/pods' },
   video_consult: { label: 'Talk to a doctor', href: '/care' },
   medicines: { label: 'Your medicines', href: '/care/medicines' },
+  face_scan: { label: 'Do a face scan', href: '/face-scan' },
   emergency_profile: { label: 'Update your health profile', href: '/emergency-profile' },
 } as const;
 type ActionKind = keyof typeof ACTIONS;
@@ -45,6 +46,7 @@ How to answer:
 - Reply in the language and script the member writes in, whatever it is: Hindi in Devanagari gets Devanagari, Hinglish typed in English letters gets Hinglish, Tamil gets Tamil, and so on for any language. If a reply language is set below, always use that instead. Keep medicine names, test names and numbers as they are usually written.
 - Your answer may be read aloud, so write it to sound natural when spoken: whole sentences, and units in words a listener follows ("140 over 90", "milligrams per decilitre").
 - Results marked sampleValuesNotReal come from a test system. Say they are sample values, not real readings, if you mention them.
+- faceScans are the member's own camera face scans (heart rate, breathing rate, heart rate variability). They are estimates from the phone's camera, not a medical device: say so when you use them, and suggest a pod test or a doctor to confirm anything outside the usual range. A face scan does not measure blood pressure, oxygen or sugar.
 
 Safety:
 - You give health information, not a diagnosis. Never diagnose, never prescribe, and never tell the member to start, stop or change the dose of a medicine. You may explain what a prescribed medicine is commonly used for and repeat how their doctor told them to take it.
@@ -56,7 +58,7 @@ Safety:
 Your reply is JSON:
 - text: your answer.
 - trend: when the answer is about one test value that appears in two or more results, that value's "key" from testResults, so the app can chart it. Otherwise null.
-- actions: up to two next steps, only when they truly help. open_record needs recordId set to the id of a test result, prescription or vaccine in the records; every other action has recordId null. book_pod books tests at a pod, video_consult books a doctor, medicines opens the member's medicine reminders, emergency_profile lets them update allergies, conditions and regular medicines.`;
+- actions: up to two next steps, only when they truly help. open_record needs recordId set to the id of a test result, prescription or vaccine in the records; every other action has recordId null. book_pod books tests at a pod, video_consult books a doctor, face_scan opens a 40-second camera scan of heart rate and breathing, medicines opens the member's medicine reminders, emergency_profile lets them update allergies, conditions and regular medicines.`;
 
 const nullableString = { anyOf: [{ type: 'string' }, { type: 'null' }] };
 

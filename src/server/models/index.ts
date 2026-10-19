@@ -4,6 +4,7 @@ export * from './consult.model';
 export * from './consult-request.model';
 export * from './doctor.model';
 export * from './emergency-profile.model';
+export * from './face-scan.model';
 export * from './family-invite.model';
 export * from './family-link.model';
 export * from './health-record.model';

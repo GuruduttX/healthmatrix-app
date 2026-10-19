@@ -69,6 +69,7 @@ function RootNavigator() {
             <Stack.Screen name="emergency-profile" />
             <Stack.Screen name="lock-screen-qr" />
             <Stack.Screen name="family" />
+            <Stack.Screen name="face-scan" />
             <Stack.Screen
               name="consult/[id]"
               options={{

@@ -1,0 +1,3 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- The app already asks for the camera (expo-camera); the face scan uses the same permission. -->
+</manifest>

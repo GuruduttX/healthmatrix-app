@@ -168,6 +168,28 @@ export function MedicinesIcon({ size }: { size: number }) {
   );
 }
 
+/** A face in a glass scan frame, an orange heart behind its corner: the face scan. */
+export function FaceScanIcon({ size }: { size: number }) {
+  return (
+    <GlassGlyph
+      size={size}
+      back="M22 17.5 C18 14.5 15.5 12.3 15.5 9.4 C15.5 7.3 17.1 5.7 19.1 5.7 C20.4 5.7 21.4 6.3 22 7.3 C22.6 6.3 23.6 5.7 24.9 5.7 C26.9 5.7 28.5 7.3 28.5 9.4 C28.5 12.3 26 14.5 22 17.5 Z"
+      glass={roundRect(3.5, 9.5, 19, 19, 5)}
+      marks={() => (
+        <Path
+          // The frame's four corners, then two eyes and a smile.
+          d="M6.5 15 V13.8 Q6.5 12.5 7.8 12.5 H9 M17 12.5 H18.2 Q19.5 12.5 19.5 13.8 V15 M6.5 23 V24.2 Q6.5 25.5 7.8 25.5 H9 M17 25.5 H18.2 Q19.5 25.5 19.5 24.2 V23 M11 16.7 V17.9 M15 16.7 V17.9 M10.6 21 Q13 23 15.4 21"
+          stroke={MARK}
+          strokeWidth={1.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
+        />
+      )}
+    />
+  );
+}
+
 /** Two sheets: an orange one behind, a glass one in front with lines of text. */
 export function RecordsIcon({ size }: { size: number }) {
   return (

@@ -1,11 +1,14 @@
 import { type Types } from 'mongoose';
 
+import { VITALS, vitalFlag, type VitalCode } from '@/features/face-scan/vitals';
+
 import { DOCTOR_FIELDS, type PopulatedDoctor } from './consults';
 import { displayName } from './doctors';
 import {
   BookingModel,
   ConsultModel,
   EmergencyProfileModel,
+  FaceScanModel,
   HealthRecordModel,
   ReminderModel,
   type Doctor,
@@ -26,7 +29,7 @@ type MemberDoc = Member & { _id: Id };
 type TestRecordDoc = HealthRecord & { _id: Id };
 
 /** The newest this many of each kind; older ones rarely change an answer and cost tokens. */
-const LIMITS = { tests: 40, prescriptions: 30, consults: 20, bookings: 15 };
+const LIMITS = { tests: 40, prescriptions: 30, consults: 20, bookings: 15, faceScans: 5 };
 /** Dose marks counted for each medicine. */
 const ADHERENCE_DAYS = 30;
 
@@ -98,7 +101,7 @@ export async function loadEkaayContext(member: MemberDoc) {
   const now = new Date();
   const since = istDate(new Date(now.getTime() - ADHERENCE_DAYS * 86_400_000));
 
-  const [emergency, tests, prescriptions, vaccinations, reminders, consults, bookings] =
+  const [emergency, tests, prescriptions, vaccinations, reminders, consults, bookings, faceScans] =
     await Promise.all([
       EmergencyProfileModel.findOne({ member: memberId }).lean(),
       HealthRecordModel.find({ member: memberId, type: { $in: ['pod_screening', 'lab_report'] } })
@@ -116,6 +119,10 @@ export async function loadEkaayContext(member: MemberDoc) {
       BookingModel.find({ member: memberId })
         .sort({ createdAt: -1 })
         .limit(LIMITS.bookings)
+        .lean(),
+      FaceScanModel.find({ member: memberId })
+        .sort({ measuredAt: -1 })
+        .limit(LIMITS.faceScans)
         .lean(),
     ]);
 
@@ -215,6 +222,25 @@ export async function loadEkaayContext(member: MemberDoc) {
       testCount: booking.tests.length,
       status: booking.status === 'cancelled' ? 'Cancelled' : progressOf(booking.mobilab?.status).label,
       resultRecordId: booking.result ? String(booking.result) : undefined,
+    })),
+    /**
+     * Face scans the member did with the phone's camera, newest first: estimates, not a medical
+     * device and not a substitute for a pod or lab test.
+     */
+    faceScans: faceScans.map((scan) => ({
+      when: istDateTime(scan.measuredAt),
+      signal: scan.quality,
+      vitals: scan.vitals.map(({ code, value }) => {
+        const vital = VITALS[code as VitalCode];
+        const flag = vitalFlag({ code: code as VitalCode, value });
+        return {
+          name: vital.name,
+          value,
+          unit: vital.unit,
+          usualRange: vital.low !== undefined ? `${vital.low}–${vital.high}` : undefined,
+          flag: flag === 'watch' ? 'outside usual resting range' : flag,
+        };
+      }),
     })),
   };
 

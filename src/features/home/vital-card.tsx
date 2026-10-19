@@ -1,7 +1,7 @@
 import { Image, type ImageSource } from 'expo-image';
 import { ArrowDown, ArrowUp, Check, Eye, type LucideIcon } from 'lucide-react-native';
 import { Fragment } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Glass } from '@/components/ui/glass';
@@ -57,18 +57,36 @@ export function FlagPill({ flag }: { flag: ReadingFlag }) {
   );
 }
 
+/** In place of a flag before there is a reading: a quiet word, or the way to get one. */
+function NoReadingPill({ action }: { action: boolean }) {
+  return (
+    <View style={[styles.pill, action ? styles.actionPill : styles.emptyPill]}>
+      <ThemedText style={[styles.pillText, action ? styles.actionText : styles.emptyText]} numberOfLines={1}>
+        {action ? 'Scan' : 'No data'}
+      </ThemedText>
+    </View>
+  );
+}
+
 /** One vital: its picture, the latest value, its short name and unit on one line, and its flag. */
-function Vital({ reading }: { reading: Reading }) {
+function Vital({ reading, onPress }: { reading: Reading; onPress?: () => void }) {
   const look = LOOKS[reading.id];
   // The art is fitted by its longer side, so tall and wide pictures look the same size.
   const aspect = look?.aspect ?? 1;
   const art = aspect > 1 ? { width: ART, height: ART / aspect } : { width: ART * aspect, height: ART };
 
+  const spoken = reading.flag
+    ? `${reading.label}: ${reading.value} ${reading.unit}, ${FLAGS[reading.flag].label}`
+    : `${reading.label}: no reading yet`;
+
   return (
-    <View
-      style={styles.vital}
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      style={({ pressed }) => [styles.vital, pressed && styles.pressed]}
       accessible
-      accessibilityLabel={`${reading.label}: ${reading.value} ${reading.unit}, ${FLAGS[reading.flag].label}`}>
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityLabel={spoken}>
       {look ? (
         // Glass on the glass card; the art is a layer of its own, above the frost.
         <Glass variant="flat" radius={DISH / 2} wrapperStyle={styles.dishBox} style={styles.dish}>
@@ -84,19 +102,28 @@ function Vital({ reading }: { reading: Reading }) {
         {look?.short ?? reading.label}
         <ThemedText style={styles.unit}> · {reading.unit}</ThemedText>
       </ThemedText>
-      <FlagPill flag={reading.flag} />
-    </View>
+      {reading.flag ? <FlagPill flag={reading.flag} /> : <NoReadingPill action={!!onPress} />}
+    </Pressable>
   );
 }
 
-/** Home's vitals: all four side by side on one pane of glass, a hairline between each. */
-export function VitalsCard({ readings }: { readings: Reading[] }) {
+/**
+ * Home's vitals: all four side by side on one pane of glass, a hairline between each. A vital
+ * with an action (the pulse opens the face scan) is a button.
+ */
+export function VitalsCard({
+  readings,
+  actions,
+}: {
+  readings: Reading[];
+  actions?: Partial<Record<string, () => void>>;
+}) {
   return (
     <Glass style={styles.card}>
       {readings.map((reading, i) => (
         <Fragment key={reading.id}>
           {i ? <View style={styles.divider} /> : null}
-          <Vital reading={reading} />
+          <Vital reading={reading} onPress={actions?.[reading.id]} />
         </Fragment>
       ))}
     </Glass>
@@ -170,5 +197,22 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bold,
     fontSize: 10,
     lineHeight: 12.5,
+  },
+  emptyPill: {
+    paddingLeft: 7,
+    backgroundColor: Colors.well,
+  },
+  emptyText: {
+    color: Colors.textFaint,
+  },
+  actionPill: {
+    paddingLeft: 7,
+    backgroundColor: Colors.primaryTint,
+  },
+  actionText: {
+    color: Colors.primaryDeep,
+  },
+  pressed: {
+    opacity: 0.7,
   },
 });

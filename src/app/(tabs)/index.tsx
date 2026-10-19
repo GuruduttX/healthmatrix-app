@@ -11,13 +11,16 @@ import { Colors, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-context';
 import { refreshAppointments } from '@/features/doctors/use-appointments';
 import { refreshConsultRequests } from '@/features/doctors/use-consult-requests';
+import { useFaceScans } from '@/features/face-scan/use-face-scans';
 import { refreshFamily } from '@/features/family/use-family';
 import { CareBanner } from '@/features/home/care-banner';
 import { EkaayInsightCard } from '@/features/home/ekaay-insight-card';
+import { FaceScanCard } from '@/features/home/face-scan-card';
 import { FamilyStrip } from '@/features/home/family-strip';
 import { HealthCard } from '@/features/home/health-card';
 import { HomeHeader } from '@/features/home/home-header';
 import { GUTTER } from '@/features/home/layout';
+import { withScannedPulse } from '@/features/home/pulse-from-scan';
 import { QuickActions, type QuickActionId } from '@/features/home/quick-actions';
 import { sampleHome } from '@/features/home/sample-data';
 import { TodayPlan } from '@/features/home/today-plan';
@@ -54,6 +57,10 @@ export default function HomeScreen() {
   // The bell's dot: something needs attention now (a dose due, a consult starting).
   const { notices } = useNotifications();
   const hasUnread = notices?.some((notice) => notice.urgent) ?? false;
+  // The last face scan, fetched again whenever Home comes back (after a scan, say).
+  const { scans: faceScans } = useFaceScans();
+  // The pulse is the latest face scan's; the other vitals are still sample data.
+  const vitals = withScannedPulse(readings, faceScans);
 
   const memberId = member?.id;
   // The cards below read shared stores; refreshing those updates each card.
@@ -124,7 +131,10 @@ export default function HomeScreen() {
             actionLabel="See all"
             onAction={() => router.navigate('/records')}
             index={2}>
-            <VitalsCard readings={readings} />
+            <VitalsCard
+              readings={vitals}
+              actions={{ pulse: () => router.push('/face-scan') }}
+            />
           </Section>
 
           <Section index={3}>
@@ -132,6 +142,10 @@ export default function HomeScreen() {
           </Section>
 
           <Section index={4}>
+            <FaceScanCard latest={faceScans?.[0]} onScan={() => router.push('/face-scan')} />
+          </Section>
+
+          <Section index={5}>
             <EkaayInsightCard
               insight={insight}
               primaryLabel="Book HbA1c"
@@ -142,9 +156,9 @@ export default function HomeScreen() {
             />
           </Section>
 
-          <FamilyStrip index={5} />
+          <FamilyStrip index={6} />
 
-          <Section title="Safety" index={6}>
+          <Section title="Safety" index={7}>
             <HealthCard
               memberId={member?.memberId}
               abhaLinked={member?.abhaLinked}

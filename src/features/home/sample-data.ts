@@ -8,7 +8,8 @@ export type Reading = {
   label: string;
   value: string;
   unit: string;
-  flag: ReadingFlag;
+  /** None until there is a reading (a pulse before the first face scan). */
+  flag?: ReadingFlag;
   /** Oldest to newest, for the sparkline. */
   trend: number[];
   /**
@@ -33,8 +34,8 @@ export type Insight = {
 
 /**
  * SAMPLE DATA from the brochure mock-up, so the Home screen can be designed
- * before the readings and insights APIs exist. The pulse reading is not in the brochure; pods
- * measure it. The member's name, consults, medicines, vaccines and family are real. Replace with
+ * before the readings and insights APIs exist. The pulse shown on Home is the member's latest
+ * face scan (`pulse-from-scan.ts`); the one here is only its shape. The member's name, consults, medicines, vaccines and family are real. Replace with
  * API data.
  */
 export const sampleHome = {

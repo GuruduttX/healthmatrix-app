@@ -1,18 +1,23 @@
+import Anthropic from '@anthropic-ai/sdk';
 import { type Types } from 'mongoose';
+
+import { EKAAY_LANGUAGES, type EkaayLanguage } from '@/features/ekaay/languages';
 
 import { loadEkaayContext } from './ekaay-context';
 import { env } from './env';
 import { HttpError } from './http';
 import { type Member } from './models';
 
-// Ekaay answers the member's questions from their own records with OpenAI's Responses API
-// (https://developers.openai.com/api/docs/guides/structured-outputs). The key stays on the server;
-// the records are gathered fresh for every question and never stored with OpenAI (`store: false`).
+// Ekaay answers the member's questions from their own records with Claude, through Anthropic's
+// Messages API and structured outputs (https://platform.claude.com/docs/en/build-with-claude/structured-outputs).
+// The key stays on the server; the records are gathered fresh for every question and sent only
+// with that request, since the Messages API keeps no conversation between calls.
 
 const TIMEOUT_MS = 45_000;
 const NOT_SET_UP = 'Ekaay isn’t set up yet. Try again later.';
 const UNAVAILABLE = 'Ekaay can’t answer right now. Try again in a moment.';
 const BUSY = 'Ekaay is busy right now. Try again in a minute.';
+const DECLINED = 'Ekaay can’t help with that one. A doctor can talk it through with you.';
 
 /** Earlier turns sent along with the question, so follow-ups make sense. */
 const HISTORY_TURNS = 12;
@@ -37,7 +42,8 @@ How to answer:
 - Compare with earlier readings when there are any, and say whether things are better, worse or steady.
 - Write for someone with no medical training: short sentences, everyday words, and explain any medical term you use. Be warm and calm, never alarming.
 - Keep it short: two to five sentences unless the member asks for more detail. Plain text only, no markdown, headings, bullet symbols or emoji.
-- Reply in the language the member writes in (English, Hindi, Hinglish or another Indian language).
+- Reply in the language and script the member writes in, whatever it is: Hindi in Devanagari gets Devanagari, Hinglish typed in English letters gets Hinglish, Tamil gets Tamil, and so on for any language. If a reply language is set below, always use that instead. Keep medicine names, test names and numbers as they are usually written.
+- Your answer may be read aloud, so write it to sound natural when spoken: whole sentences, and units in words a listener follows ("140 over 90", "milligrams per decilitre").
 - Results marked sampleValuesNotReal come from a test system. Say they are sample values, not real readings, if you mention them.
 
 Safety:
@@ -52,18 +58,20 @@ Your reply is JSON:
 - trend: when the answer is about one test value that appears in two or more results, that value's "key" from testResults, so the app can chart it. Otherwise null.
 - actions: up to two next steps, only when they truly help. open_record needs recordId set to the id of a test result, prescription or vaccine in the records; every other action has recordId null. book_pod books tests at a pod, video_consult books a doctor, medicines opens the member's medicine reminders, emergency_profile lets them update allergies, conditions and regular medicines.`;
 
+const nullableString = { anyOf: [{ type: 'string' }, { type: 'null' }] };
+
 const ANSWER_SCHEMA = {
   type: 'object',
   properties: {
     text: { type: 'string' },
-    trend: { type: ['string', 'null'] },
+    trend: nullableString,
     actions: {
       type: 'array',
       items: {
         type: 'object',
         properties: {
           kind: { type: 'string', enum: Object.keys(ACTIONS) },
-          recordId: { type: ['string', 'null'] },
+          recordId: nullableString,
         },
         required: ['kind', 'recordId'],
         additionalProperties: false,
@@ -76,64 +84,57 @@ const ANSWER_SCHEMA = {
 
 type Answer = { text: string; trend: string | null; actions: { kind: ActionKind; recordId: string | null }[] };
 
-type OpenAIResponse = {
-  status?: string;
-  incomplete_details?: { reason?: string } | null;
-  output?: { type: string; content?: { type: string; text?: string; refusal?: string }[] }[];
-  error?: { message?: string; code?: string } | null;
-};
+let client: Anthropic | undefined;
 
-async function callOpenAI(instructions: string, history: ChatTurn[]): Promise<Answer> {
-  const { OPENAI_API_KEY, OPENAI_MODEL } = env();
-  if (!OPENAI_API_KEY) throw new HttpError(503, NOT_SET_UP);
+async function callClaude(instructions: string, history: ChatTurn[]): Promise<Answer> {
+  const { ANTHROPIC_API_KEY, ANTHROPIC_MODEL } = env();
+  if (!ANTHROPIC_API_KEY) throw new HttpError(503, NOT_SET_UP);
+  // One attempt within the timeout, so the app's own 60-second limit is never passed.
+  client ??= new Anthropic({ apiKey: ANTHROPIC_API_KEY, timeout: TIMEOUT_MS, maxRetries: 0 });
 
-  let res: Response;
+  // Claude's conversation has to open with the member, so drop a greeting left at the front.
+  const firstQuestion = history.findIndex((turn) => turn.role === 'user');
+  const messages = history.slice(firstQuestion).map((turn) => ({ role: turn.role, content: turn.text }));
+
+  let response: Anthropic.Beta.BetaMessage;
   try {
-    res = await fetch('https://api.openai.com/v1/responses', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: OPENAI_MODEL,
-        instructions,
-        input: history.map((turn) => ({ role: turn.role, content: turn.text })),
-        text: {
-          format: { type: 'json_schema', name: 'ekaay_answer', schema: ANSWER_SCHEMA, strict: true },
-        },
-        max_output_tokens: 4000,
-        // Health records: nothing is kept on OpenAI's side after the answer.
-        store: false,
-      }),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+    response = await client.beta.messages.create({
+      model: ANTHROPIC_MODEL,
+      max_tokens: 16000,
+      system: instructions,
+      messages,
+      output_config: { effort: 'medium', format: { type: 'json_schema', schema: ANSWER_SCHEMA } },
+      // If a safety check declines, Anthropic retries on the model it recommends for that case.
+      betas: ['server-side-fallback-2026-07-01'],
+      fallbacks: 'default',
     });
   } catch (error) {
-    console.error('[ekaay] OpenAI request failed:', String(error));
-    throw new HttpError(503, UNAVAILABLE);
-  }
-
-  const data = (await res.json().catch(() => null)) as OpenAIResponse | null;
-  if (!res.ok) {
     // Never log the request: it holds the member's records.
-    console.error(`[ekaay] OpenAI -> ${res.status} ${data?.error?.code ?? ''}: ${data?.error?.message ?? res.statusText}`);
-    if (res.status === 401 || res.status === 403) throw new HttpError(503, NOT_SET_UP);
-    if (res.status === 429) throw new HttpError(503, BUSY);
+    if (error instanceof Anthropic.APIError && error.status) {
+      console.error(`[ekaay] Claude -> ${error.status} ${error.type ?? ''}: ${error.message}`);
+    } else {
+      console.error('[ekaay] Claude request failed:', String(error));
+    }
+    if (error instanceof Anthropic.AuthenticationError || error instanceof Anthropic.PermissionDeniedError) {
+      throw new HttpError(503, NOT_SET_UP);
+    }
+    if (error instanceof Anthropic.RateLimitError) throw new HttpError(503, BUSY);
     throw new HttpError(503, UNAVAILABLE);
   }
 
-  const content = data?.output?.find((item) => item.type === 'message')?.content ?? [];
-  const refusal = content.find((part) => part.type === 'refusal')?.refusal;
-  if (refusal) return { text: refusal, trend: null, actions: [] };
-  const text = content.find((part) => part.type === 'output_text')?.text;
-  if (data?.status === 'incomplete' || !text) {
-    console.error('[ekaay] OpenAI gave no answer:', data?.status, data?.incomplete_details?.reason ?? '');
+  if (response.stop_reason === 'refusal') {
+    console.error('[ekaay] Claude declined:', response.stop_details?.category ?? '');
+    return { text: DECLINED, trend: null, actions: [{ kind: 'video_consult', recordId: null }] };
+  }
+  const text = response.content.find((block) => block.type === 'text')?.text;
+  if (response.stop_reason !== 'end_turn' || !text) {
+    console.error('[ekaay] Claude gave no answer:', response.stop_reason);
     throw new HttpError(503, UNAVAILABLE);
   }
   try {
     return JSON.parse(text) as Answer;
   } catch {
-    console.error('[ekaay] OpenAI answer was not JSON');
+    console.error('[ekaay] Claude answer was not JSON');
     throw new HttpError(503, UNAVAILABLE);
   }
 }
@@ -143,10 +144,18 @@ async function callOpenAI(instructions: string, history: ChatTurn[]): Promise<An
  * `features/ekaay`): the words, a trend chart drawn from the member's real readings, and up to two
  * buttons into the app. The model only names a value and the actions; numbers and links are ours.
  */
-export async function askEkaay(member: Member & { _id: Types.ObjectId }, history: ChatTurn[]) {
+export async function askEkaay(
+  member: Member & { _id: Types.ObjectId },
+  history: ChatTurn[],
+  language?: EkaayLanguage,
+) {
   const { context, records, trend } = await loadEkaayContext(member);
-  const instructions = `${INSTRUCTIONS}\n\nThe member's records (JSON):\n${JSON.stringify(context)}`;
-  const answer = await callOpenAI(instructions, history.slice(-HISTORY_TURNS));
+  const name = language && EKAAY_LANGUAGES[language].name;
+  const replyLanguage = name
+    ? `Reply language: ${name}. Write your whole answer in ${name}, in its usual script, even if the member writes in another language.`
+    : 'Reply language: not set. Answer in the language of the member\'s latest message.';
+  const instructions = `${INSTRUCTIONS}\n\n${replyLanguage}\n\nThe member's records (JSON):\n${JSON.stringify(context)}`;
+  const answer = await callClaude(instructions, history.slice(-HISTORY_TURNS));
 
   const actions = answer.actions.flatMap(({ kind, recordId }) => {
     const action = ACTIONS[kind];

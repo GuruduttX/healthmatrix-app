@@ -25,10 +25,20 @@ const schema = z.object({
    * turns every call away and results arrive when the member opens the app.
    */
   MOBILAB_WEBHOOK_SECRET: z.string().min(32, 'must be at least 32 characters').optional(),
-  /** OpenAI answers Ekaay's questions (see `server/ekaay.ts`). Without it Ekaay says it isn't set up. */
-  OPENAI_API_KEY: z.string().regex(/^sk-/, 'must look like sk-…').optional(),
-  /** The OpenAI model Ekaay uses. */
-  OPENAI_MODEL: z.string().min(1).default('gpt-6.1-sol'),
+  /** Claude answers Ekaay's questions (see `server/ekaay.ts`). Without it Ekaay says it isn't set up. */
+  ANTHROPIC_API_KEY: z.string().regex(/^sk-ant-/, 'must look like sk-ant-…').optional(),
+  /** The Claude model Ekaay uses. */
+  ANTHROPIC_MODEL: z.string().min(1).default('claude-opus-5-5'),
+  /**
+   * Gemini is Ekaay's voice (see `server/gemini.ts`): it hears spoken questions and reads answers
+   * aloud. Without it the app reads answers with the phone's own voice and the mic is hidden.
+   */
+  GEMINI_API_KEY: z.string().min(1).optional(),
+  /** The Gemini model that turns a spoken question into words. */
+  GEMINI_TRANSCRIBE_MODEL: z.string().min(1).default('gemini-3.8-flash'),
+  /** The Gemini text-to-speech model, and one of its prebuilt voices (Sulafat is the warm one). */
+  GEMINI_TTS_MODEL: z.string().min(1).default('gemini-3.8-flash-tts'),
+  GEMINI_TTS_VOICE: z.string().min(1).default('Sulafat'),
 });
 
 let cached: z.infer<typeof schema> | undefined;

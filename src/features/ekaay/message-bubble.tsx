@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { Square, Volume2 } from 'lucide-react-native';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -12,7 +13,17 @@ import { type ChatMessage } from './chat';
 /** Ekaay's mark beside its answers. */
 const AVATAR = 28;
 
-export function MessageBubble({ message }: { message: ChatMessage }) {
+export function MessageBubble({
+  message,
+  voice,
+  onListen,
+}: {
+  message: ChatMessage;
+  /** Whether this answer is being read aloud, or its audio is on the way. */
+  voice?: 'loading' | 'playing' | null;
+  /** Reads the answer aloud, or stops it. Without it there's no Listen button. */
+  onListen?: () => void;
+}) {
   if (message.from === 'user') {
     // The member's own words: a quiet ink bubble, so a long chat doesn't fill up with orange.
     return (
@@ -67,6 +78,26 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
               </Pressable>
             ))}
           </View>
+        ) : null}
+
+        {onListen ? (
+          <Pressable
+            onPress={onListen}
+            accessibilityRole="button"
+            accessibilityLabel={voice ? 'Stop reading this answer' : 'Read this answer aloud'}
+            hitSlop={8}
+            style={({ pressed }) => [styles.listen, pressed && styles.listenPressed]}>
+            {voice === 'loading' ? (
+              <ActivityIndicator size="small" color={Colors.textFaint} />
+            ) : voice === 'playing' ? (
+              <Square size={13} color={Colors.primaryDeep} fill={Colors.primaryDeep} strokeWidth={2.4} />
+            ) : (
+              <Volume2 size={15} color={Colors.textFaint} strokeWidth={2.2} />
+            )}
+            <ThemedText style={[styles.listenText, voice === 'playing' && styles.listenTextOn]}>
+              {voice ? 'Stop' : 'Listen'}
+            </ThemedText>
+          </Pressable>
         ) : null}
       </View>
     </View>
@@ -150,6 +181,27 @@ const styles = StyleSheet.create({
   actionPressed: {
     backgroundColor: Colors.well,
     transform: [{ scale: 0.97 }],
+  },
+  // A quiet line under the answer, not another pill: the actions stay the answer's buttons.
+  listen: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    height: 20,
+    marginTop: -2,
+  },
+  listenPressed: {
+    opacity: 0.6,
+  },
+  listenText: {
+    fontFamily: Fonts.semibold,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: Colors.textFaint,
+  },
+  listenTextOn: {
+    color: Colors.primaryDeep,
   },
   actionText: {
     fontFamily: Fonts.bold,

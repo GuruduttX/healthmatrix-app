@@ -67,8 +67,10 @@ function RootNavigator() {
   return (
     <>
       {isLoading ? null : (
+        // Each guard says where a refused visitor goes. Since SDK 58 the default is the stack's
+        // first screen, which for the signed-out side is the `(auth)` group itself, not a page.
         <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Protected guard={!!token}>
+          <Stack.Protected guard={!!token} redirectTo="/login">
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="responder-preview" options={{ presentation: 'modal' }} />
             <Stack.Screen name="profile" />
@@ -88,7 +90,7 @@ function RootNavigator() {
               }}
             />
           </Stack.Protected>
-          <Stack.Protected guard={!token}>
+          <Stack.Protected guard={!token} redirectTo="/">
             <Stack.Screen name="(auth)" />
           </Stack.Protected>
         </Stack>

@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
-import { FileText, RotateCcw } from 'lucide-react-native';
-import { StyleSheet } from 'react-native';
+import { CalendarX, FileText, RotateCcw } from 'lucide-react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { LIST_LEAD, ListRow, listText } from '@/components/ui/list';
@@ -19,7 +19,10 @@ function duration({ startedAt, endedAt }: PastConsult) {
   return minutes >= 60 ? `${Math.floor(minutes / 60)} h ${minutes % 60} min` : `${minutes} min`;
 }
 
-/** One finished consult, as a row for a `ListCard`: with its prescription, and Book again. */
+/**
+ * One past consult, as a row for a `ListCard`: a finished one with its prescription, or a missed
+ * one (never started within 10 minutes of its time), each with Book again.
+ */
 export function PastConsultRow({ consult }: { consult: PastConsult }) {
   const doctorName = consult.doctor?.name ?? 'Doctor';
   const ran = duration(consult);
@@ -42,6 +45,14 @@ export function PastConsultRow({ consult }: { consult: PastConsult }) {
             {formatSlot(consult.scheduledAt)}
             {ran ? ` · ${ran}` : ''}
           </ThemedText>
+          {consult.status === 'missed' ? (
+            <View style={styles.missed}>
+              <CalendarX size={13} color={Colors.textSoft} strokeWidth={2.4} />
+              <ThemedText style={styles.missedText} numberOfLines={1}>
+                Missed · not started within 10 min
+              </ThemedText>
+            </View>
+          ) : null}
           {consult.reason ? (
             <ThemedText style={styles.reason} numberOfLines={2}>
               {consult.reason}
@@ -93,6 +104,19 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     color: Colors.text,
     fontVariant: ['tabular-nums'],
+  },
+  missed: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 2,
+  },
+  missedText: {
+    flexShrink: 1,
+    fontFamily: Fonts.semibold,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: Colors.textSoft,
   },
   reason: {
     marginTop: 1,

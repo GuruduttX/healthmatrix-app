@@ -2,7 +2,7 @@ import { type Types } from 'mongoose';
 
 import { toDoctorJson } from './doctors';
 import { type Consult, type Doctor } from './models';
-import { DEFAULT_CONSULT_MINUTES } from './schedule';
+import { DEFAULT_CONSULT_MINUTES, isMissed } from './schedule';
 
 /** What `populate('doctor', DOCTOR_FIELDS)` fills in; null if the doctor was deleted. */
 export type PopulatedDoctor = { doctor: (Doctor & { _id: Types.ObjectId }) | null };
@@ -27,7 +27,8 @@ export function toConsultJson(consult: PopulatedConsult) {
     specialty: consult.specialty,
     scheduledAt: consult.scheduledAt.toISOString(),
     durationMinutes: consult.durationMinutes ?? DEFAULT_CONSULT_MINUTES,
-    status: consult.status,
+    // Booked but not started within `LATE_START_MINUTES` of its time: shown as missed.
+    status: isMissed(consult) ? ('missed' as const) : consult.status,
     reason: consult.reason ?? undefined,
     startedAt: consult.startedAt?.toISOString(),
     endedAt: consult.endedAt?.toISOString(),

@@ -57,7 +57,8 @@ export type Appointment = {
   specialty: Specialty;
   scheduledAt: string;
   durationMinutes: number;
-  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+  /** `missed`: booked but not started within 10 minutes of its time; listed with past consults. */
+  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'missed';
   reason?: string;
   /** When the doctor started the consult in the console. */
   startedAt?: string;
@@ -68,7 +69,7 @@ export type Appointment = {
   cancelReason?: string;
 };
 
-/** A completed consult. Matches `?when=past` on `src/app/api/v1/consults+api.ts`. */
+/** A completed or missed consult. Matches `?when=past` on `src/app/api/v1/consults+api.ts`. */
 export type PastConsult = Appointment & {
   /** The prescription signed in this consult; opens at `/records/[id]`. */
   prescriptionId?: string;

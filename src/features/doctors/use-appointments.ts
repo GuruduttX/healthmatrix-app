@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 
 import { useAuth } from '@/features/auth/auth-context';
+import { isMissedConsult } from '@/features/consult-call/consult-call-api';
+import { useNow } from '@/features/reminders/use-now';
 import { api } from '@/services/api';
 
 import { type Appointment, type Specialty } from './types';
@@ -43,11 +45,17 @@ export type BookingRequest = {
   reason?: string;
 };
 
-/** The signed-in member's upcoming consults. `appointments` is null until the first load. */
+/**
+ * The signed-in member's upcoming consults. `appointments` is null until the first load. A booked
+ * consult nobody started within 10 minutes of its time drops off on the minute; the server then
+ * lists it with the past ones.
+ */
 export function useAppointments() {
   const memberId = useAuth().member?.id;
+  const now = useNow();
   const current = useSyncExternalStore(subscribe, () => snapshot);
-  const appointments = current && current.memberId === memberId ? current.appointments : null;
+  const loaded = current && current.memberId === memberId ? current.appointments : null;
+  const appointments = loaded && loaded.filter((appointment) => !isMissedConsult(appointment, now));
   const [error, setError] = useState<string | null>(null);
 
   /** Loads the list again, e.g. on pull-to-refresh. */
@@ -82,5 +90,6 @@ export function useAppointments() {
     );
   };
 
-  return { appointments, error, refresh, book, cancel };
+  // `withMissed` keeps the ones just missed, for a screen already showing one (the call screen).
+  return { appointments, withMissed: loaded, error, refresh, book, cancel };
 }

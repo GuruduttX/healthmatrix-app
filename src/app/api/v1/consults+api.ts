@@ -9,8 +9,12 @@ import { busyTimes, scheduleOf } from '@/server/doctors';
 import { handle, HttpError } from '@/server/http';
 import { mongoose } from '@/server/mongoose';
 import { ConsultModel, DoctorModel, PrescriptionModel } from '@/server/models';
-import { consultBusy, DEFAULT_CONSULT_MINUTES, isBookable } from '@/server/schedule';
-import { JOIN_GRACE_MS } from '@/server/video';
+import {
+  consultBusy,
+  isBookable,
+  isMissed,
+  LATE_START_MINUTES,
+} from '@/server/schedule';
 
 /** How many upcoming consults a member can hold at once. */
 const MAX_UPCOMING = 5;
@@ -23,13 +27,11 @@ const PAST_LIMIT = 50;
 /** Prescriptions the member never sees. Matches `HIDDEN_STATUSES` in `server/records.ts`. */
 const HIDDEN_PRESCRIPTIONS = ['draft', 'cancelled', 'void', 'deleted'];
 
-const minutesOf = (consult: { durationMinutes?: number | null }) =>
-  consult.durationMinutes ?? DEFAULT_CONSULT_MINUTES;
-
 /**
- * The member's upcoming consults, soonest first: booked ones until they can no longer be joined
- * (the slot's end plus `JOIN_GRACE_MS`, in case the doctor runs late), ones the
- * doctor has started, and ones the doctor cancelled in the last two days.
+ * The member's upcoming consults, soonest first: booked ones until `LATE_START_MINUTES` after
+ * their start (the patient and the doctor can each join that late), ones the doctor has started,
+ * and ones the doctor cancelled in the last two days. Booked ones not started by then are missed
+ * and listed with the past consults.
  */
 export const GET = handle(async (request: Request) => {
   await connectDB();
@@ -52,20 +54,21 @@ export const GET = handle(async (request: Request) => {
     .sort({ scheduledAt: 1 })
     .populate<PopulatedDoctor>('doctor', DOCTOR_FIELDS);
 
-  const shown = consults.filter(
-    (consult) =>
-      consult.status !== 'scheduled' ||
-      consult.scheduledAt.getTime() + minutesOf(consult) * 60_000 + JOIN_GRACE_MS > now,
-  );
+  const shown = consults.filter((consult) => !isMissed(consult, new Date(now)));
   return Response.json({ appointments: shown.map(toConsultJson) });
 });
 
 /**
- * `?when=past`: the member's completed consults, newest first, each with the prescription the
- * doctor signed in it (its id opens in Records), if there is one.
+ * `?when=past`: the member's completed consults and missed ones (booked but never started),
+ * newest first, each completed one with the prescription the doctor signed in it (its id opens
+ * in Records), if there is one.
  */
 async function pastConsults(memberId: Types.ObjectId) {
-  const consults = await ConsultModel.find({ member: memberId, status: 'completed' })
+  const missedBefore = new Date(Date.now() - LATE_START_MINUTES * 60_000);
+  const consults = await ConsultModel.find({
+    member: memberId,
+    $or: [{ status: 'completed' }, { status: 'scheduled', scheduledAt: { $lte: missedBefore } }],
+  })
     .sort({ scheduledAt: -1 })
     .limit(PAST_LIMIT)
     .populate<PopulatedDoctor>('doctor', DOCTOR_FIELDS);

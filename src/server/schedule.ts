@@ -158,6 +158,21 @@ export const START_STEP_MINUTES = 5;
  */
 export const RUNNING_HOLD_MINUTES = 10;
 
+/**
+ * A booked consult waits this long after its start for the doctor to start it, so the patient
+ * and the doctor can each join up to 10 minutes late. Not started by then, it is missed: no
+ * longer joinable or startable, and listed with past consults. A started consult runs on.
+ */
+export const LATE_START_MINUTES = 10;
+
+/** When a booked consult that nobody has started stops being joinable. */
+export const startClosesAt = (consult: { scheduledAt: Date }) =>
+  consult.scheduledAt.getTime() + LATE_START_MINUTES * MINUTE_MS;
+
+/** Booked, never started, and more than `LATE_START_MINUTES` past its start. */
+export const isMissed = (consult: { status?: Maybe<string>; scheduledAt: Date }, now: Date = new Date()) =>
+  consult.status === "scheduled" && now.getTime() >= startClosesAt(consult);
+
 const STEP_MS = START_STEP_MINUTES * MINUTE_MS;
 const ceilToStep = (ms: number) => Math.ceil(ms / STEP_MS) * STEP_MS;
 
@@ -165,8 +180,8 @@ const overlaps = (aStart: number, aEnd: number, bStart: number, bEnd: number) =>
 
 /**
  * The time a consult keeps the doctor from other bookings. Booked: its slot. Running: from when
- * it started (or its slot, if later) to its slot's end, or longer while it runs over. Ended or
- * cancelled: none, so a consult that ends early frees the doctor at once.
+ * it started (or its slot, if later) to its slot's end, or longer while it runs over. Ended,
+ * cancelled or missed: none, so a consult that ends early or never starts frees the doctor.
  */
 export function consultBusy(
   consult: { status?: Maybe<string>; scheduledAt: Date; durationMinutes?: Maybe<number>; startedAt?: Maybe<Date> },
@@ -174,7 +189,7 @@ export function consultBusy(
 ): Busy | null {
   const start = consult.scheduledAt.getTime();
   const end = start + (consult.durationMinutes ?? DEFAULT_CONSULT_MINUTES) * MINUTE_MS;
-  if (consult.status === "scheduled") return { start, end };
+  if (consult.status === "scheduled") return isMissed(consult, now) ? null : { start, end };
   if (consult.status !== "in_progress") return null;
   return {
     start: Math.min(start, consult.startedAt?.getTime() ?? start),

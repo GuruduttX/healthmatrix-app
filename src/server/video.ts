@@ -10,8 +10,8 @@ import { HttpError } from './http';
 
 /** The waiting room opens this long before the slot starts. */
 export const JOIN_OPENS_MS = 5 * 60 * 1000;
-/** A doctor running late can still start the consult this long after the slot ends. */
-export const JOIN_GRACE_MS = 30 * 60 * 1000;
+// How late the patient and the doctor may join is `LATE_START_MINUTES` in `schedule.ts`, shared
+// with the console.
 /** Access tokens last this long; Twilio caps them at 24 hours. */
 const TOKEN_TTL_S = 4 * 60 * 60;
 /** Twilio's India media region, closest to members and doctors. */

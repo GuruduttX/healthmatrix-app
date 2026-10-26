@@ -6,7 +6,7 @@ import {
   MessageSquarePlus,
   SendHorizontal,
 } from 'lucide-react-native';
-import { Fragment, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -38,6 +38,7 @@ import {
   confirmEndChat,
   startSupportChat,
   useSupportChat,
+  useSupportChats,
   type PendingMessage,
 } from '@/features/support/use-support';
 import { useKeyboardVisible } from '@/hooks/use-keyboard-visible';
@@ -76,6 +77,14 @@ export default function SupportChatScreen() {
   const canSend = draft.trim().length > 0 && !starting && !ended && !loading;
   const firstName = member?.name.split(' ')[0];
   const [openedAt] = useState(() => new Date().toISOString());
+
+  // One chat at a time: asked for a new one (from Ekaay, say) while one is open, carry on there.
+  const { open: openChat } = useSupportChats();
+  useEffect(() => {
+    if (isNew && openChat && !starting) {
+      router.replace({ pathname: '/care/support/[id]', params: { id: openChat.id } });
+    }
+  }, [isNew, openChat, starting]);
 
   const submit = async () => {
     const text = draft.trim();

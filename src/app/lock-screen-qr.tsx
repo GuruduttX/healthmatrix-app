@@ -1,7 +1,14 @@
 import { router } from 'expo-router';
 import { CircleCheck, Download, Info, Smartphone } from 'lucide-react-native';
 import { useRef, useState } from 'react';
-import { StyleSheet, useWindowDimensions, View, type ViewInstance } from 'react-native';
+import {
+  PixelRatio,
+  Platform,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+  type ViewInstance,
+} from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 
 import { Screen } from '@/components/screen';
@@ -64,20 +71,31 @@ export default function LockScreenQrScreen() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
-  // The picture is drawn at the phone's own size and shape, so the saved wallpaper is sharp and
-  // fills the lock screen without cropping the QR. The preview shows it scaled down.
+  // The picture has the phone's own shape, so it fills the lock screen without cropping the QR.
+  // The preview draws it small; the saved picture is made at the full screen size.
   const short = Math.min(window.height, window.width);
   const ratio = Math.max(window.height, window.width) / short;
-  const artWidth = short;
   const previewHeight = previewHeightFor(window.height);
   const previewWidth = Math.round(previewHeight / ratio);
-  const scale = previewWidth / artWidth;
+  // iOS takes the size in points and redraws the picture at it; Android takes pixels.
+  const fullSize =
+    Platform.OS === 'ios'
+      ? { width: short, height: short * ratio }
+      : {
+          width: PixelRatio.getPixelSizeForLayoutSize(short),
+          height: PixelRatio.getPixelSizeForLayoutSize(short * ratio),
+        };
 
   const put = async () => {
     setBusy(true);
     setActionError(null);
     try {
-      const uri = await captureRef(art, { format: 'png', quality: 1, result: 'tmpfile' });
+      const uri = await captureRef(art, {
+        format: 'png',
+        quality: 1,
+        result: 'tmpfile',
+        ...fullSize,
+      });
       await putQrOnLockScreen(uri.startsWith('file://') ? uri : `file://${uri}`);
       setDone(true);
     } catch (e) {
@@ -118,16 +136,8 @@ export default function LockScreenQrScreen() {
         {qr ? (
           <Glass variant="small" radius={SCREEN_RADIUS + BEZEL} style={styles.bezel}>
             <View style={[styles.preview, { width: previewWidth, height: previewHeight }]}>
-              {/* Full size, shrunk to fit: only the picture inside is saved, at full size. */}
-              <View
-                style={{
-                  width: artWidth,
-                  height: artWidth * ratio,
-                  transformOrigin: 'top left',
-                  transform: [{ scale }],
-                }}>
-                <LockScreenWallpaperArt ref={art} url={qr.url} width={artWidth} ratio={ratio} />
-              </View>
+              {/* Only the picture is saved; the clock over it is the preview's own. */}
+              <LockScreenWallpaperArt ref={art} url={qr.url} width={previewWidth} ratio={ratio} />
               <LockScreenClock height={previewHeight} />
             </View>
           </Glass>

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { ApiError } from '@/services/api';
 
-import { consultCallApi } from './consult-call-api';
+import { consultCallApi, LATE_START_MS } from './consult-call-api';
 
 /** After a network error, wait this long before asking again, doubling up to `MAX_RETRY_MS`. */
 const FIRST_RETRY_MS = 2000;
@@ -31,7 +31,7 @@ export type CallPhase =
  * after a dropped call; everything else (the doctor arriving, admitting, ending) comes from the
  * Twilio room itself. Network errors retry with a growing pause and set `connectionIssue`.
  */
-export function useConsultCall(consultId: string) {
+export function useConsultCall(consultId: string, scheduledAt?: string) {
   const [phase, setPhase] = useState<CallPhase>({ name: 'joining' });
   const [connectionIssue, setConnectionIssue] = useState<string | null>(null);
   const joining = phase.name === 'joining';
@@ -70,6 +70,34 @@ export function useConsultCall(consultId: string) {
       clearTimeout(timer);
     };
   }, [consultId, joining, retry]);
+
+  // Waiting when the late-start window closes: ask once more. Not started by then, the consult
+  // is missed and the server says so; started, nothing changes.
+  const inRoom = phase.name === 'room';
+  useEffect(() => {
+    if (!inRoom || !scheduledAt) return;
+    let cancelled = false;
+    const timer = setTimeout(
+      () => {
+        consultCallApi.join(consultId).then(
+          (result) => {
+            if (!cancelled && result.state === 'ended') setPhase({ name: 'ended' });
+          },
+          (error: unknown) => {
+            if (cancelled || !(error instanceof ApiError)) return;
+            if (error.status >= 400 && error.status < 500) {
+              setPhase({ name: 'closed', message: error.message });
+            }
+          },
+        );
+      },
+      Math.max(0, Date.parse(scheduledAt) + LATE_START_MS + 2000 - Date.now()),
+    );
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [consultId, inRoom, scheduledAt]);
 
   /** The room dropped without the member leaving: the doctor ended the consult, or the network did. */
   const onDisconnected = useCallback((reason?: string, closed?: boolean) => {

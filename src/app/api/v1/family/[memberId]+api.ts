@@ -6,12 +6,13 @@ import { handle } from '@/server/http';
 import { ConsultModel, EmergencyProfileModel, ReminderModel } from '@/server/models';
 import { listRecords, loadVaccinations } from '@/server/records';
 import { toReminderJson } from '@/server/reminders';
+import { LATE_START_MINUTES } from '@/server/schedule';
 import { toVaccinationJson } from '@/server/vaccinations';
 
 /** Past consults shown on a family member's page. */
 const PAST_LIMIT = 20;
-/** A booked consult stays under "upcoming" this long after its start. */
-const UPCOMING_GRACE_MS = 60 * 60 * 1000;
+/** A booked consult stays under "upcoming" until it's missed; then it's listed as past. */
+const LATE_START_MS = LATE_START_MINUTES * 60 * 1000;
 
 const clean = (list?: (string | null | undefined)[] | null) =>
   (list ?? []).map((item) => item?.trim()).filter((item): item is string => !!item);
@@ -35,13 +36,19 @@ export const GET = handle(async (request: Request, { memberId }: Record<string, 
     ConsultModel.find({
       member: member._id,
       $or: [
-        { status: 'scheduled', scheduledAt: { $gte: new Date(now - UPCOMING_GRACE_MS) } },
+        { status: 'scheduled', scheduledAt: { $gt: new Date(now - LATE_START_MS) } },
         { status: 'in_progress' },
       ],
     })
       .sort({ scheduledAt: 1 })
       .populate<PopulatedDoctor>('doctor', DOCTOR_FIELDS),
-    ConsultModel.find({ member: member._id, status: 'completed' })
+    ConsultModel.find({
+      member: member._id,
+      $or: [
+        { status: 'completed' },
+        { status: 'scheduled', scheduledAt: { $lte: new Date(now - LATE_START_MS) } },
+      ],
+    })
       .sort({ scheduledAt: -1 })
       .limit(PAST_LIMIT)
       .populate<PopulatedDoctor>('doctor', DOCTOR_FIELDS),

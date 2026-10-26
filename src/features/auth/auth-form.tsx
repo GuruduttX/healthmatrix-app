@@ -58,6 +58,8 @@ type AuthFormProps = {
 };
 
 const LOGO = 64;
+/** The logo beside the name while the keyboard is up. */
+const LOGO_SMALL = 34;
 
 /**
  * Shared layout for the sign-in steps, on the lit page: the brand, then one pane of glass with the
@@ -108,10 +110,21 @@ export function AuthForm({
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
           showsVerticalScrollIndicator={false}>
-          {/* The brand and the card sit together in the middle of the page; with the keyboard up,
-              the card alone sits at the top. */}
-          <View style={[styles.main, keyboardVisible && styles.mainTop]}>
-            {keyboardVisible ? null : (
+          {/* The brand and the card sit together in the middle of the page. With the keyboard up
+              the brand shrinks to one line, and both stay centred in the room above it. */}
+          <View style={[styles.main, keyboardVisible && styles.mainCompact]}>
+            {keyboardVisible ? (
+              <View style={styles.compactHero}>
+                <View style={styles.logoShadowSmall}>
+                  <View style={styles.logoTileSmall}>
+                    <LogoMark size={LOGO_SMALL} scale={0.6} />
+                  </View>
+                </View>
+                <ThemedText style={styles.brandSmall} accessibilityRole="header">
+                  HealthMatrix
+                </ThemedText>
+              </View>
+            ) : (
               <View style={styles.hero}>
                 {/* The shadow sits on its own wrapper, outside the tile's rounded clip. */}
                 <View style={styles.logoShadow}>
@@ -201,12 +214,15 @@ export function AuthForm({
             </Glass>
           </View>
 
-          <View style={styles.trust}>
-            <Lock size={13} color={Colors.textFaint} strokeWidth={2.2} />
-            <ThemedText style={styles.trustText}>
-              Encrypted, and shared only with your consent
-            </ThemedText>
-          </View>
+          {/* Room for the form while typing; the line comes back with the keyboard down. */}
+          {keyboardVisible ? null : (
+            <View style={styles.trust}>
+              <Lock size={13} color={Colors.textFaint} strokeWidth={2.2} />
+              <ThemedText style={styles.trustText}>
+                Encrypted, and shared only with your consent
+              </ThemedText>
+            </View>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -244,9 +260,35 @@ const styles = StyleSheet.create({
     gap: Spacing.four + 4,
     paddingBottom: Spacing.five,
   },
-  mainTop: {
-    justifyContent: 'flex-start',
-    paddingBottom: 0,
+  mainCompact: {
+    gap: Spacing.three,
+    paddingBottom: Spacing.two,
+  },
+  compactHero: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two + 2,
+  },
+  logoShadowSmall: {
+    borderRadius: 11,
+    boxShadow: GlassTokens.shadowSmall,
+  },
+  logoTileSmall: {
+    width: LOGO_SMALL,
+    height: LOGO_SMALL,
+    borderRadius: 11,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: GlassTokens.rim,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+  },
+  brandSmall: {
+    fontFamily: Fonts.display,
+    fontSize: 21,
+    lineHeight: 26,
+    letterSpacing: -0.4,
+    color: Colors.text,
   },
   hero: {
     alignItems: 'center',

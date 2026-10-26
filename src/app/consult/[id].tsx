@@ -46,12 +46,16 @@ const finish = () => router.dismissTo('/care');
 
 function ConsultCall({ id }: { id: string }) {
   useKeepAwake();
-  const { appointments, refresh } = useAppointments();
-  const appointment = appointments?.find((item) => item.id === id);
+  // Including one just missed, so its doctor and time stay known while the screen explains it.
+  const { withMissed, refresh } = useAppointments();
+  const appointment = withMissed?.find((item) => item.id === id);
   const doctorName = appointment?.doctor?.name ?? 'Your doctor';
   const doctorPhotoUrl = appointment?.doctor?.photoUrl;
 
-  const { phase, connectionIssue, onDisconnected, hangUp, rejoin } = useConsultCall(id);
+  const { phase, connectionIssue, onDisconnected, hangUp, rejoin } = useConsultCall(
+    id,
+    appointment?.scheduledAt,
+  );
 
   const [camera, requestCamera] = useCameraPermissions();
   const [mic, requestMic] = useMicrophonePermissions();

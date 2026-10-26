@@ -2,10 +2,9 @@ import { requireMember } from '@/server/auth';
 import { connectDB } from '@/server/db';
 import { handle, HttpError } from '@/server/http';
 import { ConsultModel } from '@/server/models';
-import { DEFAULT_CONSULT_MINUTES } from '@/server/schedule';
+import { isMissed, LATE_START_MINUTES } from '@/server/schedule';
 import {
   ensureRoom,
-  JOIN_GRACE_MS,
   JOIN_OPENS_MS,
   memberIdentity,
   roomNameFor,
@@ -44,9 +43,12 @@ export const POST = handle(async (request: Request, { id }: Record<string, strin
     if (now < start - JOIN_OPENS_MS) {
       throw new HttpError(400, 'The waiting room opens 5 minutes before your consult');
     }
-    const minutes = consult.durationMinutes ?? DEFAULT_CONSULT_MINUTES;
-    if (now > start + minutes * 60_000 + JOIN_GRACE_MS) {
-      throw new HttpError(410, 'The doctor did not start this consult. Please book another slot.');
+    // Either side may be up to `LATE_START_MINUTES` late; not started by then, it's missed.
+    if (isMissed(consult, new Date(now))) {
+      throw new HttpError(
+        410,
+        `The doctor didn’t start this consult within ${LATE_START_MINUTES} minutes of its time, so it has moved to your past consults. Please book another slot.`,
+      );
     }
   }
 

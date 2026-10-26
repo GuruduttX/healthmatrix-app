@@ -1,5 +1,11 @@
 import { useState, type ReactNode, type Ref } from 'react';
-import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
+import {
+  StyleSheet,
+  TextInput,
+  type TextInputInstance,
+  type TextInputProps,
+  View,
+} from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Fonts, Glass, Radius, Spacing } from '@/constants/theme';
@@ -15,7 +21,7 @@ type TextFieldProps = TextInputProps & {
   /** An icon or small button at the left or right inside the field. */
   leading?: ReactNode;
   trailing?: ReactNode;
-  ref?: Ref<TextInput>;
+  ref?: Ref<TextInputInstance>;
 };
 
 /**

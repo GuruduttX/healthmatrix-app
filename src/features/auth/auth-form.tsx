@@ -4,10 +4,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  type ScrollViewInstance,
   StyleSheet,
-  TextInput,
-  View,
+  type TextInputInstance,
   type TextInputProps,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -78,8 +79,8 @@ export function AuthForm({
   const enabled = canSubmit && !busy;
   const keyboardVisible = useKeyboardVisible();
   const insets = useSafeAreaInsets();
-  const scroll = useRef<ScrollView>(null);
-  const inputs = useRef<(TextInput | null)[]>([]);
+  const scroll = useRef<ScrollViewInstance>(null);
+  const inputs = useRef<(TextInputInstance | null)[]>([]);
 
   // Keep the field being typed in, and the button under it, above the keyboard.
   useEffect(() => {
@@ -149,7 +150,7 @@ export function AuthForm({
                 {fields.map(({ label, prefix, otp, ...field }, index) => {
                   const isLast = index === fields.length - 1;
                   const shared = {
-                    ref: (input: TextInput | null) => {
+                    ref: (input: TextInputInstance | null) => {
                       inputs.current[index] = input;
                     },
                     label,

@@ -7,6 +7,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  type ScrollViewInstance,
   StyleSheet,
   TextInput,
   View,
@@ -52,7 +53,7 @@ export default function EkaayScreen() {
   /** Set at once, so the one-minute cut-off and a tap can't both send the question. */
   const hearingRef = useRef(false);
   const cutOffRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   /** The chat as of the last render, for the history sent with each question. */
   const messagesRef = useRef(messages);
   /** Set at once on sending, so a second tap before the next render can't ask twice. */

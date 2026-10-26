@@ -41,6 +41,9 @@ function CallUnavailable({ reason }: { reason: string }) {
 
 const close = () => (router.canGoBack() ? router.back() : router.replace('/care'));
 
+/** After a finished consult the member lands on Care, wherever they joined from. */
+const finish = () => router.dismissTo('/care');
+
 function ConsultCall({ id }: { id: string }) {
   useKeepAwake();
   const { appointments, refresh } = useAppointments();
@@ -133,7 +136,7 @@ function ConsultCall({ id }: { id: string }) {
             icon={CircleCheck}
             iconTone="success"
             title="Consult complete"
-            primary={{ label: 'Done', onPress: close }}>
+            primary={{ label: 'Done', onPress: finish }}>
             {doctorName} has ended the consult. Once they sign your prescription it appears in
             Records, and its medicines are added to your reminders.
           </CallMessage>

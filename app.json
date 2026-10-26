@@ -92,7 +92,8 @@
           "microphonePermission": "HealthMatrix uses your microphone so your doctor can hear you during a video consult, and so you can ask Ekaay questions by voice.",
           "enableBackgroundPlayback": false
         }
-      ]
+      ],
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,

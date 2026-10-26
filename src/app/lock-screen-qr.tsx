@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { CircleCheck, Download, Info, Smartphone } from 'lucide-react-native';
 import { useRef, useState } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View, type ViewInstance } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 
 import { Screen } from '@/components/screen';
@@ -11,7 +11,7 @@ import { ErrorState } from '@/components/ui/empty-state';
 import { Glass, glassSurface } from '@/components/ui/glass';
 import { Section } from '@/components/ui/section';
 import { Skeleton, SkeletonGroup } from '@/components/ui/skeleton';
-import { Colors, Fonts, Glass as GlassTokens, Gutter, Radius, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Glass as GlassTokens, Spacing } from '@/constants/theme';
 import { putQrOnLockScreen, takeQrOffLockScreen, useLockScreenQr } from '@/features/card/lock-screen-qr';
 import { LockScreenWallpaperArt } from '@/features/card/lock-screen-wallpaper';
 import { useEmergencyQr } from '@/features/card/use-emergency-qr';
@@ -23,10 +23,31 @@ const IOS_STEPS = [
   'Tap Add, then Set as Wallpaper Pair or Customise Lock Screen.',
 ];
 
-/** The preview never runs wider than this, so it reads as a phone on a tablet or the web. */
-const MAX_PREVIEW = 360;
-/** The glass frame around the preview, like a phone's edge. It reaches into the page's margins. */
+/**
+ * The preview's height: about half the screen, so the words above it and the button below it
+ * fit on one screen with it. Its width follows the phone's shape.
+ */
+const previewHeightFor = (windowHeight: number) =>
+  Math.round(Math.min(Math.max(windowHeight * 0.48, 300), 470));
+/** The glass frame around the preview, like a phone's edge. */
 const BEZEL = 6;
+const SCREEN_RADIUS = 28;
+
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const MONTHS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
 
 /**
  * Puts the emergency QR on this phone's lock screen as its wallpaper, so a responder can scan it
@@ -38,14 +59,19 @@ export default function LockScreenQrScreen() {
   const { qr, error, refresh } = useEmergencyQr();
   const { on, mode } = useLockScreenQr();
   const window = useWindowDimensions();
-  const art = useRef<View>(null);
+  const art = useRef<ViewInstance>(null);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
-  const width = Math.min(window.width - Gutter * 2, MAX_PREVIEW);
-  // The phone's own shape, so the picture fills its lock screen without cropping the QR.
-  const ratio = Math.max(window.height, window.width) / Math.min(window.height, window.width);
+  // The picture is drawn at the phone's own size and shape, so the saved wallpaper is sharp and
+  // fills the lock screen without cropping the QR. The preview shows it scaled down.
+  const short = Math.min(window.height, window.width);
+  const ratio = Math.max(window.height, window.width) / short;
+  const artWidth = short;
+  const previewHeight = previewHeightFor(window.height);
+  const previewWidth = Math.round(previewHeight / ratio);
+  const scale = previewWidth / artWidth;
 
   const put = async () => {
     setBusy(true);
@@ -84,28 +110,35 @@ export default function LockScreenQrScreen() {
       onRefresh={refresh}>
       <ThemedText style={styles.lead}>
         {mode === 'photos'
-          ? 'Save this picture and set it as your Lock Screen. In an emergency, anyone can scan it with a phone camera, without unlocking yours.'
-          : 'Your emergency QR becomes your lock screen picture. In an emergency, anyone can scan it with a phone camera, without unlocking yours.'}
+          ? 'Save this picture and set it as your Lock Screen. Anyone can scan it in an emergency, without unlocking your phone.'
+          : 'Your emergency QR as your lock screen picture. Anyone can scan it in an emergency, without unlocking your phone.'}
       </ThemedText>
 
-      <Section index={1}>
-        <View style={styles.previewWrap}>
-          {qr ? (
-            // Only the picture inside is saved; the frame is the screen's own.
-            <Glass variant="small" radius={Radius.xl + BEZEL} style={styles.bezel}>
-              <View style={[styles.preview, { width }]}>
-                <LockScreenWallpaperArt ref={art} url={qr.url} width={width} ratio={ratio} />
+      <View style={styles.previewWrap}>
+        {qr ? (
+          <Glass variant="small" radius={SCREEN_RADIUS + BEZEL} style={styles.bezel}>
+            <View style={[styles.preview, { width: previewWidth, height: previewHeight }]}>
+              {/* Full size, shrunk to fit: only the picture inside is saved, at full size. */}
+              <View
+                style={{
+                  width: artWidth,
+                  height: artWidth * ratio,
+                  transformOrigin: 'top left',
+                  transform: [{ scale }],
+                }}>
+                <LockScreenWallpaperArt ref={art} url={qr.url} width={artWidth} ratio={ratio} />
               </View>
-            </Glass>
-          ) : error ? (
-            <ErrorState title="Couldn’t load your QR" message={error} onRetry={() => void refresh()} />
-          ) : (
-            <SkeletonGroup label="Loading your QR">
-              <Skeleton width={width} height={width * ratio} radius={Radius.xl} />
-            </SkeletonGroup>
-          )}
-        </View>
-      </Section>
+              <LockScreenClock height={previewHeight} />
+            </View>
+          </Glass>
+        ) : error ? (
+          <ErrorState title="Couldn’t load your QR" message={error} onRetry={() => void refresh()} />
+        ) : (
+          <SkeletonGroup label="Loading your QR">
+            <Skeleton width={previewWidth} height={previewHeight} radius={SCREEN_RADIUS} />
+          </SkeletonGroup>
+        )}
+      </View>
 
       {mode === 'unavailable' ? (
         <View style={styles.note}>
@@ -150,6 +183,7 @@ export default function LockScreenQrScreen() {
             <Button
               label={mode === 'automatic' ? 'Remove from lock screen' : 'Turn off'}
               variant="secondary"
+              size="sm"
               disabled={busy}
               onPress={() => void takeOff()}
             />
@@ -176,11 +210,33 @@ export default function LockScreenQrScreen() {
         <Info size={14} color={Colors.textFaint} strokeWidth={2.2} />
         <ThemedText style={[styles.noteText, styles.flex]}>
           {mode === 'automatic'
-            ? 'Only the lock screen changes; your home screen stays as it is. Removing it brings back your home screen picture. Some phones use their own lock screen pictures; if it doesn’t show, check your phone’s lock screen settings.'
-            : 'The picture shows no name or details. The QR opens only what you chose to show responders on your emergency profile.'}
+            ? 'Only your lock screen changes. If it doesn’t show, your phone may use its own lock screen pictures: check its lock screen settings.'
+            : 'The picture shows no name or details. The QR opens only what you chose to show responders.'}
         </ThemedText>
       </View>
     </Screen>
+  );
+}
+
+/**
+ * The time and date over the preview, as a lock screen shows them, so the picture reads as the
+ * phone's lock screen. Not part of the saved picture: the phone draws its own.
+ */
+function LockScreenClock({ height }: { height: number }) {
+  const now = new Date();
+  const time = `${now.getHours() % 12 || 12}:${String(now.getMinutes()).padStart(2, '0')}`;
+  const date = `${WEEKDAYS[now.getDay()]}, ${now.getDate()} ${MONTHS[now.getMonth()]}`;
+  return (
+    <View style={[styles.clock, { top: height * 0.07 }]} pointerEvents="none">
+      <ThemedText
+        style={[styles.clockDate, { fontSize: height * 0.032, lineHeight: height * 0.042 }]}>
+        {date}
+      </ThemedText>
+      <ThemedText
+        style={[styles.clockTime, { fontSize: height * 0.13, lineHeight: height * 0.15 }]}>
+        {time}
+      </ThemedText>
+    </View>
   );
 }
 
@@ -202,9 +258,24 @@ const styles = StyleSheet.create({
   },
   // Rounded like a phone screen, set into its frame.
   preview: {
-    borderRadius: Radius.xl,
+    borderRadius: SCREEN_RADIUS,
     overflow: 'hidden',
     boxShadow: GlassTokens.shadowFlat,
+  },
+  clock: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  clockDate: {
+    fontFamily: Fonts.semibold,
+    color: 'rgba(255, 255, 255, 0.85)',
+  },
+  clockTime: {
+    fontFamily: Fonts.semibold,
+    color: '#FFFFFF',
+    fontVariant: ['tabular-nums'],
   },
   actions: {
     gap: Spacing.two,

@@ -31,6 +31,21 @@ export const EMERGENCY_FIELDS = [
 
 export const POD_TIERS = ['arc_one', 'arc_plus', 'arc_pro', 'arc_max'] as const;
 
+/** The Cloudspital website's enquiry statuses, shared by its admin; see `models/enquiry.model.ts`. */
+export const ENQUIRY_STATUSES = ['unread', 'read', 'contacted', 'resolved'] as const;
+
+/** What a support chat is about, picked when it starts. Mirrored in `features/support/topics.ts`. */
+export const SUPPORT_TOPICS = [
+  'consults',
+  'pods',
+  'records',
+  'medicines',
+  'account',
+  'billing',
+  'app',
+  'other',
+] as const;
+
 export const POD_SITE_TYPES = [
   'residential_society',
   'corporate_campus',

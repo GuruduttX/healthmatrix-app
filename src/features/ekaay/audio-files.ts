@@ -10,7 +10,8 @@ import { File, Paths } from 'expo-file-system';
 export function playableAudio(base64: string, name: string) {
   const file = new File(Paths.cache, `ekaay-${name}.wav`);
   file.create({ overwrite: true });
-  file.write(base64, { encoding: 'base64' });
+  // Written before the player opens it: `write` is async since SDK 58.
+  file.writeSync(base64, { encoding: 'base64' });
   return {
     uri: file.uri,
     release: () => {

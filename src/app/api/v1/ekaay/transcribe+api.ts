@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { ekaayLanguageCodes } from '@/features/ekaay/languages';
 import { requireMember } from '@/server/auth';
 import { connectDB } from '@/server/db';
+import { takeEkaay } from '@/server/ekaay-limits';
 import { transcribe } from '@/server/gemini';
 import { HttpError, handle } from '@/server/http';
 
@@ -19,9 +20,18 @@ const transcribeInput = z.object({
 export const POST = handle(async (request: Request) => {
   const { audio, mimeType, lang } = transcribeInput.parse(await request.json());
   await connectDB();
-  await requireMember(request);
-  const text = await transcribe(audio, mimeType, lang);
+  const member = await requireMember(request);
+  // Counted like a question, so the voice can't be used as a free transcription service.
+  const use = await takeEkaay(member, 'hear');
+  let text: string | undefined;
+  try {
+    text = await transcribe(audio, mimeType, lang);
+  } catch (error) {
+    await use.refund();
+    throw error;
+  }
   if (!text) {
+    await use.refund();
     throw new HttpError(422, 'Ekaay couldn’t hear a question. Try again, a little closer to the phone.');
   }
   return Response.json({ text });

@@ -1,5 +1,11 @@
 import { useState, type Ref } from 'react';
-import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
+import {
+  StyleSheet,
+  TextInput,
+  type TextInputInstance,
+  type TextInputProps,
+  View,
+} from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Fonts, Glass, Radius } from '@/constants/theme';
@@ -7,7 +13,7 @@ import { Colors, Fonts, Glass, Radius } from '@/constants/theme';
 type OtpFieldProps = Omit<TextInputProps, 'value'> & {
   label: string;
   value: string;
-  ref?: Ref<TextInput>;
+  ref?: Ref<TextInputInstance>;
 };
 
 /**

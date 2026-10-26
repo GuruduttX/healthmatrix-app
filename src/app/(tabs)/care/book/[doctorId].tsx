@@ -329,9 +329,11 @@ export default function BookDoctorScreen() {
 
   return (
     <Shell title="Book appointment" onBack={back}>
+      {/* Android draws edge to edge, so the window no longer shrinks for the keyboard: shrink the
+          page instead, which lifts the pinned button and keeps the note above the keyboard. */}
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"

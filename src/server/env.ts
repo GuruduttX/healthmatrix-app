@@ -39,6 +39,15 @@ const schema = z.object({
   /** The Gemini text-to-speech model, and one of its prebuilt voices (Sulafat is the warm one). */
   GEMINI_TTS_MODEL: z.string().min(1).default('gemini-3.8-flash-tts'),
   GEMINI_TTS_VOICE: z.string().min(1).default('Sulafat'),
+  /**
+   * Ekaay's limits in the app (see `server/ekaay-limits.ts`), reset at midnight India time:
+   * questions a day on the free Essential plan and on the paid plans, questions a minute per
+   * member, and questions a day across the whole app, a ceiling on cost.
+   */
+  EKAAY_FREE_PER_DAY: z.coerce.number().int().positive().default(10),
+  EKAAY_PAID_PER_DAY: z.coerce.number().int().positive().default(50),
+  EKAAY_PER_MINUTE: z.coerce.number().int().positive().default(5),
+  EKAAY_APP_PER_DAY: z.coerce.number().int().positive().default(2000),
 });
 
 let cached: z.infer<typeof schema> | undefined;

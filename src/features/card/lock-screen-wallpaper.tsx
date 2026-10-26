@@ -1,7 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Plus } from 'lucide-react-native';
 import { type Ref } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, type ViewInstance } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 
 import { ThemedText } from '@/components/themed-text';
@@ -16,7 +16,7 @@ type LockScreenWallpaperProps = {
   width: number;
   /** The phone's height over its width, so the picture fills its lock screen. */
   ratio: number;
-  ref?: Ref<View>;
+  ref?: Ref<ViewInstance>;
 };
 
 /**

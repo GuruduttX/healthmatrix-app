@@ -4,6 +4,7 @@ import { ekaayLanguageCodes } from '@/features/ekaay/languages';
 import { requireMember } from '@/server/auth';
 import { connectDB } from '@/server/db';
 import { askEkaay } from '@/server/ekaay';
+import { rememberAnswer, takeEkaay } from '@/server/ekaay-limits';
 import { voiceAvailable } from '@/server/gemini';
 import { handle } from '@/server/http';
 
@@ -36,10 +37,23 @@ export const GET = handle(async (request: Request) => {
   return Response.json({ voice: voiceAvailable() });
 });
 
-/** Ekaay's answer to the member's question, from their own records. */
+/**
+ * Ekaay's answer to the member's question, from their own records. Each one counts against the
+ * member's daily allowance, given back if no answer comes; the answer is remembered so it can be
+ * read aloud.
+ */
 export const POST = handle(async (request: Request) => {
   const { messages, lang } = askInput.parse(await request.json());
   await connectDB();
   const member = await requireMember(request);
-  return Response.json({ message: await askEkaay(member, messages, lang) });
+  const use = await takeEkaay(member, 'ask');
+  let message: Awaited<ReturnType<typeof askEkaay>>;
+  try {
+    message = await askEkaay(member, messages, lang);
+  } catch (error) {
+    await use.refund();
+    throw error;
+  }
+  await rememberAnswer(member, message.text);
+  return Response.json({ message });
 });

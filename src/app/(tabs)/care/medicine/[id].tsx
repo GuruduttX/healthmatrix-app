@@ -20,8 +20,8 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  type TextInputInstance,
   View,
-  type TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -215,7 +215,7 @@ export default function MedicineFormScreen() {
   // Fixed for the life of the form, so its defaults do not shift at midnight.
   const [today] = useState(() => toDateKey(new Date()));
   const navigation = useNavigation<NativeStackNavigationProp<Record<string, object | undefined>>>();
-  const nameInput = useRef<TextInput>(null);
+  const nameInput = useRef<TextInputInstance>(null);
 
   // A new medicine starts on its name, but only once the screen has slid in: the keyboard
   // opening during the slide makes it stutter. Web may not report the end, so a timer backs it up.

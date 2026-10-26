@@ -4,7 +4,7 @@ import {
   TwilioVideoParticipantView,
   type TrackIdentifier,
 } from '@twilio/video-react-native-sdk';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { isRunningInExpoGo } from 'expo';
 import { BackHandler, NativeModules, Platform, StyleSheet, UIManager, View } from 'react-native';
 
@@ -61,10 +61,9 @@ export function VideoCall({
   const inCall = admitted && status !== 'connecting';
 
   useEffect(() => {
-    const room = video.current;
     leaving.current = false;
     // No media yet: nothing leaves the phone until the doctor admits the member.
-    room?.connect({
+    video.current?.connect({
       roomName,
       accessToken: token,
       cameraType: 'front',
@@ -72,11 +71,26 @@ export function VideoCall({
       enableVideo: false,
       enableNetworkQualityReporting: true,
     });
+  }, [roomName, token]);
+
+  // Leaves in a layout effect: on unmount React runs it before the SDK's own cleanup, which
+  // forgets the camera and mic without releasing them and leaves no view to send `disconnect` to.
+  useLayoutEffect(() => {
+    const room = video.current;
     return () => {
       leaving.current = true;
       room?.disconnect();
     };
   }, [roomName, token]);
+
+  /**
+   * The room ended without the member hanging up. The SDK keeps the camera and mic running when
+   * that happens, and Android crashes once they outlive the call screen, so release them first.
+   */
+  const release = () => {
+    leaving.current = true;
+    video.current?.disconnect();
+  };
 
   // Once in the call, the mic and camera follow the member's choices. The SDK creates and
   // publishes each track the first time it is turned on.
@@ -123,11 +137,13 @@ export function VideoCall({
           setDoctorHere(participants.length > 0);
         }}
         onRoomDidFailToConnect={({ error }) => {
-          if (!leaving.current)
-            onDisconnected(`The call could not connect. ${String(error ?? '')}`);
+          if (leaving.current) return;
+          release();
+          onDisconnected(`The call could not connect. ${String(error ?? '')}`);
         }}
         onRoomDidDisconnect={({ error }) => {
           if (leaving.current) return;
+          release();
           // The same member joined from another device, which takes over the call.
           if (/identity/i.test(String(error ?? ''))) return onLeave();
           // "Room completed": the console closed it to end or cancel the consult.

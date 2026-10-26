@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { StyleSheet, TextInput, type TextInputInstance, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Chip } from '@/components/ui/chip';
@@ -34,7 +34,7 @@ export function CustomTimeInput({ initial, onChange, error }: CustomTimeInputPro
   const [hour, setHour] = useState(String(h % 12 || 12));
   const [minute, setMinute] = useState(pad(m));
   const [pm, setPm] = useState(h >= 12);
-  const minuteInput = useRef<TextInput>(null);
+  const minuteInput = useRef<TextInputInstance>(null);
   // Ringed in orange while typing, like a `TextField`.
   const [focused, setFocused] = useState<'hour' | 'minute' | null>(null);
 

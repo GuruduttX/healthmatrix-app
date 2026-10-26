@@ -15,6 +15,8 @@ import { refreshAppointments } from '@/features/doctors/use-appointments';
 import { refreshConsultRequests } from '@/features/doctors/use-consult-requests';
 import { usePastConsults } from '@/features/doctors/use-past-consults';
 import { TodayMedicinesCard } from '@/features/reminders/today-card';
+import { SupportCard } from '@/features/support/support-card';
+import { refreshSupport } from '@/features/support/use-support';
 import { refreshReminders } from '@/features/reminders/use-reminders';
 import { refreshVaccinations } from '@/features/vaccines/use-vaccinations';
 import { VaccinesCard } from '@/features/vaccines/vaccines-card';
@@ -38,6 +40,7 @@ export default function CareScreen() {
       refreshVaccinations(memberId),
       refreshPods(),
       refreshPodBookings(memberId),
+      refreshSupport(memberId),
     ]);
   };
 
@@ -51,6 +54,8 @@ export default function CareScreen() {
         refreshAppointments(memberId),
         refreshConsultRequests(memberId),
         refreshPodBookings(memberId),
+        // The support team's replies.
+        refreshSupport(memberId),
       ]);
       // Pods that failed to load get another try each time Care comes back into view.
       if (!podCatalogLoaded()) void refreshPods();
@@ -88,6 +93,8 @@ export default function CareScreen() {
       </Section>
 
       <VaccinesCard index={7} />
+
+      <SupportCard index={8} />
     </Screen>
   );
 }

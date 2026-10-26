@@ -50,7 +50,7 @@ const SPRING = { damping: 22, stiffness: 260, mass: 1 };
  * and orange only on what's selected. Ekaay is an orb inside the dock, ringed when selected instead
  * of getting the pill.
  */
-export function TabBar({ state, descriptors, navigation, insets }: TabBarProps) {
+export function TabBar({ state, descriptors, emitter, navigateToTab, insets }: TabBarProps) {
   const keyboardVisible = useKeyboardVisible();
   const reduceMotion = useReducedMotion();
   const slot = useSharedValue(0);
@@ -103,20 +103,19 @@ export function TabBar({ state, descriptors, navigation, insets }: TabBarProps) 
             const isCenter = route.name === CENTER_TAB;
 
             const onPress = () => {
-              const event = navigation.emit({
+              const event = emitter.emit({
                 type: 'tabPress',
                 target: route.key,
                 canPreventDefault: true,
               });
-              if (!focused && !event.defaultPrevented)
-                navigation.navigate(route.name, route.params);
+              if (!focused && !event.defaultPrevented) navigateToTab(route.key);
             };
 
             return (
               <Pressable
                 key={route.key}
                 onPress={onPress}
-                onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })}
+                onLongPress={() => emitter.emit({ type: 'tabLongPress', target: route.key })}
                 accessibilityRole="tab"
                 accessibilityLabel={label}
                 accessibilityState={{ selected: focused }}

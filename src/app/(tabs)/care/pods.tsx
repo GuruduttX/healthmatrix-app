@@ -1,7 +1,14 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, MapPinOff, RotateCw, Search, SearchX, X } from 'lucide-react-native';
 import { useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  type ScrollViewInstance,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EmptyState } from '@/components/ui/empty-state';
@@ -82,7 +89,7 @@ export default function PodsScreen() {
   const [booking, setBooking] = useState(false);
   const [bookError, setBookError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState<Booking | null>(null);
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
 
   // Asked once: what the lab needs that the profile doesn't have.
   const askDateOfBirth = !member?.dateOfBirth || changingBirth;

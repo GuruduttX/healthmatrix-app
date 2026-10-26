@@ -12,11 +12,13 @@ import { useFonts } from 'expo-font';
 import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
+import { View } from 'react-native';
 
 import { BrandSplash } from '@/components/brand-splash';
 import { Colors } from '@/constants/theme';
 import { AuthProvider, useAuth } from '@/features/auth/auth-context';
 import { ReminderNotifications } from '@/features/reminders/reminder-notifications';
+import { useHydrated } from '@/hooks/use-hydrated';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -33,6 +35,10 @@ const navigationTheme = {
 };
 
 export default function RootLayout() {
+  // On web the page is rendered on the server first, where there's no window size, signed-in
+  // member or loaded fonts. Everything here depends on those, so the server and the browser's
+  // first pass draw only the page colour, and the app itself renders in the browser.
+  const hydrated = useHydrated();
   const [fontsLoaded, fontError] = useFonts({
     BricolageGrotesque_600SemiBold,
     BricolageGrotesque_700Bold,
@@ -42,6 +48,7 @@ export default function RootLayout() {
     Figtree_700Bold,
   });
 
+  if (!hydrated) return <View style={{ flex: 1, backgroundColor: Colors.canvas }} />;
   if (!fontsLoaded && !fontError) return null;
 
   return (
